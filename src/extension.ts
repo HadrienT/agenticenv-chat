@@ -32,10 +32,16 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
   private bridge: BridgeClient | undefined;
   private healthTimer: NodeJS.Timeout | undefined;
   private healthInFlight = false;
+  private closedTimer: NodeJS.Timeout | undefined;
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
   resolveWebviewView(view: vscode.WebviewView): void {
+    // resolveWebviewView can be called again (e.g. the view is moved between
+    // sidebar and panel). Tear the previous bridge down first so we never run
+    // two clients against the one-session bridge.
+    this.bridge?.stop();
+
     this.view = view;
     view.webview.options = {
       enableScripts: true,
@@ -46,10 +52,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
     view.webview.onDidReceiveMessage((msg: WebviewToHost) => this.onWebviewMessage(msg));
 
     this.bridge = new BridgeClient(this.bridgeUrl(), {
-      onState: (state, detail) => {
-        this.postToWebview({ type: "connection", state, detail });
-        void this.pollHealth();
-      },
+      onState: (state, detail) => this.onBridgeState(state, detail),
       onMessage: (message) => this.onBridgeMessage(message),
     });
     this.bridge.start();
@@ -69,10 +72,35 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
     view.onDidDispose(() => {
       cfgSub.dispose();
       this.updateHealthPolling(false);
+      if (this.closedTimer) {
+        clearTimeout(this.closedTimer);
+      }
       this.bridge?.stop();
       this.bridge = undefined;
       this.view = undefined;
     });
+  }
+
+  private onBridgeState(state: "connecting" | "open" | "closed", detail?: string): void {
+    if (this.closedTimer) {
+      clearTimeout(this.closedTimer);
+      this.closedTimer = undefined;
+    }
+    if (state === "closed") {
+      // Debounce: a VS Code extension-host restart or a 1s reconnect blip
+      // should not flash the banner red. Only report "closed" if it sticks.
+      this.closedTimer = setTimeout(() => {
+        this.postToWebview({ type: "connection", state: "closed", detail });
+      }, 2500);
+      return;
+    }
+    this.postToWebview({ type: "connection", state, detail });
+    if (state === "open") {
+      // Re-request whatever a fresh connection needs; the first `list_mcp_servers`
+      // sent on webview load may have raced an unconnected socket.
+      this.bridge?.send({ type: "list_mcp_servers" });
+    }
+    void this.pollHealth();
   }
 
   private updateHealthPolling(active: boolean): void {
@@ -118,19 +146,29 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
     this.bridge?.reconnect();
   }
 
+  /** Sends to the bridge; tells the webview if the socket wasn't open. */
+  private sendOrNotify(inbound: Parameters<BridgeClient["send"]>[0], what: string): void {
+    if (!this.bridge?.send(inbound)) {
+      this.postToWebview({
+        type: "hostError",
+        text: `Can't ${what} — not connected to the bridge. Start it from the Components panel.`,
+      });
+    }
+  }
+
   private onWebviewMessage(msg: WebviewToHost): void {
     switch (msg.type) {
       case "ready":
         this.bridge?.send({ type: "list_mcp_servers" });
         break;
       case "startSession":
-        this.bridge?.send({ type: "start_session", mcp_servers: msg.mcpServers });
+        this.sendOrNotify({ type: "start_session", mcp_servers: msg.mcpServers }, "start a session");
         break;
       case "userMessage":
-        this.bridge?.send({ type: "user_message", text: msg.text });
+        this.sendOrNotify({ type: "user_message", text: msg.text }, "send the message");
         break;
       case "confirm":
-        this.bridge?.send({ type: "confirm_action", accept: msg.accept });
+        this.sendOrNotify({ type: "confirm_action", accept: msg.accept }, "answer");
         break;
       case "openDiff":
         void this.openDiff(msg.path);

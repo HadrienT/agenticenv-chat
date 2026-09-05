@@ -2,7 +2,7 @@
   "name": "agenticenv-chat",
   "displayName": "AgenticEnv Chat",
   "description": "Chat panel inside VS Code for a local OpenHands agent (AgenticEnv), via the openhands-bridge WebSocket server.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "hadrient",
   "private": true,
   "license": "MIT",

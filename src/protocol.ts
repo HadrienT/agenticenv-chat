@@ -135,6 +135,7 @@ export type HostToWebview =
   | { type: "bridge"; message: Outbound }
   | { type: "mcpServers"; servers: { name: string; transport: string; tools: string[] }[] }
   | { type: "health"; components: ComponentHealth[] }
+  | { type: "hostError"; text: string }
   | { type: "reset" };
 
 export type WebviewToHost =

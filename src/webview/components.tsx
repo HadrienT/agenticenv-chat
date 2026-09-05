@@ -93,6 +93,15 @@ export const styles: Record<string, CSSProperties> = {
     whiteSpace: "pre-wrap",
   },
   thinking: { opacity: 0.6, fontStyle: "italic" },
+  notice: {
+    margin: "6px 8px 0",
+    background: v("inputValidation-warningBackground", "#5a4a1d"),
+    border: `1px solid ${v("inputValidation-warningBorder", "#b89500")}`,
+    borderRadius: "4px",
+    padding: "5px 8px",
+    fontSize: "11px",
+    cursor: "pointer",
+  },
   confirmCard: {
     margin: "0 8px 8px",
     background: v("inputValidation-warningBackground", "#5a4a1d"),

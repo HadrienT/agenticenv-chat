@@ -74,6 +74,7 @@ export function App(): JSX.Element {
   const [pendingConfirm, setPendingConfirm] = useState(false);
   const [sessionInfo, setSessionInfo] = useState<{ llmSource: string } | null>(null);
   const [health, setHealth] = useState<ComponentHealth[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [running, setRunning] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -85,10 +86,17 @@ export function App(): JSX.Element {
       const msg = e.data;
       if (msg.type === "connection") {
         setConn({ state: msg.state, detail: msg.detail });
+        if (msg.state === "open") {
+          setNotice(null);
+        }
       } else if (msg.type === "mcpServers") {
         setMcpServers(msg.servers);
       } else if (msg.type === "health") {
         setHealth(msg.components);
+      } else if (msg.type === "hostError") {
+        setStarting(false);
+        setRunning(false);
+        setNotice(msg.text);
       } else if (msg.type === "reset") {
         resetAll();
       } else if (msg.type === "bridge") {
@@ -266,6 +274,11 @@ export function App(): JSX.Element {
           post({ type: "healthAction", component, action })
         }
       />
+      {notice && (
+        <div style={styles.notice} onClick={() => setNotice(null)} title="dismiss">
+          {notice}
+        </div>
+      )}
       {body}
     </div>
   );
