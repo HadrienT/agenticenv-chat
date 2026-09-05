@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { globToRegExp } from "../glob";
 import { log } from "../logging";
 
 /**
@@ -32,30 +33,6 @@ export const SENSITIVE_GLOBS = [
 /** Toujours exclus des propositions, indépendamment du .gitignore. */
 export const NOISE_DIRS = ["node_modules", ".git", "build", "dist", "out", ".venv", "__pycache__"];
 
-/** Convertit un glob simple (`*`, `?`, `**`) en RegExp ancrée sur le chemin relatif. */
-export function globToRegExp(glob: string): RegExp {
-  let out = "";
-  for (let i = 0; i < glob.length; i++) {
-    const c = glob[i];
-    if (c === "*" && glob[i + 1] === "*" && glob[i + 2] === "/") {
-      // `**/` = zéro ou plus de répertoires (sémantique .gitignore)
-      out += "(?:.*/)?";
-      i += 2;
-    } else if (c === "*" && glob[i + 1] === "*") {
-      out += ".*";
-      i++;
-    } else if (c === "*") {
-      out += "[^/]*";
-    } else if (c === "?") {
-      out += "[^/]";
-    } else if (".+^${}()|[]\\".includes(c)) {
-      out += "\\" + c;
-    } else {
-      out += c;
-    }
-  }
-  return new RegExp("^" + out + "$");
-}
 
 const SENSITIVE_RES = SENSITIVE_GLOBS.map(globToRegExp);
 

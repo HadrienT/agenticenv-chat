@@ -20,6 +20,12 @@
   ],
   "activationEvents": [],
   "main": "./dist/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "In an untrusted folder the agent runs read-only: sessions cannot start and repo instruction/prompt files are not loaded."
+    }
+  },
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -121,6 +127,17 @@
           "type": "boolean",
           "default": true,
           "description": "Show a gutter mark on lines the agent changed in the current turn."
+        },
+        "agenticenvChat.permissions": {
+          "type": "object",
+          "default": { "mode": "ask", "allow": [], "deny": [], "denyPaths": [] },
+          "description": "Approval policy. mode: ask | autoEdit | autoAll | readOnly. allow/deny are regex matched on the normalised command; deny always wins. denyPaths are globs that always require confirmation. NOTE: the allowlist guards against accidents, not against an attacker — the real confinement is the Docker sandbox.",
+          "properties": {
+            "mode": { "type": "string", "enum": ["ask", "autoEdit", "autoAll", "readOnly"] },
+            "allow": { "type": "array", "items": { "type": "string" } },
+            "deny": { "type": "array", "items": { "type": "string" } },
+            "denyPaths": { "type": "array", "items": { "type": "string" } }
+          }
         }
       }
     }

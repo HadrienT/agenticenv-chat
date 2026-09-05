@@ -19,6 +19,7 @@ export function applyBridge(state: AppState, msg: Outbound, at: number): AppStat
     case "resumed":
     case "file_diff":
     case "checkpoint":
+    case "pending_action":
       // Interceptés/traduits par l'hôte. No-op dans le réducteur webview.
       return state;
 
@@ -65,8 +66,13 @@ export function applyBridge(state: AppState, msg: Outbound, at: number): AppStat
 
     case "awaiting_confirmation": {
       const p = state.phase;
+      // La charge utile (pending_action) arrive via un message hôte `pendingAction` ;
+      // ici on bascule juste la phase (compat v1 : bridge sans détail).
       return p.kind === "running"
-        ? { ...state, phase: { kind: "awaiting", conversationId: p.conversationId, turnId: p.turnId } }
+        ? {
+            ...state,
+            phase: { kind: "awaiting", conversationId: p.conversationId, turnId: p.turnId, pending: null },
+          }
         : state;
     }
 

@@ -166,11 +166,16 @@ Le bouton « Run » d'un bloc de code `bash` (C02 §3) :
 
 ## 9. Critères d'acceptation
 
-- [ ] Aucune demande d'autorisation ne se fait sans montrer l'action exacte (ou sans dire qu'elle est inconnue).
-- [ ] `deny` ne peut être désarmé par aucun mode.
-- [ ] Les 15 vecteurs de contournement échouent à obtenir une auto-approbation.
-- [ ] Une commande auto-autorisée est visible dans le fil avec la règle appliquée.
-- [ ] `.env` déclenche une confirmation même en `autoAll`.
-- [ ] Le mode `autoAll` affiche une bannière permanente.
-- [ ] Le bouton Run indique qu'il exécute sur l'hôte, pas dans le sandbox.
-- [ ] La documentation dit explicitement que l'allowlist protège des accidents, pas d'un attaquant.
+- [x] `ConfirmCard` informative : commande exacte + cwd, diff pour une édition, `Edit…`, `Allow always…` (session/folder). Focus initial sur **Reject**, aucun timeout. Sans charge utile (v1) → « the bridge did not say which action ». **`[À CONFIRMER]` tranché** : le client **synthétise** la carte depuis le dernier `ActionEvent` — ce n'est pas simuler l'état du bridge (P1), c'est présenter ce qu'on a vu passer ; `blind: true` sinon.
+- [x] `deny` gagne toujours (testé sur les 3 modes) ; `deny` par défaut inclut `rm -rf`, `git push --force`, fork bomb.
+- [x] 16 vecteurs de contournement (`;`, `&&`, `|`, `` ` ``, `$(`, `>`, `>>`, `&`, `\n`, `eval`, `#`…) → jamais `allow` (`CHAIN_CHARS`, test dédié).
+- [x] Regex invalide → `invalidRules` → `notice`, jamais `allow`.
+- [x] Auto-décision visible dans le fil (item `permission` « auto-allowed by rule … ») **et** dans l'OutputChannel (`logDecision`).
+- [x] `.env` / `denyPaths` → `ask` même en `autoAll`.
+- [x] `autoAll` → bannière `perm-yolo` permanente non-dismissible.
+- [x] Run : passe par `evaluate()` (même politique que l'agent), s'exécute **sur l'hôte** (tooltip + prompt modal « Run on YOUR machine, not the sandbox »).
+- [x] Workspace Trust : `capabilities.untrustedWorkspaces: "limited"` ; dossier non fiable → `readOnly` forcé, `startSession` refusé avec explication.
+- [x] Doc honnête : `package.json` et ce fichier disent que l'allowlist protège des **accidents**, pas d'un attaquant — le vrai confinement est le sandbox Docker.
+- [x] 207 tests (matrice de politique, 16 vecteurs, destructif, synthèse, état).
+- [ ] **Persistance workspace** : « Allow always (workspace) » écrit dans `workspaceState` — round-trip réel à confirmer en F5.
+- [ ] Le `pending_action`/`confirm_action{edited_command}` côté bridge reste à faire (marqué `CLIENT_AHEAD`) ; en v1 l'`edited_command` part mais le bridge doit l'honorer.

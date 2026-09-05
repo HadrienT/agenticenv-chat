@@ -20,7 +20,12 @@ describe("discipline — hygiène (05-TESTING §5)", () => {
       if (/[/\\]logging\.ts$/.test(f)) continue;
       const src = read(f);
       for (const block of catchBlocks(src)) {
-        if (!/\blog\.(error|warn|info|debug|trace)\s*\(/.test(block)) {
+        // `discipline:surfaced` : rare échappatoire pour un module **pur** qui
+        // remonte l'erreur autrement qu'en journalisant (ex. accumulateur retourné).
+        if (
+          !/\blog\.(error|warn|info|debug|trace)\s*\(/.test(block) &&
+          !/discipline:surfaced/.test(block)
+        ) {
           offenders.push(rel(f));
           break;
         }

@@ -74,6 +74,20 @@ export interface FileHit {
   rel: string;
 }
 
+export interface PendingActionView {
+  actionId: string;
+  kind: "command" | "edit" | "network" | "other";
+  summary: string;
+  command?: string;
+  cwd?: string;
+  path?: string;
+  diff?: string;
+  /** avertissements de commande destructrice, non bloquants (item 114). */
+  warnings: { pattern: string; message: string }[];
+  /** `true` si le bridge n'a fourni aucun détail (v1) — aveu honnête. */
+  blind: boolean;
+}
+
 export interface WorkingSetView {
   path: string;
   status: "M" | "A" | "D" | "ADDED" | "DELETED" | "UPDATED" | "MOVED";
@@ -110,6 +124,9 @@ export type HostToWebview =
   | { type: "clearThread" }
   | { type: "workingSet"; files: WorkingSetView[]; strategy: string }
   | { type: "fileDiff"; path: string; unified: string; conflict: boolean; error?: string }
+  | { type: "pendingAction"; action: PendingActionView | null }
+  | { type: "permissionMode"; mode: "ask" | "autoEdit" | "autoAll" | "readOnly"; trusted: boolean }
+  | { type: "permissionOutcome"; verdict: "allowed" | "denied"; rule: string; summary: string }
   | {
       type: "workspace";
       folder: string | null;
@@ -137,6 +154,9 @@ export const HOST_TO_WEBVIEW_TYPES = [
   "clearThread",
   "workingSet",
   "fileDiff",
+  "pendingAction",
+  "permissionMode",
+  "permissionOutcome",
   "workspace",
   "reset",
 ] as const;
@@ -153,7 +173,7 @@ export type WebviewToHost =
   | { type: "dismissAuto"; refKey: string }
   | { type: "cancelTurn" }
   | { type: "forceNewSession" }
-  | { type: "confirm"; accept: boolean }
+  | { type: "confirm"; accept: boolean; actionId?: string; remember?: "session" | "workspace"; editedCommand?: string }
   | { type: "openDiff"; path: string }
   | { type: "requestFileDiff"; path: string }
   | { type: "openFileDiff"; path: string }

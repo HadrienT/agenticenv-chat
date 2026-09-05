@@ -25,6 +25,13 @@ function renderItem(item: ChatItem): JSX.Element {
           — turn ended —
         </div>
       );
+    case "permission":
+      return (
+        <div key={item.id} className="agx-permline">
+          {item.verdict === "allowed" ? "✓ auto-allowed" : "⛔ auto-denied"} — {item.summary}{" "}
+          <span className="agx-permline__rule">by rule {item.rule}</span>
+        </div>
+      );
     default:
       return assertNever(item, "ChatItem");
   }

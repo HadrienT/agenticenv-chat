@@ -13,6 +13,14 @@ import {
 import { DEFAULT_SANDBOX_ROOT, resetMapping, setMapping, toHostUri } from "./paths";
 import { appendFeedback } from "./sessions/feedback";
 import { CLIENT_ID, CLIENT_PROTOCOL, type Outbound } from "./protocol";
+import { destructiveMatches, evaluate } from "./permissions/policy";
+import { PermissionStore } from "./permissions/store";
+import {
+  allowPatternFor,
+  synthesizePending,
+  toEvalAction,
+  type LastAction,
+} from "./permissions/synthesize";
 import { CheckpointStore } from "./edits/checkpoints";
 import { TurnDecorations } from "./edits/decorations";
 import { CheckpointContentProvider, SCHEME, openCheckpointDiff } from "./edits/openDiff";
@@ -53,13 +61,18 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private readonly checkpoints = new CheckpointStore();
   private readonly turnDecorations = new TurnDecorations();
   private readonly diffProvider = new CheckpointContentProvider();
+  private readonly permissions: PermissionStore;
+  private lastAction: LastAction | null = null;
+  private pendingActionSeq = 0;
 
   constructor(private readonly context: vscode.ExtensionContext) {
+    this.permissions = new PermissionStore(context);
     context.subscriptions.push(
       vscode.workspace.registerTextDocumentContentProvider(SCHEME, this.diffProvider),
       this.diffProvider,
       this.turnDecorations,
       vscode.window.onDidChangeVisibleTextEditors(() => this.turnDecorations.refresh()),
+      vscode.workspace.onDidGrantWorkspaceTrust(() => this.sendPermissionMode()),
     );
   }
 
@@ -241,8 +254,30 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case "session_started":
         this.conversationId = message.conversation_id;
         this.llmSource = message.llm_source;
+        this.permissions.resetSession();
         void this.context.workspaceState.update(K_CONVERSATION, this.conversationId);
+        this.sendPermissionMode();
         this.postToWebview({ type: "bridge", message });
+        return;
+
+      case "event": {
+        const ev = message.event;
+        if (ev.kind === "ActionEvent") {
+          this.lastAction = {
+            toolName: ev.tool_name ?? "tool",
+            args: (ev.action as Record<string, unknown>) ?? {},
+          };
+        }
+        this.postToWebview({ type: "bridge", message });
+        return;
+      }
+
+      case "awaiting_confirmation":
+        void this.handlePendingAction(null);
+        return;
+
+      case "pending_action":
+        void this.handlePendingAction(message);
         return;
 
       case "turn_started":
@@ -282,6 +317,83 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  // --- permissions (C07) -------------------------------------------
+
+  private sendPermissionMode(): void {
+    const pol = this.permissions.effective();
+    this.postToWebview({
+      type: "permissionMode",
+      mode: pol.mode,
+      trusted: vscode.workspace.isTrusted,
+    });
+  }
+
+  private async handlePendingAction(
+    bridgeMsg: Extract<Outbound, { type: "pending_action" }> | null,
+  ): Promise<void> {
+    const actionId = bridgeMsg?.action_id ?? `pa-${this.pendingActionSeq++}`;
+    const pending = bridgeMsg
+      ? {
+          actionId,
+          kind: bridgeMsg.kind,
+          summary: bridgeMsg.summary,
+          command: bridgeMsg.command,
+          path: bridgeMsg.path,
+          diff: bridgeMsg.diff,
+          warnings: bridgeMsg.command ? destructiveMatches(bridgeMsg.command) : [],
+          blind: false,
+        }
+      : synthesizePending(this.lastAction, actionId);
+
+    const policy = this.permissions.effective();
+    const { decision, invalidRules } = evaluate(
+      toEvalAction(pending),
+      policy,
+      (p) => this.permissions.isSensitivePath(p),
+    );
+    for (const bad of invalidRules) {
+      this.postToWebview({ type: "hostError", text: `Ignored invalid permission regex: ${bad}` });
+    }
+
+    if (decision.verdict === "allow") {
+      this.permissions.logDecision(pending.summary, decision.rule, "allow");
+      this.postToWebview({ type: "permissionOutcome", verdict: "allowed", rule: decision.rule, summary: pending.summary });
+      this.postToWebview({ type: "pendingAction", action: null });
+      this.bridge?.send({ type: "confirm_action", accept: true, action_id: actionId });
+      return;
+    }
+    if (decision.verdict === "deny") {
+      this.permissions.logDecision(pending.summary, decision.rule, "deny");
+      this.postToWebview({ type: "permissionOutcome", verdict: "denied", rule: decision.rule, summary: pending.summary });
+      this.postToWebview({ type: "pendingAction", action: null });
+      this.bridge?.send({ type: "confirm_action", accept: false, action_id: actionId });
+      return;
+    }
+    // ask
+    this.postToWebview({ type: "pendingAction", action: pending });
+  }
+
+  private onConfirm(msg: Extract<WebviewToHost, { type: "confirm" }>): void {
+    if (msg.accept && msg.remember && this.lastAction) {
+      const pattern = allowPatternFor(synthesizePending(this.lastAction, msg.actionId ?? ""));
+      if (pattern) {
+        this.permissions.addAllow(pattern, msg.remember);
+        this.sendPermissionMode();
+      }
+    }
+    this.sendOrNotify(
+      {
+        type: "confirm_action",
+        accept: msg.accept,
+        action_id: msg.actionId,
+        remember: msg.remember,
+        edited_command: msg.editedCommand,
+      },
+      "answer",
+    );
+    this.postToWebview({ type: "pendingAction", action: null });
+  }
+
   // --- webview -> hôte ------------------------------------------------
 
   private onWebviewMessage(msg: WebviewToHost): void {
@@ -290,10 +402,19 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         log.debug("webview ready, stateVersion", msg.stateVersion);
         this.sendWorkspace();
         this.sendAutoContext();
+        this.sendPermissionMode();
         void this.sendStarters();
         this.bridge?.enqueue({ type: "list_mcp_servers" });
         break;
       case "startSession": {
+        if (!vscode.workspace.isTrusted) {
+          this.postToWebview({
+            type: "hostError",
+            text: "This folder is not trusted — the session is read-only and cannot start. Use \"Trust folder\" to enable it.",
+          });
+          this.postToWebview({ type: "reset" });
+          return;
+        }
         const projectPath = this.projectPath();
         setMapping({
           sandboxRoot: DEFAULT_SANDBOX_ROOT,
@@ -336,7 +457,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.bridge?.reconnect();
         break;
       case "confirm":
-        this.sendOrNotify({ type: "confirm_action", accept: msg.accept }, "answer");
+        this.onConfirm(msg);
         break;
       case "openDiff":
         void this.openDiff(msg.path);
@@ -711,14 +832,29 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   private async runInTerminal(command: string): Promise<void> {
-    // C07 remplacera cette confirmation par la politique d'allowlist.
-    const ok = await vscode.window.showWarningMessage(
-      `Run this command in a terminal?\n\n${command}`,
-      { modal: true },
-      "Run",
+    // Le bouton Run passe par la MÊME politique que l'agent (C07 §6). Un
+    // raccourci d'UI ne contourne pas l'allowlist.
+    const { decision } = evaluate(
+      { kind: "command", command },
+      this.permissions.effective(),
+      (p) => this.permissions.isSensitivePath(p),
     );
-    if (ok !== "Run") {
+    if (decision.verdict === "deny") {
+      this.postToWebview({ type: "hostError", text: `Blocked by rule ${decision.rule}: ${command}` });
       return;
+    }
+    if (decision.verdict === "ask") {
+      const warn = destructiveMatches(command)
+        .map((w) => `⛔ ${w.message}`)
+        .join("\n");
+      const ok = await vscode.window.showWarningMessage(
+        `Run on YOUR machine (not the sandbox)?\n\n$ ${command}${warn ? `\n\n${warn}` : ""}`,
+        { modal: true },
+        "Run",
+      );
+      if (ok !== "Run") {
+        return;
+      }
     }
     const term =
       vscode.window.terminals.find((t) => t.name === "AgenticEnv Chat") ??

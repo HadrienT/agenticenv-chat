@@ -27,7 +27,12 @@ export interface Actions {
   dismissAuto(refKey: string): void;
   cancelTurn(): void;
   forceNewSession(): void;
-  confirm(accept: boolean): void;
+  confirm(opts: {
+    accept: boolean;
+    actionId?: string;
+    remember?: "session" | "workspace";
+    editedCommand?: string;
+  }): void;
   setDraft(draft: string): void;
   toggleMcp(name: string): void;
   togglePanel(id: PanelId): void;
@@ -74,9 +79,9 @@ export function createActions(dispatch: (action: Action) => void, now: () => num
       send({ type: "intent/cancelTurn" });
     },
     forceNewSession: () => post({ type: "forceNewSession" }),
-    confirm: (accept) => {
-      post({ type: "confirm", accept });
-      send({ type: "intent/confirm", accept, at: now() });
+    confirm: (opts) => {
+      post({ type: "confirm", ...opts });
+      send({ type: "intent/confirm", accept: opts.accept, at: now() });
     },
     setDraft: (draft) => send({ type: "composer/setDraft", draft }),
     toggleMcp: (name) => send({ type: "mcp/toggle", name }),

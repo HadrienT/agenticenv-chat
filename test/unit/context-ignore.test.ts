@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   IgnoreMatcher,
-  globToRegExp,
   isNoise,
   isSensitivePath,
   parseIgnoreFile,
 } from "../../src/context/ignore";
+import { globToRegExp } from "../../src/glob";
 
 describe("ignore — motifs sensibles (C04 §ignore, item 79)", () => {
   it("un .env est sensible quel que soit le chemin", () => {
