@@ -1,3 +1,4 @@
+import type { ContextChip } from "../../messages";
 import type { AppState, ChatItem, PanelId } from "./types";
 import { initialState } from "./types";
 
@@ -8,7 +9,7 @@ import { initialState } from "./types";
  * `version` est incrémentée à **chaque** changement de forme. Une version
  * inconnue ⇒ l'état est **jeté** (jamais migré à la devinette) + notice (I7).
  */
-export const PERSIST_VERSION = 2;
+export const PERSIST_VERSION = 3;
 
 const MAX_PERSISTED_ITEMS = 200;
 
@@ -26,6 +27,7 @@ export interface PersistedState {
   conversationId: string | null;
   items: ChatItem[];
   composerDraft: string;
+  attachments: ContextChip[];
   panels: Record<PanelId, boolean>;
 }
 
@@ -36,6 +38,7 @@ export function toPersisted(state: AppState): PersistedState {
     conversationId: "conversationId" in p ? p.conversationId : null,
     items: state.items.slice(-MAX_PERSISTED_ITEMS),
     composerDraft: state.composer.draft,
+    attachments: state.composer.attachments,
     panels: state.panels,
   };
 }
@@ -77,7 +80,12 @@ export function fromPersisted(raw: unknown): HydrateResult {
       items,
       itemIndex,
       eventSeq: items.length,
-      composer: { draft: typeof raw.composerDraft === "string" ? raw.composerDraft : "" },
+      composer: {
+        draft: typeof raw.composerDraft === "string" ? raw.composerDraft : "",
+        attachments: Array.isArray(raw.attachments)
+          ? (raw.attachments.filter(isChip) as ContextChip[])
+          : [],
+      },
       panels: isRecord(raw.panels)
         ? { health: raw.panels.health === true, workingSet: raw.panels.workingSet !== false }
         : base.panels,
@@ -87,6 +95,10 @@ export function fromPersisted(raw: unknown): HydrateResult {
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function isChip(v: unknown): boolean {
+  return isRecord(v) && isRecord(v.ref) && typeof v.label === "string";
 }
 
 function isChatItem(v: unknown): v is ChatItem {

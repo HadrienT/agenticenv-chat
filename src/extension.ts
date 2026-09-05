@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { ChatViewProvider } from "./chatViewProvider";
+import { watchTerminals } from "./context/terminal";
 import { createOutputChannel, log, type LogLevel } from "./logging";
 
 const VIEW_ID = "agenticenvChat.view";
@@ -12,6 +13,8 @@ export function activate(context: vscode.ExtensionContext): void {
   log.init(channel, level);
   context.subscriptions.push(channel);
   log.info("AgenticEnv Chat activated");
+
+  watchTerminals(context);
 
   const provider = new ChatViewProvider(context);
   context.subscriptions.push(

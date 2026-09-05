@@ -1,4 +1,4 @@
-import type { ComponentHealth, McpServerView } from "../../messages";
+import type { ComponentHealth, ContextChip, FileHit, McpServerView } from "../../messages";
 import type { GitChangeDTO } from "../../protocol";
 
 /**
@@ -113,7 +113,10 @@ export interface AppState {
   usage: UsageState | null;
   workingSet: WorkingSetFile[];
   notices: Notice[];
-  composer: { draft: string };
+  composer: { draft: string; attachments: ContextChip[] };
+  /** Fournis par l'hôte (C04) ; consommés par le composer (C03). */
+  contextChips: ContextChip[];
+  fileSearch: { requestId: string; results: FileHit[] } | null;
   panels: Record<PanelId, boolean>;
 }
 
@@ -142,7 +145,9 @@ export function initialState(): AppState {
     usage: null,
     workingSet: [],
     notices: [],
-    composer: { draft: "" },
+    composer: { draft: "", attachments: [] },
+    contextChips: [],
+    fileSearch: null,
     panels: { health: false, workingSet: true },
   };
 }

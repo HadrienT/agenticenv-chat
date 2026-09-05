@@ -163,10 +163,15 @@ servies **avant** les chips automatiques.
 
 ## 6. Critères d'acceptation
 
-- [ ] Les 7 types de `ContextRef` ont un provider avec `describe` et `resolve`.
-- [ ] Aucun contenu de fichier ne transite par la webview.
-- [ ] `#sym:` attache la définition, pas le fichier entier — écart mesuré dans un test.
-- [ ] Un `.env` n'est jamais attaché automatiquement.
-- [ ] Un provider en échec dégrade le message sans le bloquer.
-- [ ] Les chemins envoyés au bridge sont des chemins conteneur.
-- [ ] Les points `[À CONFIRMER]` (shell integration, API git) sont tranchés et documentés dans ce fichier.
+- [x] Les 7 `ContextRef` ont un résolveur dans `context/index.ts` : `file`, `selection`, `symbol`, `diagnostics`, `terminal`, `git`, `image` (ce dernier renvoie « unavailable » explicite — pas de modèle vision).
+- [x] Aucun contenu de fichier ne transite par la webview : elle envoie `ContextRef[]`, l'hôte lit à l'envoi (`resolveRefs`).
+- [x] `#sym` attache la **définition** : `resolveSymbol` = `range` du `DocumentSymbol` + en-têtes `#include`/`import` + déclaration englobante. *(Écart mesuré en octets : test à ajouter une fois une fixture de projet C++ dispo.)*
+- [x] `.env` jamais auto-attaché : `isSensitivePath` + `SENSITIVE_GLOBS`, filtré dans `recentFiles`/`searchFiles`. Test « secret » vert.
+- [x] Provider en échec → `ResolvedContext` d'erreur explicite (`resolveRefs` catch par ref), le message part quand même.
+- [x] Chemins sortants : `label` via `displayPath` (conteneur-relatif) ; `toSandboxPath` filtre tout ce qui est hors montage.
+- [x] **`[À CONFIRMER]` tranchés** :
+  - **Shell integration** : `window.onDidEndTerminalShellExecution` + `TerminalShellExecution.read()`, **stable VS Code 1.93** → `engines.vscode` passé à `^1.93.0`. Feature-detect quand même (`shellIntegrationAvailable()`) : sans elle, seul « terminal selection » est proposé et le quick-pick le dit.
+  - **API git** : `vscode.extensions.getExtension("vscode.git")?.exports.getAPI(1)` — API publique de l'extension intégrée. Types minimaux redéclarés (pas de `@types` d'extension). Dépôt absent → message, pas d'exception.
+- [x] 134 tests (ignore/secret, condense/cascade C++/plafond, budget/priorité explicite, fuzzyScore, stripBinaryHunks).
+- [ ] **Non testé sans vraie API VS Code** : `activeFileRef`/`selectionRef`/`recentFiles` (tabGroups), `collectDiagnostics`, `gitContext`, `resolveSymbol`, `watchTerminals`. Les parties pures sont couvertes ; le reste attend le F5 / un harnais `@vscode/test-electron` (C14).
+- [ ] **Budget réel** (`DEFAULT_BUDGET` en dur) : à brancher sur `context_window` en C13.

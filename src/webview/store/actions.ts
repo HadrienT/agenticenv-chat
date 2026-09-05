@@ -1,4 +1,4 @@
-import type { HostToWebview } from "../../messages";
+import type { ContextChip, HostToWebview } from "../../messages";
 import type { Notice, PanelId } from "./types";
 
 /**
@@ -7,6 +7,9 @@ import type { Notice, PanelId } from "./types";
  */
 export type LocalAction =
   | { type: "composer/setDraft"; draft: string }
+  | { type: "composer/addAttachment"; chip: ContextChip }
+  | { type: "composer/removeAttachment"; index: number }
+  | { type: "composer/clearAttachments" }
   | { type: "mcp/toggle"; name: string }
   | { type: "panel/toggle"; id: PanelId }
   | { type: "notice/push"; notice: Notice }

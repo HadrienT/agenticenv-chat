@@ -11,7 +11,7 @@
     "url": "https://github.com/HadrienT/agenticenv-chat.git"
   },
   "engines": {
-    "vscode": "^1.90.0"
+    "vscode": "^1.93.0"
   },
   "categories": [
     "Chat",

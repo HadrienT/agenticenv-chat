@@ -1,4 +1,10 @@
-import type { ComponentId, HealthActionId } from "../../messages";
+import type {
+  ComponentId,
+  ContextChip,
+  ContextRef,
+  ContextRefKind,
+  HealthActionId,
+} from "../../messages";
 import { post } from "../vscodeApi";
 import type { Action, LocalAction } from "./actions";
 import { local } from "./actions";
@@ -12,7 +18,11 @@ import type { PanelId } from "./types";
 export interface Actions {
   ready(stateVersion: number): void;
   startSession(mcpServers: string[]): void;
-  sendMessage(text: string): void;
+  sendMessage(text: string, context: ContextRef[]): void;
+  searchFiles(query: string, requestId: string): void;
+  pickContext(kind: ContextRefKind): void;
+  addAttachment(chip: ContextChip): void;
+  removeAttachment(index: number): void;
   cancelTurn(): void;
   forceNewSession(): void;
   confirm(accept: boolean): void;
@@ -39,10 +49,14 @@ export function createActions(dispatch: (action: Action) => void, now: () => num
       post({ type: "startSession", mcpServers });
       send({ type: "intent/startSession" });
     },
-    sendMessage: (text) => {
-      post({ type: "userMessage", text });
+    sendMessage: (text, context) => {
+      post({ type: "userMessage", text, context });
       send({ type: "intent/sendMessage" });
     },
+    searchFiles: (query, requestId) => post({ type: "searchFiles", query, requestId }),
+    pickContext: (kind) => post({ type: "pickContext", kind }),
+    addAttachment: (chip) => send({ type: "composer/addAttachment", chip }),
+    removeAttachment: (index) => send({ type: "composer/removeAttachment", index }),
     cancelTurn: () => {
       post({ type: "cancelTurn" });
       send({ type: "intent/cancelTurn" });
