@@ -1,4 +1,10 @@
-import type { ComponentHealth, ContextChip, FileHit, McpServerView } from "../../messages";
+import type {
+  ComponentHealth,
+  ContextChip,
+  FileHit,
+  McpServerView,
+  SlashCommand,
+} from "../../messages";
 import type { GitChangeDTO } from "../../protocol";
 
 /**
@@ -113,11 +119,38 @@ export interface AppState {
   usage: UsageState | null;
   workingSet: WorkingSetFile[];
   notices: Notice[];
-  composer: { draft: string; attachments: ContextChip[] };
+  composer: {
+    draft: string;
+    /** chips explicitement ajoutées par l'utilisateur (`#`, `＋`, commande). */
+    attachments: ContextChip[];
+    /** historique des prompts envoyés (max 50, persistant). */
+    history: string[];
+  };
+  /** chips auto (fichier actif, sélection) poussées par l'hôte (C03 §2). */
+  autoContext: ContextChip[];
+  /** `refKey` des auto-chips retirées — mémorisé pour le tour suivant. */
+  dismissedAuto: string[];
   /** Fournis par l'hôte (C04) ; consommés par le composer (C03). */
   contextChips: ContextChip[];
   fileSearch: { requestId: string; results: FileHit[] } | null;
+  commands: SlashCommand[];
+  starters: string[];
   panels: Record<PanelId, boolean>;
+}
+
+const HISTORY_MAX = 50;
+
+/** Clé stable d'un `ContextRef` pour la déduplication et la mémoire de retrait. */
+export function refKey(ref: ContextChip["ref"]): string {
+  return JSON.stringify(ref);
+}
+
+export function pushHistory(history: string[], text: string): string[] {
+  const trimmed = typeof text === "string" ? text.trim() : "";
+  if (!trimmed) {
+    return history;
+  }
+  return [...history.filter((h) => h !== trimmed), trimmed].slice(-HISTORY_MAX);
 }
 
 export function initialState(): AppState {
@@ -145,9 +178,13 @@ export function initialState(): AppState {
     usage: null,
     workingSet: [],
     notices: [],
-    composer: { draft: "", attachments: [] },
+    composer: { draft: "", attachments: [], history: [] },
+    autoContext: [],
+    dismissedAuto: [],
     contextChips: [],
     fileSearch: null,
+    commands: [],
+    starters: [],
     panels: { health: false, workingSet: true },
   };
 }

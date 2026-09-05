@@ -316,15 +316,18 @@ button {
 
 .agx-composer {
   display: flex;
+  flex-direction: column;
   gap: 6px;
   padding: 8px;
   border-top: 1px solid var(--agx-border);
 }
+.agx-composer__field {
+  position: relative;
+}
 .agx-composer__input {
-  flex: 1;
+  width: 100%;
   resize: none;
   min-height: 38px;
-  max-height: 160px;
   background: var(--agx-input-bg);
   color: var(--agx-input-fg);
   border: 1px solid var(--agx-input-border);
@@ -332,6 +335,140 @@ button {
   padding: 6px;
   font-family: inherit;
   font-size: 13px;
+  overflow-y: auto;
+}
+.agx-composer__foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.agx-composer__foot .agx-btn {
+  margin-left: auto;
+}
+
+/* --- chips --- */
+.agx-chipbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.agx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--agx-input-bg);
+  border: 1px solid var(--agx-border);
+  border-radius: 10px;
+  padding: 1px 4px 1px 6px;
+  font-size: 11px;
+  max-width: 100%;
+}
+.agx-chip--sensitive {
+  border-color: var(--agx-warn-border);
+}
+.agx-chip--unavailable {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+.agx-chip__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agx-chip__size,
+.agx-chip__auto {
+  color: var(--agx-fg-muted);
+  font-size: 10px;
+}
+.agx-chip__x {
+  background: transparent;
+  border: none;
+  color: var(--agx-fg-muted);
+  cursor: pointer;
+  padding: 0 2px;
+}
+.agx-chip__x:hover {
+  color: var(--agx-error);
+}
+
+/* --- completion menu --- */
+.agx-menu {
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 2px;
+  list-style: none;
+  background: var(--agx-bg);
+  border: 1px solid var(--agx-border);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px var(--agx-shadow);
+  z-index: 5;
+}
+.agx-menu__item {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 3px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.agx-menu__item--active {
+  background: var(--vscode-list-activeSelectionBackground, var(--agx-input-bg));
+}
+.agx-menu__name {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.agx-menu__desc {
+  color: var(--agx-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agx-menu__tag {
+  margin-left: auto;
+  color: var(--agx-fg-muted);
+  font-size: 10px;
+}
+
+/* --- budget meter --- */
+.agx-budget {
+  font-size: 11px;
+  color: var(--agx-fg-muted);
+}
+.agx-budget--warn {
+  color: var(--agx-warn);
+}
+.agx-budget--high,
+.agx-budget--over {
+  color: var(--agx-error);
+}
+
+/* --- starter prompts --- */
+.agx-starters {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+}
+.agx-starter {
+  text-align: left;
+  background: var(--agx-input-bg);
+  border: 1px solid var(--agx-border);
+  border-radius: 4px;
+  padding: 5px 8px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+}
+.agx-starter:hover {
+  border-color: var(--agx-link);
 }
 
 /* --- buttons ----------------------------------------------- */

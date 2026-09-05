@@ -10,12 +10,13 @@ export type LocalAction =
   | { type: "composer/addAttachment"; chip: ContextChip }
   | { type: "composer/removeAttachment"; index: number }
   | { type: "composer/clearAttachments" }
+  | { type: "composer/dismissAuto"; refKey: string }
   | { type: "mcp/toggle"; name: string }
   | { type: "panel/toggle"; id: PanelId }
   | { type: "notice/push"; notice: Notice }
   | { type: "notice/dismiss"; id: string }
   | { type: "intent/startSession" }
-  | { type: "intent/sendMessage" }
+  | { type: "intent/sendMessage"; text: string }
   | { type: "intent/confirm"; accept: boolean; at: number }
   | { type: "intent/cancelTurn" };
 

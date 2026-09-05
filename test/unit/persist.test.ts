@@ -21,6 +21,7 @@ function sample(): AppState {
     composer: {
       draft: "unsent draft",
       attachments: [{ ref: { kind: "file", uri: "file:///x/a.cpp" }, label: "a.cpp", estBytes: 100 }],
+      history: ["earlier prompt"],
     },
     panels: { health: true, workingSet: false },
   };

@@ -1,7 +1,7 @@
 import { assertNever } from "../../assertNever";
 import type { LocalAction } from "./actions";
 import { withNotice } from "./reduceHelpers";
-import type { AppState } from "./types";
+import { pushHistory, type AppState } from "./types";
 
 /** Routeur exhaustif des intentions locales (`assertNever` en garde). */
 export function applyLocal(state: AppState, action: LocalAction): AppState {
@@ -36,6 +36,11 @@ export function applyLocal(state: AppState, action: LocalAction): AppState {
     case "composer/clearAttachments":
       return { ...state, composer: { ...state.composer, attachments: [] } };
 
+    case "composer/dismissAuto":
+      return state.dismissedAuto.includes(action.refKey)
+        ? state
+        : { ...state, dismissedAuto: [...state.dismissedAuto, action.refKey] };
+
     case "mcp/toggle": {
       const has = state.mcp.selected.includes(action.name);
       const selected = has
@@ -68,7 +73,13 @@ export function applyLocal(state: AppState, action: LocalAction): AppState {
       return {
         ...state,
         pendingSend: true,
-        composer: { ...state.composer, attachments: [] },
+        composer: {
+          ...state.composer,
+          attachments: [],
+          history: pushHistory(state.composer.history, action.text),
+        },
+        // `dismissedAuto` est conservé : un retrait d'auto-chip vaut pour les
+        // tours suivants aussi (C03 §2).
       };
     }
 

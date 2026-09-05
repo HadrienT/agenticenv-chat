@@ -17,6 +17,7 @@ import { resolveRefs } from "./context";
 import { activeFileRef, searchFiles, selectionRef } from "./context/files";
 import { searchSymbols } from "./context/symbols";
 import { shellIntegrationAvailable } from "./context/terminal";
+import { starterPrompts } from "./context/starters";
 import type { ContextRef, ContextRefKind } from "./messages";
 
 const HEALTH_POLL_MS = 8000;
@@ -89,8 +90,15 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       }
     });
 
-    const editorSub = vscode.window.onDidChangeActiveTextEditor(() => this.sendWorkspace());
-    const wsSub = vscode.workspace.onDidChangeWorkspaceFolders(() => this.sendWorkspace());
+    const editorSub = vscode.window.onDidChangeActiveTextEditor(() => {
+      this.sendWorkspace();
+      this.sendAutoContext();
+    });
+    const selSub = vscode.window.onDidChangeTextEditorSelection(() => this.sendAutoContext());
+    const wsSub = vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      this.sendWorkspace();
+      void this.sendStarters();
+    });
 
     view.onDidChangeVisibility(() => this.updateHealthPolling(view.visible));
     this.updateHealthPolling(view.visible);
@@ -98,6 +106,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     view.onDidDispose(() => {
       cfgSub.dispose();
       editorSub.dispose();
+      selSub.dispose();
       wsSub.dispose();
       this.updateHealthPolling(false);
       if (this.closedTimer) {
@@ -251,6 +260,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case "ready":
         log.debug("webview ready, stateVersion", msg.stateVersion);
         this.sendWorkspace();
+        this.sendAutoContext();
+        void this.sendStarters();
         this.bridge?.enqueue({ type: "list_mcp_servers" });
         break;
       case "startSession": {
@@ -273,6 +284,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         break;
       case "pickContext":
         void this.runPickContext(msg.kind);
+        break;
+      case "resolveCommand":
+        void this.runCommand(msg.command, msg.args);
+        break;
+      case "dismissAuto":
+        // mémorisé côté webview ; l'hôte n'a rien à faire de plus ici.
+        log.trace("auto-context dismissed:", msg.refKey);
         break;
       case "cancelTurn":
         if (this.currentTurnId) {
@@ -357,12 +375,93 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private async runPickContext(kind: ContextRefKind): Promise<void> {
-    if (kind === "file") {
-      const active = activeFileRef();
-      if (active) {
-        this.postToWebview({ type: "attachContext", chip: active });
+  private sendAutoContext(): void {
+    const chips = [activeFileRef(), selectionRef()].filter((c): c is NonNullable<typeof c> => c !== null);
+    this.postToWebview({ type: "autoContext", chips });
+  }
+
+  private async sendStarters(): Promise<void> {
+    try {
+      this.postToWebview({ type: "starters", prompts: await starterPrompts() });
+    } catch (err) {
+      log.debug("starters failed:", err);
+    }
+  }
+
+  private async runCommand(command: string, args: string): Promise<void> {
+    switch (command) {
+      case "new":
+        this.newSession();
+        return;
+      case "clear":
+        this.postToWebview({ type: "clearThread" });
+        return;
+      case "stop":
+        if (this.currentTurnId) {
+          this.sendOrNotify({ type: "cancel_turn", turn_id: this.currentTurnId }, "stop the turn");
+        }
+        return;
+      case "help":
+        this.postToWebview({
+          type: "commandResult",
+          command,
+          note: "Enter sends · Shift+Enter newline · # references · / commands · ↑ recalls previous prompts",
+        });
+        return;
+      default:
+        // Prompt réutilisable (C10) ou prompt MCP (C12) : non branché ici, on
+        // préremplit le nom pour ne rien perdre.
+        this.postToWebview({
+          type: "commandResult",
+          command,
+          prefill: args ? `/${command} ${args}` : `/${command}`,
+        });
+    }
+  }
+
+  private async runPickContext(kind: ContextRefKind | "menu"): Promise<void> {
+    if (kind === "menu") {
+      const picked = await vscode.window.showQuickPick(
+        [
+          { label: "$(file) File", ctxKind: "file" as const },
+          { label: "$(selection) Selection", ctxKind: "selection" as const },
+          { label: "$(symbol-method) Symbol", ctxKind: "symbol" as const },
+          { label: "$(warning) Problems", ctxKind: "diagnostics" as const },
+          { label: "$(terminal) Terminal", ctxKind: "terminal" as const },
+          { label: "$(git-branch) Git", ctxKind: "git" as const },
+        ],
+        { placeHolder: "Add context…" },
+      );
+      if (picked) {
+        await this.runPickContext(picked.ctxKind);
       }
+      return;
+    }
+    if (kind === "file") {
+      const query = await vscode.window.showInputBox({ prompt: "File (fuzzy)" });
+      const folder = vscode.workspace.workspaceFolders?.[0];
+      if (!query || !folder) {
+        const active = activeFileRef();
+        if (active) {
+          this.postToWebview({ type: "attachContext", chip: active });
+        }
+        return;
+      }
+      const hits = await searchFiles(query, folder.uri).catch(() => []);
+      const pick = await vscode.window.showQuickPick(
+        hits.map((h) => ({ label: h.rel, uri: h.uri })),
+        { placeHolder: "Attach file" },
+      );
+      if (pick) {
+        this.postToWebview({
+          type: "attachContext",
+          chip: { ref: { kind: "file", uri: pick.uri }, label: pick.label, estBytes: 0 },
+        });
+      }
+      return;
+    }
+    if (kind === "image") {
+      this.postToWebview({ type: "hostError", text: "Image context needs a vision model (unavailable)." });
       return;
     }
     if (kind === "selection") {

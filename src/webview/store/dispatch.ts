@@ -20,9 +20,11 @@ export interface Actions {
   startSession(mcpServers: string[]): void;
   sendMessage(text: string, context: ContextRef[]): void;
   searchFiles(query: string, requestId: string): void;
-  pickContext(kind: ContextRefKind): void;
+  pickContext(kind: ContextRefKind | "menu"): void;
+  resolveCommand(command: string, args: string): void;
   addAttachment(chip: ContextChip): void;
   removeAttachment(index: number): void;
+  dismissAuto(refKey: string): void;
   cancelTurn(): void;
   forceNewSession(): void;
   confirm(accept: boolean): void;
@@ -51,12 +53,17 @@ export function createActions(dispatch: (action: Action) => void, now: () => num
     },
     sendMessage: (text, context) => {
       post({ type: "userMessage", text, context });
-      send({ type: "intent/sendMessage" });
+      send({ type: "intent/sendMessage", text });
     },
     searchFiles: (query, requestId) => post({ type: "searchFiles", query, requestId }),
     pickContext: (kind) => post({ type: "pickContext", kind }),
+    resolveCommand: (command, args) => post({ type: "resolveCommand", command, args }),
     addAttachment: (chip) => send({ type: "composer/addAttachment", chip }),
     removeAttachment: (index) => send({ type: "composer/removeAttachment", index }),
+    dismissAuto: (key) => {
+      post({ type: "dismissAuto", refKey: key });
+      send({ type: "composer/dismissAuto", refKey: key });
+    },
     cancelTurn: () => {
       post({ type: "cancelTurn" });
       send({ type: "intent/cancelTurn" });

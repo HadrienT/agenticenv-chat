@@ -147,11 +147,14 @@ jamais génériques :
 
 ## 10. Critères d'acceptation
 
-- [ ] On peut poser une question sur le fichier ouvert sans écrire son chemin.
-- [ ] `#` complète les fichiers du dépôt en flou, au clavier.
-- [ ] Les chips reflètent exactement ce qui partira (vérifié dans l'OutputChannel).
-- [ ] Le contexte voyage dans `context[]`, jamais concaténé dans `text`.
-- [ ] `↑` rappelle les prompts précédents.
-- [ ] Un contexte trop gros est signalé **avant** l'envoi.
-- [ ] Le brouillon survit à un reload de fenêtre.
-- [ ] Composer entièrement pilotable au clavier, avec `aria-label` sur chaque bouton.
+- [x] Fichier ouvert sans écrire son chemin : auto-chips `file` + `selection` poussées par l'hôte (`sendAutoContext`).
+- [x] `#` complète les fichiers en flou au clavier (menu webview, `searchFiles`/`fileResults` débouncé 120 ms).
+- [x] Les chips reflètent ce qui partira : `effectiveAttachments` = explicites + auto non retirées ; `userMessage.context` = `chips.map(c => c.ref)`.
+- [x] Contexte dans `context[]`, jamais dans `text` : `userMessage {text, context}` → `user_message {text, context}` (le jeton `#` est retiré du texte à la validation).
+- [x] `↑`/`↓` sur champ vide → historique (50, persistant, ne détruit pas un brouillon).
+- [x] Budget signalé **avant** l'envoi : `BudgetMeter` seuils ok/warn/high/over ; aucune troncature auto.
+- [x] Brouillon + historique persistés (`PERSIST_VERSION` 3→4), survivent au reload.
+- [x] `aria-label` sur chaque bouton ; navigation menu clavier (↑↓ Enter Tab Esc). 155 tests.
+- [ ] **Différé** : glisser-déposer (item 7 — API drag&drop VS Code) ; collage d'image (item 8 — pas de modèle vision, pas de protocole image bridge). Les chips `image` renverraient « unavailable ».
+- [ ] **F5** : ancrage du menu au caret, ressenti de l'auto-grow, quick-pick natif, prompts de démarrage sur un vrai projet.
+- [ ] Budget branché sur `context_stats` réel = C13 (pour l'instant `usage.contextWindow`).
