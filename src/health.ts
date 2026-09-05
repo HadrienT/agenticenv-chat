@@ -3,7 +3,8 @@ import * as net from "node:net";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import type { ComponentHealth, HealthActionId } from "./protocol";
+import { log } from "./logging";
+import type { ComponentHealth, HealthActionId } from "./messages";
 
 const DEFAULT_IMAGE = "ghcr.io/openhands/agent-server:1.21.0-python";
 const LLAMA_UNIT = "llama-server";
@@ -42,7 +43,8 @@ function agentServerImage(agenticEnvPath: string): string {
     const yaml = fs.readFileSync(path.join(agenticEnvPath, "configs", "openhands.yaml"), "utf8");
     const m = yaml.match(/^\s*image:\s*(\S+)/m);
     return m?.[1] ?? DEFAULT_IMAGE;
-  } catch {
+  } catch (err) {
+    log.trace("agentServerImage: configs/openhands.yaml unreadable, using default:", err);
     return DEFAULT_IMAGE;
   }
 }
