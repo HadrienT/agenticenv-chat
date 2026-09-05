@@ -48,7 +48,14 @@ export type HostToWebview =
   | { type: "mcpServers"; servers: McpServerView[] }
   | { type: "health"; components: ComponentHealth[] }
   | { type: "hostError"; text: string }
-  | { type: "workspace"; folder: string | null; path: string | null }
+  | {
+      type: "workspace";
+      folder: string | null;
+      path: string | null;
+      sandboxRoot: string;
+      editorAvailable: boolean;
+      expandThinking: boolean;
+    }
   | { type: "reset" };
 
 export const HOST_TO_WEBVIEW_TYPES = [
@@ -72,6 +79,12 @@ export type WebviewToHost =
   | { type: "forceNewSession" }
   | { type: "confirm"; accept: boolean }
   | { type: "openDiff"; path: string }
+  | { type: "openFile"; path: string; line?: number }
+  | { type: "copy"; text: string }
+  | { type: "insertAtCursor"; text: string }
+  | { type: "createFile"; suggestedName: string; content: string }
+  | { type: "runInTerminal"; command: string }
+  | { type: "feedback"; itemId: string; value: "up" | "down" }
   | { type: "refreshHealth" }
   | { type: "healthAction"; component: ComponentId; action: HealthActionId };
 
@@ -83,6 +96,12 @@ export const WEBVIEW_TO_HOST_TYPES = [
   "forceNewSession",
   "confirm",
   "openDiff",
+  "openFile",
+  "copy",
+  "insertAtCursor",
+  "createFile",
+  "runInTerminal",
+  "feedback",
   "refreshHealth",
   "healthAction",
 ] as const;

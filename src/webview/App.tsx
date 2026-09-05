@@ -21,6 +21,7 @@ import { ConfirmCard } from "./views/ConfirmCard";
 import { ConnectionBanner } from "./views/ConnectionBanner";
 import { Notices } from "./views/Notices";
 import { Thread } from "./views/Thread";
+import type { ThreadServices } from "./views/threadContext";
 import { ContextGauge } from "./views/ContextGauge";
 import { Health } from "./views/panels/Health";
 import { McpPicker } from "./views/panels/McpPicker";
@@ -102,6 +103,28 @@ export function App(): JSX.Element {
     savePersisted(toPersisted(state));
   }, [state]);
 
+  const services = useMemo<ThreadServices>(
+    () => ({
+      sandboxRoot: state.workspace.sandboxRoot,
+      editorAvailable: state.workspace.editorAvailable,
+      expandThinking: state.workspace.expandThinking,
+      codeActions: {
+        copy: actions.copy,
+        insert: actions.insertAtCursor,
+        createFile: actions.createFile,
+        runInTerminal: actions.runInTerminal,
+      },
+      onOpenFile: actions.openFile,
+      onFeedback: actions.feedback,
+    }),
+    [
+      actions,
+      state.workspace.sandboxRoot,
+      state.workspace.editorAvailable,
+      state.workspace.expandThinking,
+    ],
+  );
+
   return (
     <div className="agx-app">
       <ConnectionBanner
@@ -130,6 +153,7 @@ export function App(): JSX.Element {
           <Thread
             items={state.items}
             statusLine={isTurnActive(state) ? turnStatusLine(state) : null}
+            services={services}
           />
           {pendingConfirmation(state) && <ConfirmCard onAnswer={actions.confirm} />}
           <WorkingSet files={state.workingSet} onOpen={actions.openDiff} />

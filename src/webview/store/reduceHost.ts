@@ -70,7 +70,16 @@ export function applyHost(state: AppState, msg: HostToWebview, at: number): AppS
       });
 
     case "workspace":
-      return { ...state, workspace: { folder: msg.folder, path: msg.path } };
+      return {
+        ...state,
+        workspace: {
+          folder: msg.folder,
+          path: msg.path,
+          sandboxRoot: msg.sandboxRoot,
+          editorAvailable: msg.editorAvailable,
+          expandThinking: msg.expandThinking,
+        },
+      };
 
     case "reset":
       return resetState(state);
@@ -103,10 +112,10 @@ function applyBridge(state: AppState, msg: Outbound, at: number): AppState {
       return finishTurn(state, msg);
 
     case "event":
-      return applyEvent(state, msg);
+      return applyEvent(state, msg, at);
 
     case "event_delta":
-      return applyEventDelta(state, msg);
+      return applyEventDelta(state, msg, at);
 
     case "tool_status":
       return applyToolStatus(state, msg);

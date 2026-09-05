@@ -110,20 +110,20 @@ Légende de faisabilité :
 | # | Subtilité | Qui | Faisab. |
 |---|---|---|---|
 | 20 | Streaming token par token avec rendu markdown **incrémental** (pas de flash à la fin) | les deux | 🟢 (UI) / 🟡 (deltas) — ✅ **C01** (coalescing rAF, `event` final écrase ; `event_delta` côté bridge à faire) |
-| 21 | Markdown complet : titres, listes, tableaux, citations, liens, `code inline`, cases à cocher | les deux | 🟢 |
-| 22 | Blocs de code **colorés** avec détection de langage | les deux | 🟢 |
-| 23 | Barre d'outils par bloc de code : Copier, Insérer au curseur, Insérer dans le terminal, Nouveau fichier, **Appliquer au fichier** | les deux | 🟢/🟡 |
-| 24 | Feedback « Copié ! » sur le bouton Copier | les deux | 🟢 |
-| 25 | Diagrammes Mermaid rendus | Copilot | 🟢 |
-| 26 | Maths (KaTeX) | Copilot | 🟢 |
-| 27 | Liens `fichier:ligne` cliquables → ouvrent l'éditeur à la bonne ligne | les deux | 🟢 |
-| 28 | Bloc de commande terminal avec bouton **Exécuter** (et édition avant exécution) | les deux | 🟢/🟡 |
-| 29 | Troncature des très longs blocs avec « Afficher plus » | Copilot | 🟢 |
+| 21 | Markdown complet : titres, listes, tableaux, citations, liens, `code inline`, cases à cocher | les deux | 🟢 — ✅ **C02** (markdown-it + DOMPurify allowlist) |
+| 22 | Blocs de code **colorés** avec détection de langage | les deux | 🟢 — ✅ **C02** (highlight.js, sous-ensemble ; C++ inclus) |
+| 23 | Barre d'outils par bloc de code : Copier, Insérer au curseur, Insérer dans le terminal, Nouveau fichier, **Appliquer au fichier** | les deux | 🟢/🟡 — ✅ **C02** (Copy/Insert/New file/Run ; Run passe par C07, Apply par C06) |
+| 24 | Feedback « Copié ! » sur le bouton Copier | les deux | 🟢 — ✅ **C02** (« Copied! » 1,5 s) |
+| 25 | Diagrammes Mermaid rendus | Copilot | 🟢 — ⏸️ **différé** (Mermaid ~1 Mo : demande du code-splitting incompatible avec le bundle IIFE + CSP nonce ; bloc rendu en code brut) |
+| 26 | Maths (KaTeX) | Copilot | 🟢 — ⏸️ **différé** (KaTeX : polices à inliner + budget ; maths rendues en `code`) |
+| 27 | Liens `fichier:ligne` cliquables → ouvrent l'éditeur à la bonne ligne | les deux | 🟢 — ✅ **C02** (détection `path:line`, ouverture déléguée à l'hôte via `paths.ts` ; non traduisible = non cliquable) |
+| 28 | Bloc de commande terminal avec bouton **Exécuter** (et édition avant exécution) | les deux | 🟢/🟡 — ✅ **C02** (rendu + bouton Run ; l'exécution réelle est C07) |
+| 29 | Troncature des très longs blocs avec « Afficher plus » | Copilot | 🟢 — ✅ **C02** (> 200 lignes / 20 Kio : tête+queue, « Show all » / « Open in editor ») |
 | 30 | Section « références utilisées (N) » repliable, listant fichier + plage de lignes | Copilot | 🟡 |
 | 31 | Questions de suivi suggérées après la réponse (cliquables) | Copilot | 🟡/🔴 |
-| 32 | Bloc de raisonnement / « thinking » repliable, avec « Réfléchi pendant Xs » | les deux | 🟢/🔴 |
-| 33 | Horodatage discret par message (au survol) | Claude Code | 🟢 |
-| 34 | Pouces haut / bas + commentaire par message | Copilot | 🟢 |
+| 32 | Bloc de raisonnement / « thinking » repliable, avec « Réfléchi pendant Xs » | les deux | 🟢/🔴 — ✅ **C02** (repliable, réglage `agenticenvChat.thread.expandThinking` ; « Thought for Ns » quand la durée sera dispo) |
+| 33 | Horodatage discret par message (au survol) | Claude Code | 🟢 — ✅ **C02** (relatif < 1 h, absolu ensuite, au survol) |
+| 34 | Pouces haut / bas + commentaire par message | Copilot | 🟢 — ✅ **C02** (👍/👎 → `storageUri/feedback.jsonl`, aucune télémétrie ; commentaire libre : plus tard) |
 | 35 | Rendu spécial des `<pre>` d'outil : au lieu du JSON brut, vue conviviale par outil (voir 2.3) | les deux | 🟢 |
 
 ### 2.3 Affichage des appels d'outils (mode agent)
@@ -138,7 +138,7 @@ Légende de faisabilité :
 | 41 | Diffs de fichiers **inline** dans le fil, coloration +/−, repliables par hunk | les deux | 🟡 |
 | 42 | Sortie terminal capturée et streamée sous le bloc de commande | les deux | 🟡 |
 | 43 | Survol d'une ligne d'outil → tooltip avec les args complets | Claude Code | 🟢 |
-| 44 | Liens cliquables dans les résultats d'outil (chemins → éditeur) | les deux | 🟢 |
+| 44 | Liens cliquables dans les résultats d'outil (chemins → éditeur) | les deux | 🟢 — ✅ **C02** (mêmes liens `path:line` dans les sorties d'outil) |
 | 45 | Bouton « Voir tout » quand la sortie est tronquée | les deux | 🟢 |
 
 ### 2.4 Application des éditions (Edit / Agent mode)

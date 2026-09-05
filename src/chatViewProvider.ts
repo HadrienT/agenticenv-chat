@@ -11,6 +11,7 @@ import {
   type WebviewToHost,
 } from "./messages";
 import { DEFAULT_SANDBOX_ROOT, resetMapping, setMapping, toHostUri } from "./paths";
+import { appendFeedback } from "./sessions/feedback";
 import { CLIENT_ID, CLIENT_PROTOCOL, type Outbound } from "./protocol";
 
 const HEALTH_POLL_MS = 8000;
@@ -36,6 +37,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private negotiated = false;
   private conversationId: string | undefined;
   private currentTurnId: string | undefined;
+  private llmSource: string | undefined;
   private lastSeq = 0;
 
   constructor(private readonly context: vscode.ExtensionContext) {}
@@ -74,16 +76,24 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       if (e.affectsConfiguration("agenticenvChat.bridgeUrl")) {
         this.bridge?.setUrl(this.bridgeUrl());
       }
+      if (e.affectsConfiguration("agenticenvChat.thread.expandThinking")) {
+        this.sendWorkspace();
+      }
       if (e.affectsConfiguration("agenticenvChat")) {
         void this.pollHealth();
       }
     });
+
+    const editorSub = vscode.window.onDidChangeActiveTextEditor(() => this.sendWorkspace());
+    const wsSub = vscode.workspace.onDidChangeWorkspaceFolders(() => this.sendWorkspace());
 
     view.onDidChangeVisibility(() => this.updateHealthPolling(view.visible));
     this.updateHealthPolling(view.visible);
 
     view.onDidDispose(() => {
       cfgSub.dispose();
+      editorSub.dispose();
+      wsSub.dispose();
       this.updateHealthPolling(false);
       if (this.closedTimer) {
         clearTimeout(this.closedTimer);
@@ -99,6 +109,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     resetMapping();
     this.conversationId = undefined;
     this.currentTurnId = undefined;
+    this.llmSource = undefined;
     this.lastSeq = 0;
     void this.context.workspaceState.update(K_CONVERSATION, undefined);
     void this.context.workspaceState.update(K_LAST_SEQ, undefined);
@@ -198,6 +209,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
       case "session_started":
         this.conversationId = message.conversation_id;
+        this.llmSource = message.llm_source;
         void this.context.workspaceState.update(K_CONVERSATION, this.conversationId);
         this.postToWebview({ type: "bridge", message });
         return;
@@ -269,6 +281,29 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         break;
       case "openDiff":
         void this.openDiff(msg.path);
+        break;
+      case "openFile":
+        void this.openFile(msg.path, msg.line);
+        break;
+      case "copy":
+        void vscode.env.clipboard.writeText(msg.text);
+        break;
+      case "insertAtCursor":
+        void this.insertAtCursor(msg.text);
+        break;
+      case "createFile":
+        void this.createUntitled(msg.suggestedName, msg.content);
+        break;
+      case "runInTerminal":
+        void this.runInTerminal(msg.command);
+        break;
+      case "feedback":
+        void appendFeedback(this.context, {
+          itemId: msg.itemId,
+          value: msg.value,
+          conversationId: this.conversationId,
+          llmSource: this.llmSource,
+        });
         break;
       case "refreshHealth":
         void this.pollHealth();
@@ -353,7 +388,77 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       type: "workspace",
       folder: folder ? folder.name : null,
       path: this.projectPath(),
+      sandboxRoot: DEFAULT_SANDBOX_ROOT,
+      editorAvailable: vscode.window.activeTextEditor !== undefined,
+      expandThinking: vscode.workspace
+        .getConfiguration("agenticenvChat")
+        .get<boolean>("thread.expandThinking", false),
     });
+  }
+
+  private async openFile(agentPath: string, line?: number): Promise<void> {
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    const uri =
+      toHostUri(agentPath) ?? (folder ? vscode.Uri.joinPath(folder.uri, agentPath) : null);
+    if (!uri) {
+      log.debug("openFile: path not translatable, ignored:", agentPath);
+      return;
+    }
+    try {
+      const doc = await vscode.workspace.openTextDocument(uri);
+      const editor = await vscode.window.showTextDocument(doc);
+      if (line && line > 0) {
+        const pos = new vscode.Position(line - 1, 0);
+        editor.selection = new vscode.Selection(pos, pos);
+        editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+      }
+    } catch (err) {
+      log.debug("openFile failed:", err);
+    }
+  }
+
+  private async insertAtCursor(text: string): Promise<void> {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      this.postToWebview({ type: "hostError", text: "No active editor to insert into." });
+      return;
+    }
+    await editor.edit((b) => {
+      for (const sel of editor.selections) {
+        b.replace(sel, text);
+      }
+    });
+  }
+
+  private async createUntitled(name: string, content: string): Promise<void> {
+    const ext = name.includes(".") ? name.split(".").pop() : undefined;
+    const langByExt: Record<string, string> = {
+      cpp: "cpp", c: "c", h: "cpp", hpp: "cpp", ts: "typescript", js: "javascript",
+      py: "python", json: "json", yaml: "yaml", yml: "yaml", sh: "shellscript",
+      sql: "sql", md: "markdown", cmake: "cmake",
+    };
+    const doc = await vscode.workspace.openTextDocument({
+      content,
+      language: ext ? langByExt[ext] : undefined,
+    });
+    await vscode.window.showTextDocument(doc);
+  }
+
+  private async runInTerminal(command: string): Promise<void> {
+    // C07 remplacera cette confirmation par la politique d'allowlist.
+    const ok = await vscode.window.showWarningMessage(
+      `Run this command in a terminal?\n\n${command}`,
+      { modal: true },
+      "Run",
+    );
+    if (ok !== "Run") {
+      return;
+    }
+    const term =
+      vscode.window.terminals.find((t) => t.name === "AgenticEnv Chat") ??
+      vscode.window.createTerminal("AgenticEnv Chat");
+    term.show();
+    term.sendText(command, false);
   }
 
   private async openDiff(agentPath: string): Promise<void> {

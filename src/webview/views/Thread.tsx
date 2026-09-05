@@ -4,6 +4,7 @@ import type { ChatItem } from "../store/types";
 import { ErrorItem } from "./items/ErrorItem";
 import { MessageItem } from "./items/MessageItem";
 import { ToolItem } from "./items/ToolItem";
+import { ThreadContext, type ThreadServices } from "./threadContext";
 
 function renderItem(item: ChatItem): JSX.Element {
   switch (item.kind) {
@@ -29,9 +30,13 @@ function renderItem(item: ChatItem): JSX.Element {
 /**
  * Liste du fil, ancrée en bas. L'auto-scroll suit le bas **sauf** si l'utilisateur
  * a scrollé vers le haut ; un bouton « ↓ new content » apparaît alors (C01 §4).
- * Sans virtualisation en C01 (jusqu'à 200 items) ; C14 virtualise.
+ * Sans virtualisation en C02 (jusqu'à 200 items) ; C14 virtualise.
  */
-export function Thread(props: { items: ChatItem[]; statusLine: string | null }): JSX.Element {
+export function Thread(props: {
+  items: ChatItem[];
+  statusLine: string | null;
+  services: ThreadServices;
+}): JSX.Element {
   const ref = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
   const [detached, setDetached] = useState(false);
@@ -71,7 +76,9 @@ export function Thread(props: { items: ChatItem[]; statusLine: string | null }):
           }
         }}
       >
-        {props.items.map(renderItem)}
+        <ThreadContext.Provider value={props.services}>
+          {props.items.map(renderItem)}
+        </ThreadContext.Provider>
         {props.statusLine && <div className="agx-thinking">{props.statusLine}</div>}
       </div>
       {detached && (

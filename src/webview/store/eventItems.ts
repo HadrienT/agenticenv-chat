@@ -8,9 +8,10 @@ import type { ChatItem } from "./types";
  * `seq` est un compteur monotone tenu par le réducteur : il donne un `id` stable
  * (donc une `key` React stable, 04-CONVENTIONS §2) sans dépendre de l'horloge.
  */
-export function eventToItems(ev: SdkEvent, seq: number): ChatItem[] {
+export function eventToItems(ev: SdkEvent, seq: number, at: number): ChatItem[] {
   const id = `ev-${seq}`;
   const kind = ev.kind ?? "";
+  const ts = parseTimestamp(ev.timestamp) ?? at;
 
   if (kind === "MessageEvent") {
     const role = ev.llm_message?.role;
@@ -23,10 +24,10 @@ export function eventToItems(ev: SdkEvent, seq: number): ChatItem[] {
     }
     if (role === "assistant") {
       return [
-        { kind: "assistant", id, text, streaming: false, revision: 0, sourceId: ev.id },
+        { kind: "assistant", id, text, streaming: false, revision: 0, ts, sourceId: ev.id },
       ];
     }
-    return [{ kind: "user", id, text }];
+    return [{ kind: "user", id, text, ts }];
   }
 
   if (kind === "ActionEvent") {
@@ -44,17 +45,26 @@ export function eventToItems(ev: SdkEvent, seq: number): ChatItem[] {
         args: ev.action,
         status: "running",
         toolCallId: ev.tool_call_id,
+        ts,
       },
     ];
   }
 
   if (kind === "ObservationEvent") {
-    return [{ kind: "observation", id, toolName: ev.tool_name ?? "tool", result: ev.observation }];
+    return [{ kind: "observation", id, toolName: ev.tool_name ?? "tool", result: ev.observation, ts }];
   }
 
   if (kind === "AgentErrorEvent" || typeof ev.error === "string") {
-    return [{ kind: "error", id, text: String(ev.error ?? "agent error") }];
+    return [{ kind: "error", id, text: String(ev.error ?? "agent error"), ts }];
   }
 
   return [];
+}
+
+function parseTimestamp(raw: string | undefined): number | null {
+  if (!raw) {
+    return null;
+  }
+  const n = Date.parse(raw);
+  return Number.isNaN(n) ? null : n;
 }
