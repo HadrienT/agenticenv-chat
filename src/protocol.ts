@@ -42,6 +42,8 @@ export interface ConfirmAction {
   action_id?: string;
   /** [v2] mémorisation de la décision (C07). */
   remember?: "session" | "workspace";
+  /** [v2] commande modifiée avant approbation (C07 §1). Best effort côté bridge. */
+  edited_command?: string;
 }
 
 export interface CancelTurn {
@@ -146,6 +148,17 @@ export interface Progress extends Seq {
   label: string;
 }
 
+/** [v2] Action risquée en attente d'approbation — porte enfin de quoi décider (C07 §1). */
+export interface PendingActionMessage extends Seq {
+  type: "pending_action";
+  action_id: string;
+  kind: "command" | "edit" | "network" | "other";
+  summary: string;
+  command?: string;
+  path?: string;
+  diff?: string;
+}
+
 /** [v2] Diff unifié d'un fichier, calculé côté sandbox (checkpoint → maintenant). */
 export interface FileDiffMessage extends Seq {
   type: "file_diff";
@@ -214,6 +227,7 @@ export type Outbound =
   | EventDelta
   | ToolStatus
   | Progress
+  | PendingActionMessage
   | FileDiffMessage
   | CheckpointMessage
   | FilesChanged
@@ -233,6 +247,7 @@ export const OUTBOUND_TYPES = [
   "event_delta",
   "tool_status",
   "progress",
+  "pending_action",
   "file_diff",
   "checkpoint",
   "files_changed",
@@ -280,6 +295,7 @@ export const CLIENT_AHEAD_OF_BRIDGE = [
   "event_delta",
   "tool_status",
   "progress",
+  "pending_action",
   "file_diff",
   "checkpoint",
 ] as const;

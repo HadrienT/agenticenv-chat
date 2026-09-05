@@ -111,7 +111,17 @@ export function App(): JSX.Element {
             idle={state.phase.kind === "idle"}
             services={services}
           />
-          {pendingConfirmation(state) && <ConfirmCard onAnswer={actions.confirm} />}
+          {pendingConfirmation(state) && (
+            <ConfirmCard
+              pending={state.phase.kind === "awaiting" ? state.phase.pending : null}
+              onAnswer={(d) =>
+                actions.confirm({
+                  ...d,
+                  actionId: state.phase.kind === "awaiting" ? state.phase.pending?.actionId : undefined,
+                })
+              }
+            />
+          )}
           <WorkingSet
             files={state.workingSet}
             fileDiffs={state.fileDiffs}

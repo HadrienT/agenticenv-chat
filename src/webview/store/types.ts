@@ -3,6 +3,7 @@ import type {
   ContextChip,
   FileHit,
   McpServerView,
+  PendingActionView,
   SlashCommand,
 } from "../../messages";
 import type { GitChangeDTO } from "../../protocol";
@@ -18,7 +19,7 @@ export type SessionPhase =
   | { kind: "starting" }
   | { kind: "idle"; conversationId: string }
   | { kind: "running"; conversationId: string; turnId: string; startedAt: number }
-  | { kind: "awaiting"; conversationId: string; turnId: string }
+  | { kind: "awaiting"; conversationId: string; turnId: string; pending: PendingActionView | null }
   | { kind: "cancelling"; conversationId: string; turnId: string };
 
 export type ToolStatus = "running" | "ok" | "error";
@@ -52,7 +53,15 @@ export type ChatItem =
     }
   | { kind: "observation"; id: string; toolName: string; result: unknown; ts?: number }
   | { kind: "error"; id: string; text: string; ts?: number }
-  | { kind: "turn-cancelled"; id: string };
+  | { kind: "turn-cancelled"; id: string }
+  | {
+      kind: "permission";
+      id: string;
+      verdict: "allowed" | "denied";
+      rule: string;
+      summary: string;
+      ts?: number;
+    };
 
 export type NoticeLevel = "info" | "warn" | "error";
 
@@ -131,6 +140,10 @@ export interface AppState {
   /** Diffs par fichier (checkpoint → maintenant), chargés à la demande (C06). */
   fileDiffs: Record<string, FileDiffState>;
   checkpointStrategy: string;
+  permissions: {
+    mode: "ask" | "autoEdit" | "autoAll" | "readOnly";
+    trusted: boolean;
+  };
   notices: Notice[];
   composer: {
     draft: string;
@@ -151,41 +164,5 @@ export interface AppState {
   panels: Record<PanelId, boolean>;
 }
 
-
-export function initialState(): AppState {
-  return {
-    connection: { state: "connecting", protocol: null },
-    protocol: { version: 2, capabilities: [], degraded: false },
-    phase: { kind: "picking" },
-    session: null,
-    items: [],
-    itemIndex: {},
-    eventSeq: 0,
-    pendingSend: false,
-    progress: null,
-    workspace: {
-      folder: null,
-      path: null,
-      // Vide jusqu'au message `workspace` de l'hôte : sans racine connue, aucune
-      // référence de fichier n'est rendue cliquable.
-      sandboxRoot: "",
-      editorAvailable: false,
-      expandThinking: false,
-    },
-    mcp: { servers: [], selected: [] },
-    health: [],
-    usage: null,
-    workingSet: [],
-    fileDiffs: {},
-    checkpointStrategy: "no checkpoint yet",
-    notices: [],
-    composer: { draft: "", attachments: [], history: [] },
-    autoContext: [],
-    dismissedAuto: [],
-    contextChips: [],
-    fileSearch: null,
-    commands: [],
-    starters: [],
-    panels: { health: false, workingSet: true },
-  };
-}
+/** Réexporté depuis `./initialState` (extrait pour tenir la limite de 200 lignes). */
+export { initialState } from "./initialState";

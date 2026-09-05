@@ -64,7 +64,7 @@ export function CodeBlock(props: {
           {RUN_LANGS.has(props.lang) && (
             <button
               className="agx-code__btn"
-              title="Runs through the permission policy"
+              title="Runs on your machine (not the sandbox), through the permission policy"
               onClick={() => props.actions.runInTerminal(props.code.trim())}
             >
               Run

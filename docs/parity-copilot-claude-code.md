@@ -117,7 +117,7 @@ Légende de faisabilité :
 | 25 | Diagrammes Mermaid rendus | Copilot | 🟢 — ⏸️ **différé** (Mermaid ~1 Mo : demande du code-splitting incompatible avec le bundle IIFE + CSP nonce ; bloc rendu en code brut) |
 | 26 | Maths (KaTeX) | Copilot | 🟢 — ⏸️ **différé** (KaTeX : polices à inliner + budget ; maths rendues en `code`) |
 | 27 | Liens `fichier:ligne` cliquables → ouvrent l'éditeur à la bonne ligne | les deux | 🟢 — ✅ **C02** (détection `path:line`, ouverture déléguée à l'hôte via `paths.ts` ; non traduisible = non cliquable) |
-| 28 | Bloc de commande terminal avec bouton **Exécuter** (et édition avant exécution) | les deux | 🟢/🟡 — ✅ **C02** (rendu + bouton Run ; l'exécution réelle est C07) |
+| 28 | Bloc de commande terminal avec bouton **Exécuter** (et édition avant exécution) | les deux | 🟢/🟡 — ✅ **C02 + C07** (Run passe par `evaluate()`, s'exécute **sur l'hôte** — tooltip explicite ; édition de commande dans la carte d'approbation) |
 | 29 | Troncature des très longs blocs avec « Afficher plus » | Copilot | 🟢 — ✅ **C02** (> 200 lignes / 20 Kio : tête+queue, « Show all » / « Open in editor ») |
 | 30 | Section « références utilisées (N) » repliable, listant fichier + plage de lignes | Copilot | 🟡 — ✅ **C05** (« Used N references », plages fusionnées, reconstruit client depuis les `view` ; affiché à l'`idle`) |
 | 31 | Questions de suivi suggérées après la réponse (cliquables) | Copilot | 🟡/🔴 |
@@ -136,7 +136,7 @@ Légende de faisabilité :
 | 39 | État par étape : en cours (spinner) / réussi (✓) / échoué (✗) / ignoré | les deux | 🟢 — ✅ **C01** (`tool_status` → ⟳/✓/✗ ; `tool_status` côté bridge à faire) |
 | 40 | Regroupement : « A cherché dans la base de code », « A utilisé 3 outils » avec compteur | Copilot | 🟢 — ✅ **C05** (3+ outils consécutifs même famille → groupe replié ; libellé dérivé, jamais inventé ; groupe avec erreur non replié) |
 | 41 | Diffs de fichiers **inline** dans le fil, coloration +/−, repliables par hunk | les deux | 🟡 — ✅ **C06** (`Diff` : hunks parsés, +/− colorés, replié > 40 lignes, `revert hunk`) |
-| 42 | Sortie terminal capturée et streamée sous le bloc de commande | les deux | 🟡 |
+| 42 | Sortie terminal capturée et streamée sous le bloc de commande | les deux | 🟡 — ⚠️ **C07 partiel** (Run capture via shell integration si dispo, cf. C04 ; sinon le terminal reste la vue et l'UI le dit) |
 | 43 | Survol d'une ligne d'outil → tooltip avec les args complets | Claude Code | 🟢 — ✅ **C05** (tooltip `title` sur l'entête = args JSON complets) |
 | 44 | Liens cliquables dans les résultats d'outil (chemins → éditeur) | les deux | 🟢 — ✅ **C02** (mêmes liens `path:line` dans les sorties d'outil) |
 | 45 | Bouton « Voir tout » quand la sortie est tronquée | les deux | 🟢 — ✅ **C05** (repris de C02 §8 ; filtre rapide de sortie de commande : différé) |
@@ -161,10 +161,10 @@ Légende de faisabilité :
 | 54 | Liste de tâches / plan (todo) affichée, cases cochées **en direct** au fil de l'exécution | Claude Code | 🟡/🔴 |
 | 55 | Mode Plan : lecture seule tant que le plan n'est pas approuvé (`ExitPlanMode`) | Claude Code | 🔴 |
 | 56 | Auto-correction : l'agent lit lint/typecheck/tests échoués et recommence | les deux | 🔴 |
-| 57 | Approbation de commande : commande **exacte** montrée, éditable, avec « Toujours autoriser ça » | les deux | 🟡 |
-| 58 | Allowlist / denylist de commandes par regex, persistée par workspace | les deux | 🟢/🟡 |
-| 59 | Modes d'auto-approbation (edits seuls / tout / rien) — « YOLO mode » | les deux | 🟡 |
-| 60 | Protection des fichiers sensibles (`.env`, clés) — avertissement avant lecture/écriture | Copilot | 🟢/🟡 |
+| 57 | Approbation de commande : commande **exacte** montrée, éditable, avec « Toujours autoriser ça » | les deux | 🟡 — ✅ **C07** (`ConfirmCard` : commande exacte + cwd, `Edit…`, `Allow always…` → portée session/folder, jamais global ; focus sur Reject ; sans charge utile v1 → aveu honnête) |
+| 58 | Allowlist / denylist de commandes par regex, persistée par workspace | les deux | 🟢/🟡 — ✅ **C07** (`permissions.{allow,deny}` regex sur la commande normalisée ; `deny` gagne toujours ; « Allow always (workspace) » persiste en `workspaceState`, portée session oubliée) |
+| 59 | Modes d'auto-approbation (edits seuls / tout / rien) — « YOLO mode » | les deux | 🟡 — ✅ **C07** (`mode`: ask / autoEdit / autoAll / readOnly ; `autoAll` = bannière permanente non-dismissible) |
+| 60 | Protection des fichiers sensibles (`.env`, clés) — avertissement avant lecture/écriture | Copilot | 🟢/🟡 — ✅ **C07** (`denyPaths` + liste sensible C04 → jamais auto, `autoAll` compris ; évaluation côté hôte) |
 | 61 | Interrompre pour ajouter une consigne en cours de route, puis reprendre | les deux | 🟡 |
 | 62 | Terminaux d'arrière-plan / process longs (serveurs de dev) suivis séparément | les deux | 🔴 |
 | 63 | Changer de modèle en cours de session | Claude Code | 🟡 |
@@ -231,14 +231,14 @@ Légende de faisabilité :
 
 | # | Subtilité | Qui | Faisab. |
 |---|---|---|---|
-| 107 | Workspace Trust : pas d'exécution d'outil dans un dossier non fiable | les deux | 🟢 |
+| 107 | Workspace Trust : pas d'exécution d'outil dans un dossier non fiable | les deux | 🟢 — ✅ **C07** (`capabilities.untrustedWorkspaces: limited` ; dossier non fiable → `readOnly` forcé, `start_session` refusé, instructions non chargées) |
 | 108 | Compteur de requêtes premium / quota restant | Copilot | 🟡 |
 | 109 | Messages d'erreur actionnables (bouton Réessayer, lien vers le réglage) | les deux | 🟢 |
 | 110 | Reprise après perte de connexion sans perdre le fil (déjà : backoff ; manque : rejouer l'état) | les deux | 🟡 — ✅ **C01** (client : `resume {conversation_id, last_seq}`, `seq` tracké en `workspaceState` ; `resume`/`seq` côté bridge à faire) |
 | 111 | Exclusion de contenu par politique d'organisation | Copilot | 🔴 |
 | 112 | UI optimiste / masquage de latence (« Working… » tout de suite) | les deux | 🟢 — ✅ **C01** (`pendingSend` : composer verrouillé + « sending… » jusqu'au `turn_started`, sans mentir sur `running`) |
 | 113 | Layout responsive quand la sidebar est étroite | les deux | 🟢 |
-| 114 | Avertissement avant une action destructrice (rm, reset --hard, push --force) | Claude Code | 🟡 |
+| 114 | Avertissement avant une action destructrice (rm, reset --hard, push --force) | Claude Code | 🟡 — ✅ **C07** (`destructiveMatches` : rm -rf, reset --hard, clean -fd, push --force, dd, mkfs, chmod -R 777, curl|sh, fork bomb ; message factuel, ne bloque pas) |
 | 115 | Indicateur de coût / tokens en continu (pas seulement après `usage`) | Claude Code | 🟡 |
 
 ### 2.10 Spécifique Claude Code (terminal) — idées transposables

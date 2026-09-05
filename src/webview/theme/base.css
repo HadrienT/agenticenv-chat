@@ -228,8 +228,48 @@ button {
 }
 .agx-confirm__actions {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.agx-confirm__title {
+  font-weight: 600;
+}
+.agx-confirm__body {
   margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.agx-confirm__blind {
+  margin-top: 6px;
+  color: var(--agx-fg-muted);
+  font-style: italic;
+}
+.agx-confirm__cmd {
+  margin: 0;
+  padding: 6px 8px;
+  background: var(--agx-code-bg);
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 12px;
+}
+.agx-confirm__cwd {
+  font-size: 11px;
+  color: var(--agx-fg-muted);
+}
+.agx-confirm__warn {
+  color: var(--agx-error);
+  font-size: 11px;
+}
+
+.agx-permline {
+  align-self: flex-start;
+  font-size: 11px;
+  color: var(--agx-fg-muted);
+}
+.agx-permline__rule {
+  opacity: 0.7;
 }
 
 /* --- working set (files changed) ------------------------------- */

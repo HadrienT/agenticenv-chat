@@ -19,8 +19,8 @@ quand ses critères d'acceptation **automatisables** sont verts.
 | C04 | Fournisseurs de contexte (hôte) | `wp/C04-context-providers` | ✅ **fait** | parties vscode non testées (F5/e2e) ; budget C13 |
 | C05 | Rendu des appels d'outils | `wp/C05-tool-rendering` | ✅ **fait** | filtre sortie + renderers browser/apply_patch différés |
 | C06 | Éditions, diffs, checkpoints | `wp/C06-edits-and-diffs` | ✅ **fait** | hors-git limité ; F5 ; extraire EditsController (C14) |
-| C07 | Permissions, approbations | `wp/C07-permissions` | 🚧 en cours | |
-| C08 | Sessions, historique | — | ⏳ à faire | |
+| C07 | Permissions, approbations | `wp/C07-permissions` | ✅ **fait** | `pending_action` bridge + F5 (persistance workspace) |
+| C08 | Sessions, historique | `wp/C08-sessions` | 🚧 en cours | |
 | C09 | Plan, todo, pilotage boucle agent | — | ⏳ à faire | |
 | C10 | Instructions, prompts, mémoire | — | ⏳ à faire | |
 | C11 | Intégration éditeur & commandes | — | ⏳ à faire | |
@@ -220,6 +220,34 @@ Branche `wp/C06-edits-and-diffs`. Items 41, 46–53, 66, 102, 122.
 **Reste** : hors-git (besoin du message bridge `checkpoint`) ; F5 ;
 `chatViewProvider.ts` ≈ 960 l. → extraire `EditsController` en C14.
 
-## C07 — Permissions, approbations 🚧
+## C07 — Permissions, approbations ✅
+
+Branche `wp/C07-permissions`. Items 28, 42, 57–60, 107, 114.
+
+- `permissions/policy.ts` : `evaluate()` **pur**. `deny` gagne toujours ;
+  commande enchaînée (`CHAIN_CHARS`) jamais auto ; regex invalide → `invalidRules`
+  (jamais `allow`) ; chemin sensible → `ask` même en `autoAll`.
+  `destructiveMatches()` pour l'item 114.
+- `permissions/store.ts` : politique effective (config `agenticenvChat.permissions`
+  + `allow` session/workspace) ; `readOnly` forcé si `!isTrusted`.
+- `permissions/synthesize.ts` : reconstruit `PendingActionView` depuis le dernier
+  `ActionEvent` quand le bridge v1 n'envoie qu'`awaiting_confirmation` sans détail
+  (`blind: true` si rien) ; `allowPatternFor` (premier mot ancré).
+- `src/glob.ts` : `globToRegExp` pur partagé (dédup `ignore.ts` ↔ `policy.ts`).
+- `ConfirmCard` réécrite : commande exacte + cwd + diff, `Edit…`,
+  `Allow always…` (session/folder), focus sur Reject, aucun timeout.
+- Hôte : `handlePendingAction` (évalue, auto-allow/deny + `permissionOutcome`,
+  ou `pendingAction` → carte) ; `onConfirm` (`remember` → `addAllow`) ; Run passe
+  par `evaluate()` ; `sendPermissionMode`.
+- `package.json` : `capabilities.untrustedWorkspaces: "limited"`, réglage
+  `agenticenvChat.permissions`, doc honnête (allowlist = accidents, pas attaquant).
+- Store : `phase.awaiting.pending`, item `permission`, `state.permissions`,
+  `reducePermission.ts`. `PERSIST_VERSION` 4→5.
+- 207 tests (matrice mode×allow×deny, 16 vecteurs de contournement, destructif).
+
+**Reste** : `pending_action` / `confirm_action{edited_command}` côté bridge
+(`CLIENT_AHEAD`) ; F5 (persistance workspace, capture terminal réelle).
+
+## C08 — Sessions, historique 🚧
 
 En cours.

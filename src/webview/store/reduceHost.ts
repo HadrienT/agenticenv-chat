@@ -2,6 +2,7 @@ import { assertNever } from "../../assertNever";
 import type { HostToWebview } from "../../messages";
 import { applyBridge, endTurnOnError } from "./reduceBridge";
 import { hash, resetState, withNotice } from "./reduceHelpers";
+import { applyPermission } from "./reducePermission";
 import type { AppState } from "./types";
 
 /** Routeur exhaustif des messages hôte → webview (`assertNever` en garde). */
@@ -124,6 +125,11 @@ export function applyHost(state: AppState, msg: HostToWebview, at: number): AppS
           [msg.path]: { unified: msg.unified, conflict: msg.conflict, error: msg.error },
         },
       };
+
+    case "pendingAction":
+    case "permissionMode":
+    case "permissionOutcome":
+      return applyPermission(state, msg, at);
 
     case "workspace":
       return {
