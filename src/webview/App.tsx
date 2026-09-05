@@ -21,6 +21,7 @@ import { useHostMessages } from "./store/useHostMessages";
 import { usePersist } from "./store/usePersist";
 import { useSnapshot } from "./store/useSnapshot";
 import { loadPersisted } from "./vscodeApi";
+import { routeLocalCommand } from "./views/composer/commandRoute";
 import { Composer } from "./views/composer/Composer";
 import { StarterPrompts } from "./views/composer/StarterPrompts";
 import { ConfirmCard } from "./views/ConfirmCard";
@@ -151,7 +152,16 @@ export function App(): JSX.Element {
             onUndoTurn={actions.undoTurn}
             onOpenAll={() => state.workingSet.slice(0, 10).forEach((f) => actions.openFile(f.path))}
           />
-          {state.usage && <ContextGauge usage={state.usage} />}
+          {state.usage && (
+            <ContextGauge
+              usage={state.usage}
+              attachedBytes={budgetStatus(state).bytes}
+              canCompact={state.protocol.capabilities.includes("compact")}
+              compacted={state.compacted}
+              onCompact={actions.compact}
+              onNewSession={actions.forceNewSession}
+            />
+          )}
           {state.items.length === 0 && state.phase.kind === "idle" && (
             <StarterPrompts prompts={state.starters} onPick={actions.setDraft} />
           )}
@@ -181,15 +191,7 @@ export function App(): JSX.Element {
               auto ? actions.dismissAuto(key) : actions.removeAttachment(index)
             }
             onPickContext={() => actions.pickContext("menu")}
-            onCommand={(cmd, args) => {
-              if (cmd.name === "components") {
-                actions.togglePanel("health");
-              } else if (cmd.name === "remember") {
-                actions.remember(args);
-              } else {
-                actions.resolveCommand(cmd.name, args);
-              }
-            }}
+            onCommand={(cmd, args) => routeLocalCommand(actions, cmd, args)}
           />
         </>
       )}

@@ -27,6 +27,7 @@ export function initialState(): AppState {
     instructions: { applied: [], ignored: [], truncated: false },
     health: [],
     usage: null,
+    compacted: false,
     workingSet: [],
     fileDiffs: {},
     checkpointStrategy: "no checkpoint yet",

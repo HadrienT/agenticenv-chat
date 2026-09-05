@@ -50,6 +50,7 @@ export interface Actions {
   regenerate(itemId: string, text: string): void;
   restoreBranch(index: number): void;
   openHistory(): void;
+  compact(): void;
   exportConversation(format: "markdown" | "json"): void;
   snapshot(payload: {
     items: unknown[];
@@ -125,6 +126,7 @@ export function createActions(dispatch: (action: Action) => void, now: () => num
     },
     restoreBranch: (index) => send({ type: "thread/restoreBranch", index }),
     openHistory: () => post({ type: "openHistory" }),
+    compact: () => post({ type: "compact" }),
     exportConversation: (format) => post({ type: "exportConversation", format }),
     snapshot: (payload) => post({ type: "persistSnapshot", ...payload }),
     openFile: (path, line) => post({ type: "openFile", path, line }),

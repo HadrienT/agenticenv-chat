@@ -18,6 +18,7 @@ import { InstructionLoader } from "./instructions/loader";
 import { assembleInstructions } from "./instructions/assemble";
 import { substitute } from "./instructions/prompts";
 import { Hooks } from "./instructions/hooks";
+import { StatusBar } from "./statusBar";
 import { CLIENT_ID, CLIENT_PROTOCOL, type Outbound } from "./protocol";
 import { destructiveMatches, evaluate } from "./permissions/policy";
 import { PermissionStore } from "./permissions/store";
@@ -80,6 +81,21 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   });
   private hooks: Hooks | undefined;
   private filesChangedThisTurn = false;
+  private readonly statusBar = new StatusBar();
+  private status = {
+    session: false,
+    phase: "idle" as "idle" | "running" | "awaiting" | "other",
+    model: "local",
+    contextPct: null as number | null,
+    cost: 0,
+    turnStartMs: 0,
+    mode: "ask",
+  };
+
+  private pushStatus(patch: Partial<typeof this.status>): void {
+    this.status = { ...this.status, ...patch };
+    this.statusBar.update(this.status);
+  }
 
   constructor(private readonly context: vscode.ExtensionContext) {
     this.permissions = new PermissionStore(context);
@@ -100,6 +116,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       this.turnDecorations,
       vscode.window.onDidChangeVisibleTextEditors(() => this.turnDecorations.refresh()),
       vscode.workspace.onDidGrantWorkspaceTrust(() => this.sendPermissionMode()),
+      this.statusBar,
     );
   }
 
@@ -310,6 +327,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case "session_started":
         this.conversationId = message.conversation_id;
         this.llmSource = message.llm_source;
+        this.pushStatus({ session: true, phase: "idle", model: message.llm_source });
+        this.postToWebview({ type: "metrics", contextWindow: this.defaultContextWindow() });
         this.permissions.resetSession();
         void this.context.workspaceState.update(K_CONVERSATION, this.conversationId);
         this.sendPermissionMode();
@@ -342,6 +361,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.turnStartMs = Date.now();
         this.filesChangedThisTurn = false;
         void this.hooks?.run("onTurnStarted", { filesChanged: false, cwd: this.projectPath() });
+        this.pushStatus({ phase: "running", turnStartMs: this.turnStartMs });
         this.setBadge("running");
         this.autoOpened.clear();
         this.turnDecorations.clear();
@@ -359,6 +379,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           cwd: this.projectPath(),
         });
         this.setBadge("idle");
+        this.pushStatus({ phase: "idle" });
         this.maybeNotify("turn-done");
         void this.persistConversation();
         this.postToWebview({ type: "bridge", message });
@@ -370,6 +391,27 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         void this.hooks?.run("onFilesChanged", { filesChanged: true, cwd: this.projectPath() });
         void this.sendWorkingSet();
         void this.maybeAutoOpen(message.changes.map((c) => c.path));
+        this.postToWebview({ type: "bridge", message });
+        return;
+
+      case "usage": {
+        const secs = (Date.now() - this.turnStartMs) / 1000;
+        const tps = secs > 1 && message.completion_tokens > 0 ? message.completion_tokens / secs : null;
+        const window = message.context_window || this.defaultContextWindow();
+        this.pushStatus({
+          cost: message.accumulated_cost,
+          contextPct: window > 0 ? (message.prompt_tokens / window) * 100 : null,
+        });
+        this.postToWebview({ type: "metrics", contextWindow: window, tokensPerSec: tps });
+        this.postToWebview({ type: "bridge", message });
+        return;
+      }
+
+      case "context_stats":
+        this.pushStatus({
+          contextPct:
+            message.context_window > 0 ? (message.prompt_tokens / message.context_window) * 100 : null,
+        });
         this.postToWebview({ type: "bridge", message });
         return;
 
@@ -583,6 +625,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       mode: pol.mode,
       trusted: vscode.workspace.isTrusted,
     });
+    this.pushStatus({ mode: pol.mode });
   }
 
   private async handlePendingAction(
@@ -629,7 +672,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     // ask
     this.postToWebview({ type: "pendingAction", action: pending });
     this.setBadge("awaiting");
+    this.pushStatus({ phase: "awaiting" });
     this.maybeNotify("awaiting");
+  }
+
+  private defaultContextWindow(): number {
+    return vscode.workspace
+      .getConfiguration("agenticenvChat")
+      .get<number>("defaultContextWindow", 32768);
   }
 
   /** Badge sur l'icône de l'activity bar (items 105) : activité / alerte. */
@@ -678,6 +728,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         void this.sendStarters();
         void this.sendCommandsAndModes();
         this.bridge?.enqueue({ type: "list_mcp_servers" });
+        // Jauge de contexte utile avant même le premier tour (C13 §1).
+        this.postToWebview({ type: "metrics", contextWindow: this.defaultContextWindow() });
+        break;
+      case "compact":
+        // v2 : demande au bridge de compacter l'historique. Gaté sur la capability
+        // `compact` côté webview ; ici on relaie tel quel (no-op si bridge v1).
+        this.sendOrNotify({ type: "compact" }, "compact the history");
         break;
       case "remember":
         void this.instructions.remember(msg.text).then((r) =>

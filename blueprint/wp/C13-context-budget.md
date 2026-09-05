@@ -114,11 +114,32 @@ ou de prompt système côté AgenticEnv.
 
 ## 8. Critères d'acceptation
 
-- [ ] La jauge est utile **avant** d'envoyer le premier message.
-- [ ] Elle progresse pendant un tour.
-- [ ] À > 85 %, trois options concrètes sont proposées, aucune imposée.
-- [ ] Une compaction automatique est toujours annoncée dans le fil et son résumé est consultable.
-- [ ] Le client ne résume jamais l'historique lui-même.
-- [ ] La barre d'état montre le modèle, l'avancement du contexte et la durée du tour en cours.
-- [ ] Le débit tokens/s est visible et relié au panneau Components.
-- [ ] Les statistiques d'une conversation archivée sont relisibles.
+- [x] La jauge est utile **avant** d'envoyer le premier message. — `metrics {contextWindow}`
+  poussé au `ready`/`session_started` ; `ContextGauge` s'affiche dès `state.usage != null`.
+- [x] Elle progresse pendant un tour. — `context_stats` routé par `reduceBridge` met à jour
+  `usage.promptTokens` **pendant** le tour (pas seulement `usage` en fin).
+- [x] À > 85 %, trois options concrètes sont proposées, aucune imposée. — zone `alert` :
+  « remove chips » / bouton `/compact` (si capability) / bouton « new session ».
+- [x] Une compaction automatique est toujours annoncée dans le fil et son résumé est
+  consultable. — `history_compacted` → `CompactionItem` **toujours rendu**, `<pre>` dépliable.
+- [x] Le client ne résume jamais l'historique lui-même. — `/compact` et le bouton envoient
+  seulement le message `compact` au bridge ; aucun résumé produit côté client.
+- [x] La barre d'état montre le modèle, l'avancement du contexte et la durée du tour en
+  cours. — `StatusBar` : `${model}` / `${context}` / `${elapsed}` + spinner pendant `running`.
+- [x] Le débit tokens/s est visible. — dérivé hôte (`completion_tokens` / durée du tour),
+  poussé via `metrics.tokensPerSec`, affiché dans la jauge. *(Lien explicite vers le panneau
+  Components : non fait — le débit y est déjà une sonde distincte ; F5.)*
+- [~] Les statistiques d'une conversation archivée sont relisibles. — `persistSnapshot` porte
+  déjà `cost`/`promptTokens`/`completionTokens` (C08) ; la relecture read-only les affiche.
+  `compacted` est redérivé du fil au rechargement. `usage` live n'est pas persisté (recalculé
+  au tour suivant).
+
+### Reste (hors portée de l'environnement d'implémentation)
+
+- **Moitié AgenticEnv** : `context_stats`, `history_compacted` (émission) et `compact`
+  (réception + compaction réelle) dans `packages/openhands-bridge`, puis retrait de
+  `CLIENT_AHEAD_OF_BRIDGE`. Le bridge local est v1 : les trois messages sont inertes.
+- **Trim de l'historique (§3)** : reste une responsabilité bridge ; le client ne fait
+  qu'afficher et proposer, jamais tronquer.
+- **F5** : statusline en thème clair, jauge qui progresse en plein tour, `/compact` réel,
+  lien statusline → panneau Components.

@@ -169,7 +169,7 @@ Légende de faisabilité :
 | 62 | Terminaux d'arrière-plan / process longs (serveurs de dev) suivis séparément | les deux | 🔴 |
 | 63 | Changer de modèle en cours de session | Claude Code | 🟡 |
 | 64 | Sous-agents / délégation de tâche | Claude Code | 🔴 |
-| 65 | Compaction / résumé automatique du contexte quand il se remplit ; barre « X% restant » | Claude Code | 🟡/🔴 |
+| 65 | Compaction / résumé automatique du contexte quand il se remplit ; barre « X% restant » | Claude Code | 🟡/🔴 — ✅ **C13** (client) : `/compact` demande la compaction au **bridge** (le client ne résume jamais) ; `history_compacted` → marqueur **toujours visible** + résumé consultable ; jauge trois zones. Moitié AgenticEnv à faire. |
 | 66 | Checkpoint avant chaque édition + « Restaurer ce checkpoint » | les deux | 🟡/🔴 — ✅ **C06** (checkpoint **par tour** ; `undoTurn`/`restoreCheckpoint` ; conflit utilisateur → confirmation modale ; purge 20 / 7 j) |
 | 67 | Cap d'itérations / « l'agent continue ? » après N étapes | Copilot | 🟡 |
 | 68 | Question à choix multiples structurée de l'agent (au-delà du Allow/Reject) | — | 🔴 (image custom) |
@@ -189,7 +189,7 @@ Légende de faisabilité :
 | 77 | Instructions à portée de chemin (`*.instructions.md` avec globs) | Copilot | 🟡 — ✅ **C10** (`.agenticenv/instructions/*.instructions.md` + frontmatter `applyTo` ; s'applique si un fichier attaché matche ; sans `applyTo` → ignoré + notice ; chip « N instruction files ») |
 | 78 | Fichiers de prompt réutilisables (`*.prompt.md` → `/`-commande) | Copilot | 🟢/🟡 — ✅ **C10** (`.agenticenv/prompts/*.prompt.md` → `/`-commande à chaud ; `${arg}`/`${selection}`/`${file}`/`${workspaceFolder}` substitués côté hôte ; résultat **prérempli**, pas envoyé ; fichier manquant → message clair) |
 | 79 | `.copilotignore` / respect de `.gitignore` / exclusions d'org | Copilot | 🟢 — ✅ **C04** (`.gitignore` + `.agenticenvignore` + liste sensible toujours exclue de l'auto ; test « secret » sur `.env`) |
-| 80 | Budget de fenêtre de contexte : trim des vieux tours, indicateur d'usage | les deux | 🟡 |
+| 80 | Budget de fenêtre de contexte : trim des vieux tours, indicateur d'usage | les deux | 🟡 — ✅ **C13** : jauge visible dès que la fenêtre est connue (avant le 1er tour), tooltip de ventilation (fenêtre / attaché / historique) ; **aucune** troncature automatique — à > 85 % l'UI propose retirer des chips / `/compact` / nouvelle session. Le trim reste côté bridge. |
 | 81 | `#` d'un symbole → embarque sa définition, pas tout le fichier | Copilot | 🟢 — ✅ **C04** (`resolveSymbol` : `range` du DocumentSymbol + `#include`/imports + déclaration englobante, pas le fichier) |
 
 ### 2.7 Gestion des conversations
@@ -232,14 +232,14 @@ Légende de faisabilité :
 | # | Subtilité | Qui | Faisab. |
 |---|---|---|---|
 | 107 | Workspace Trust : pas d'exécution d'outil dans un dossier non fiable | les deux | 🟢 — ✅ **C07** (`capabilities.untrustedWorkspaces: limited` ; dossier non fiable → `readOnly` forcé, `start_session` refusé, instructions non chargées) |
-| 108 | Compteur de requêtes premium / quota restant | Copilot | 🟡 |
+| 108 | Compteur de requêtes premium / quota restant | Copilot | 🟡 — s.o. pour un modèle local ; le coût cumulé de session (`usage.accumulated_cost`) et le débit tokens/s tiennent lieu d'indicateur (✅ **C13**, jauge + statusline) |
 | 109 | Messages d'erreur actionnables (bouton Réessayer, lien vers le réglage) | les deux | 🟢 |
 | 110 | Reprise après perte de connexion sans perdre le fil (déjà : backoff ; manque : rejouer l'état) | les deux | 🟡 — ✅ **C01** (client : `resume {conversation_id, last_seq}`, `seq` tracké en `workspaceState` ; `resume`/`seq` côté bridge à faire) |
 | 111 | Exclusion de contenu par politique d'organisation | Copilot | 🔴 |
 | 112 | UI optimiste / masquage de latence (« Working… » tout de suite) | les deux | 🟢 — ✅ **C01** (`pendingSend` : composer verrouillé + « sending… » jusqu'au `turn_started`, sans mentir sur `running`) |
 | 113 | Layout responsive quand la sidebar est étroite | les deux | 🟢 |
 | 114 | Avertissement avant une action destructrice (rm, reset --hard, push --force) | Claude Code | 🟡 — ✅ **C07** (`destructiveMatches` : rm -rf, reset --hard, clean -fd, push --force, dd, mkfs, chmod -R 777, curl|sh, fork bomb ; message factuel, ne bloque pas) |
-| 115 | Indicateur de coût / tokens en continu (pas seulement après `usage`) | Claude Code | 🟡 |
+| 115 | Indicateur de coût / tokens en continu (pas seulement après `usage`) | Claude Code | 🟡 — ✅ **C13** : `context_stats` poussé **pendant** le tour alimente la jauge en continu ; `metrics` la renseigne avant le 1er tour ; débit tokens/s dérivé (`completion_tokens` / durée du tour) ; coût cumulé dans la jauge **et** la statusline |
 
 ### 2.10 Spécifique Claude Code (terminal) — idées transposables
 
@@ -249,7 +249,7 @@ Légende de faisabilité :
 | 117 | Mémoire projet : `#` pour ajouter une consigne persistante à `CLAUDE.md` | 🟢/🟡 — ✅ **C10** (`/remember <note>` + commande `agenticenvChat.remember` → puce dans `AGENTS.md` sous `## Agent memory`, **confirmation modale** montrant la ligne) |
 | 118 | Hooks pre/post tool-use (lint après édition, etc.) | 🟡/🔴 — ✅ **C10** (hooks **côté hôte** sur `onTurnStarted/Finished`/`onFilesChanged`/`onSessionStarted` ; passent par `evaluate()` ; item « hook » visible ; chargés **uniquement** depuis les réglages VS Code, jamais le dépôt) |
 | 119 | `/`-commandes custom définies par le repo | 🟢/🟡 — ✅ **C10** (`.prompt.md` du dépôt → `/`-commande listée dans le menu C03, rechargée à chaud) |
-| 120 | Statusline configurable (branche, modèle, contexte restant, coût) | 🟢 |
+| 120 | Statusline configurable (branche, modèle, contexte restant, coût) | 🟢 — ✅ **C13** : `StatusBarItem` à droite, visible seulement en session ; `agenticenvChat.statusBar.format` (`${model}`/`${context}`/`${cost}`/`${elapsed}`/`${mode}`) ; spinner + durée écoulée pendant un tour ; fond d'avertissement en attente d'approbation ; masquable |
 | 121 | Ressources / prompts MCP exposés comme `/`-commandes | 🟡 |
 | 122 | Rendu de diff en couleur dans le fil, style unified | 🟢 |
 | 123 | Mode « plan » approuvé explicitement avant toute écriture | 🔴 |

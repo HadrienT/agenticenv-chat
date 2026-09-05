@@ -63,7 +63,8 @@ export type ChatItem =
       summary: string;
       ts?: number;
     }
-  | { kind: "hook"; id: string; command: string; ok: boolean; output: string; ts?: number };
+  | { kind: "hook"; id: string; command: string; ok: boolean; output: string; ts?: number }
+  | { kind: "compaction"; id: string; turns: number; summary: string; ts?: number };
 
 export type NoticeLevel = "info" | "warn" | "error";
 
@@ -94,6 +95,8 @@ export interface UsageState {
   promptTokens: number;
   completionTokens: number;
   contextWindow: number;
+  /** débit dérivé (`completion_tokens` / durée du dernier tour), ou `null` (C13 §5). */
+  tokensPerSec?: number | null;
 }
 
 export interface WorkingSetFile {
@@ -143,6 +146,8 @@ export interface AppState {
   instructions: { applied: string[]; ignored: { rel: string; reason: string }[]; truncated: boolean };
   health: ComponentHealth[];
   usage: UsageState | null;
+  /** `true` si l'historique a été compacté (bannière + item, C13 §2). */
+  compacted: boolean;
   workingSet: WorkingSetFile[];
   /** Diffs par fichier (checkpoint → maintenant), chargés à la demande (C06). */
   fileDiffs: Record<string, FileDiffState>;

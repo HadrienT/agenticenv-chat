@@ -138,6 +138,7 @@ export type HostToWebview =
   | { type: "permissionMode"; mode: "ask" | "autoEdit" | "autoAll" | "readOnly"; trusted: boolean }
   | { type: "permissionOutcome"; verdict: "allowed" | "denied"; rule: string; summary: string }
   | { type: "hookResult"; command: string; ok: boolean; output: string }
+  | { type: "metrics"; contextWindow?: number; tokensPerSec?: number | null }
   | {
       type: "workspace";
       folder: string | null;
@@ -171,6 +172,7 @@ export const HOST_TO_WEBVIEW_TYPES = [
   "permissionMode",
   "permissionOutcome",
   "hookResult",
+  "metrics",
   "workspace",
   "reset",
 ] as const;
@@ -199,6 +201,7 @@ export type WebviewToHost =
   | { type: "regenerate"; itemId: string; text: string }
   | { type: "truncateFrom"; itemId: string; count: number }
   | { type: "openHistory" }
+  | { type: "compact" }
   | { type: "exportConversation"; format: "markdown" | "json" }
   | {
       type: "persistSnapshot";
@@ -240,6 +243,7 @@ export const WEBVIEW_TO_HOST_TYPES = [
   "regenerate",
   "truncateFrom",
   "openHistory",
+  "compact",
   "exportConversation",
   "persistSnapshot",
   "openFile",

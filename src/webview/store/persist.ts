@@ -9,7 +9,7 @@ import { initialState } from "./types";
  * `version` est incrémentée à **chaque** changement de forme. Une version
  * inconnue ⇒ l'état est **jeté** (jamais migré à la devinette) + notice (I7).
  */
-export const PERSIST_VERSION = 7;
+export const PERSIST_VERSION = 8;
 
 const MAX_PERSISTED_ITEMS = 200;
 
@@ -22,6 +22,7 @@ const CHAT_ITEM_KINDS = new Set([
   "turn-cancelled",
   "permission",
   "hook",
+  "compaction",
 ]);
 
 export interface PersistedState {
@@ -86,6 +87,9 @@ export function fromPersisted(raw: unknown): HydrateResult {
       items,
       itemIndex,
       eventSeq: items.length,
+      // `usage` n'est pas persisté (recalculé au tour suivant) ; on garde au moins
+      // la trace « historique compacté » si un marqueur survit dans le fil.
+      compacted: items.some((it) => it.kind === "compaction"),
       composer: {
         draft: typeof raw.composerDraft === "string" ? raw.composerDraft : "",
         attachments: Array.isArray(raw.attachments)

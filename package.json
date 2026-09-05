@@ -151,6 +151,21 @@
           "default": {},
           "markdownDescription": "Client-side hooks (item 118). Events: `onTurnStarted`, `onTurnFinished`, `onFilesChanged`, `onSessionStarted`. Each is a list of `{ \"command\": \"...\", \"when\": \"always\" | \"filesChanged\" }`. Commands run **on your machine** through the permission policy; they are loaded only from VS Code settings (Workspace Trust applies), never from the repo. Example: `{ \"onTurnFinished\": [{ \"command\": \"npm run lint\", \"when\": \"filesChanged\" }] }`."
         },
+        "agenticenvChat.defaultContextWindow": {
+          "type": "number",
+          "default": 32768,
+          "description": "Context window (tokens) assumed for the gauge before the bridge reports the real value in `usage` / `context_stats`. Only affects the pre-turn estimate."
+        },
+        "agenticenvChat.statusBar.hidden": {
+          "type": "boolean",
+          "default": false,
+          "description": "Hide the status bar item that shows the model, context %, and session cost while a session is active."
+        },
+        "agenticenvChat.statusBar.format": {
+          "type": "string",
+          "default": "$(hubot) ${model} · ${context} · ${cost}",
+          "markdownDescription": "Status bar item template. Placeholders: `${model}`, `${context}` (window %), `${cost}` (session $), `${elapsed}` (current turn), `${mode}` (permission mode). A spinner and the elapsed time are appended automatically while a turn runs."
+        },
         "agenticenvChat.notifications": {
           "type": "string",
           "enum": ["never", "awaiting", "always"],

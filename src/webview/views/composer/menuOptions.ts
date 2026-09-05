@@ -6,6 +6,7 @@ export const BUILTIN_COMMANDS: SlashCommand[] = [
   { name: "stop", description: "Stop the current turn", source: "builtin", local: true },
   { name: "components", description: "Toggle the Components panel", source: "builtin", local: true },
   { name: "remember", description: "Add a note to AGENTS.md (agent memory)", source: "builtin", argsHint: "<note>" },
+  { name: "compact", description: "Ask the bridge to compact the history", source: "builtin", local: true },
   { name: "help", description: "Show composer shortcuts", source: "builtin", local: true },
 ];
 
