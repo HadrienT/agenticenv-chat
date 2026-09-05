@@ -34,10 +34,14 @@ export type ChatItem =
       id: string;
       toolName: string;
       thought: string;
-      args: unknown;
+      args: Record<string, unknown> | undefined;
       status: ToolStatus;
       statusLabel?: string;
       toolCallId?: string;
+      /** Observation fusionnée (C05 §3) : action + observation = un seul item. */
+      observation?: unknown;
+      /** `true` si l'observation portait une erreur (corps déplié par défaut). */
+      observationError?: boolean;
       ts?: number;
     }
   | { kind: "observation"; id: string; toolName: string; result: unknown; ts?: number }

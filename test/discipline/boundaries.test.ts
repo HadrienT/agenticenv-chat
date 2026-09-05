@@ -25,16 +25,20 @@ describe("discipline — frontières d'architecture (05-TESTING §5)", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("render-purity : aucun useEffect/useState/postMessage sous src/webview/render/", () => {
-    const renderDir = join(SRC_DIR, "webview", "render");
-    let files: string[] = [];
-    try {
-      files = walk(renderDir, [".ts", ".tsx"]);
-    } catch {
-      files = []; // le dossier render/ arrive avec C02
+  it("render-purity : aucun useEffect/useState/postMessage sous render/ ni tools/", () => {
+    // Les renderers d'outils sont purs même rangés dans tools/ (C05 §1).
+    const dirs = [join(SRC_DIR, "webview", "render"), join(SRC_DIR, "webview", "tools")];
+    const files: string[] = [];
+    for (const d of dirs) {
+      try {
+        files.push(...walk(d, [".ts", ".tsx"]));
+      } catch {
+        // le dossier n'existe pas encore (WP antérieur)
+        continue;
+      }
     }
     const offenders = files
-      .filter((f) => /\buseEffect\b|\buseState\b|postMessage/.test(read(f)))
+      .filter((f) => /\buseEffect\b|\buseState\b|\buseReducer\b|postMessage/.test(read(f)))
       .map(rel);
     expect(offenders).toEqual([]);
   });

@@ -153,6 +153,7 @@ export function App(): JSX.Element {
           <Thread
             items={state.items}
             statusLine={isTurnActive(state) ? turnStatusLine(state) : null}
+            idle={state.phase.kind === "idle"}
             services={services}
           />
           {pendingConfirmation(state) && <ConfirmCard onAnswer={actions.confirm} />}

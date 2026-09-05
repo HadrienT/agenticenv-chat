@@ -17,7 +17,7 @@ quand ses critères d'acceptation **automatisables** sont verts.
 | C02 | Rendu du fil (markdown, code, liens) | `wp/C02-thread-rendering` | ✅ **fait** (Mermaid/KaTeX différés) | F5 (thèmes) + fixture markdown réelle |
 | C03 | Composer (chips, /-commandes, #-refs) | — | ⏳ à faire | dépend de C04 |
 | C04 | Fournisseurs de contexte (hôte) | — | ⏳ à faire | |
-| C05 | Rendu des appels d'outils | `wp/C05-tool-rendering` | 🚧 en cours | |
+| C05 | Rendu des appels d'outils | `wp/C05-tool-rendering` | ✅ **fait** | filtre sortie + renderers browser/apply_patch différés |
 | C06 | Éditions, diffs, checkpoints | — | ⏳ à faire | |
 | C07 | Permissions, approbations | — | ⏳ à faire | |
 | C08 | Sessions, historique | — | ⏳ à faire | |
@@ -109,6 +109,35 @@ Branche `wp/C02-thread-rendering`. Items 21–29, 32–34, 44.
 - Ces deux points demandent soit un passage de la webview en ESM + `script-src`
   élargi et argumenté, soit un WP dédié.
 
-## C05 — Rendu des appels d'outils 🚧
+## C05 — Rendu des appels d'outils ✅
+
+Branche `wp/C05-tool-rendering`. Items 30, 35, 36, 37, 40, 43, 45.
+
+**Fait** :
+- `tools/registry.tsx` + `tools/renderers/{fileEditor,terminal,search,generic}.tsx` :
+  `rendererFor()` ne renvoie jamais `null`, repli générique garanti (JSON
+  colorié, chaînes > 500 car. abrégées). Familles reconnues par nom exact +
+  heuristique (les MCP tombent sur le repli).
+- Noms d'outils **relevés** dans le venv AgenticEnv : `file_editor`, `terminal`,
+  `grep`, `glob`, `apply_patch`, `task_tracker`, `browser`, `finish`.
+- `render/lineDiff.ts` (LCS pur) + `render/Diff.tsx` : `+A −B`, source du compte
+  signalée (`(est.)` vs mesuré).
+- Fusion action ↔ observation par `tool_call_id` dans `reduceTurn.applyEvent` :
+  un seul `ToolItem { args, observation, status }` ; observation orpheline
+  rendue seule ; `AgentErrorEvent` apparié marque l'outil en erreur ; statut
+  dérivé de `exit_code`/`error`.
+- `views/ToolGroup.tsx` + `threadGroups.ts` : regroupement 3+ outils consécutifs
+  même famille, replié sauf erreur, libellé dérivé.
+- `views/UsedReferences.tsx` : « Used N references », plages fusionnées,
+  reconstruit depuis les `view`.
+- `views/FileRefList.tsx` : sortie grep/glob en liste cliquable `path:line`.
+- Corps déplié d'office sur erreur ; tooltip args complets sur l'entête.
+- 115 tests. Bundle 422 Ko.
+
+**Différé** : filtre rapide sur sortie de commande (C05 §7) ; renderers
+`apply_patch` / `browser` / `task_tracker` (repli générique) ; icônes codicon
+(glyphes texte en attendant).
+
+## C06 — Éditions, diffs, checkpoints 🚧
 
 En cours.
