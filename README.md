@@ -16,6 +16,11 @@ in the AgenticEnv repo), which owns the sandbox lifecycle and streams events.
 - MCP server picker shown before starting a session *(the list is real; actually
   wiring MCP into the sandbox is Phase 2 — see AgenticEnv `blueprint/wp/WP08b` §7)*.
 - "Risky action" confirmation cards (Allow / Reject) — the agent pauses and waits.
+- **Components panel**: live status of everything the chat needs — the bridge,
+  `llama-server` (unit + `/v1/models` readiness), the `llama-bridge` proxy, Docker,
+  the pinned `agent-server` image, and GPU (with a contention warning). Inline
+  buttons run the start/stop/restart/pull command in an `AgenticEnv` terminal
+  (the `systemctl` ones will prompt for `sudo`).
 
 ## Requirements
 

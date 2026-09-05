@@ -2,7 +2,7 @@
   "name": "agenticenv-chat",
   "displayName": "AgenticEnv Chat",
   "description": "Chat panel inside VS Code for a local OpenHands agent (AgenticEnv), via the openhands-bridge WebSocket server.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "hadrient",
   "private": true,
   "license": "MIT",
@@ -72,6 +72,11 @@
           "type": "string",
           "default": "ws://127.0.0.1:8300",
           "description": "WebSocket URL of the openhands-bridge server (packages/openhands-bridge in the AgenticEnv repo, started with `just run-bridge`)."
+        },
+        "agenticenvChat.agenticEnvPath": {
+          "type": "string",
+          "default": "~/AgenticEnv",
+          "description": "Path to the AgenticEnv repository checkout on this machine. Used by the Components panel to read configs/openhands.yaml and to run start/stop commands."
         }
       }
     }

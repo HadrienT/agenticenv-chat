@@ -1,8 +1,16 @@
 import * as vscode from "vscode";
 import { BridgeClient } from "./bridgeClient";
-import type { HostToWebview, Outbound, WebviewToHost } from "./protocol";
+import { actionCommand, checkHealth, type HealthContext } from "./health";
+import type {
+  ComponentHealth,
+  HealthActionId,
+  HostToWebview,
+  Outbound,
+  WebviewToHost,
+} from "./protocol";
 
 const VIEW_ID = "agenticenvChat.view";
+const HEALTH_POLL_MS = 8000;
 
 export function activate(context: vscode.ExtensionContext): void {
   const provider = new ChatViewProvider(context);
@@ -22,6 +30,8 @@ export function deactivate(): void {
 class ChatViewProvider implements vscode.WebviewViewProvider {
   private view: vscode.WebviewView | undefined;
   private bridge: BridgeClient | undefined;
+  private healthTimer: NodeJS.Timeout | undefined;
+  private healthInFlight = false;
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
@@ -36,7 +46,10 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
     view.webview.onDidReceiveMessage((msg: WebviewToHost) => this.onWebviewMessage(msg));
 
     this.bridge = new BridgeClient(this.bridgeUrl(), {
-      onState: (state, detail) => this.postToWebview({ type: "connection", state, detail }),
+      onState: (state, detail) => {
+        this.postToWebview({ type: "connection", state, detail });
+        void this.pollHealth();
+      },
       onMessage: (message) => this.onBridgeMessage(message),
     });
     this.bridge.start();
@@ -45,14 +58,55 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
       if (e.affectsConfiguration("agenticenvChat.bridgeUrl")) {
         this.bridge?.setUrl(this.bridgeUrl());
       }
+      if (e.affectsConfiguration("agenticenvChat")) {
+        void this.pollHealth();
+      }
     });
+
+    view.onDidChangeVisibility(() => this.updateHealthPolling(view.visible));
+    this.updateHealthPolling(view.visible);
 
     view.onDidDispose(() => {
       cfgSub.dispose();
+      this.updateHealthPolling(false);
       this.bridge?.stop();
       this.bridge = undefined;
       this.view = undefined;
     });
+  }
+
+  private updateHealthPolling(active: boolean): void {
+    if (this.healthTimer) {
+      clearInterval(this.healthTimer);
+      this.healthTimer = undefined;
+    }
+    if (active) {
+      void this.pollHealth();
+      this.healthTimer = setInterval(() => void this.pollHealth(), HEALTH_POLL_MS);
+    }
+  }
+
+  private async pollHealth(): Promise<void> {
+    if (this.healthInFlight || !this.view) {
+      return;
+    }
+    this.healthInFlight = true;
+    try {
+      const components = await checkHealth(this.healthContext());
+      this.postToWebview({ type: "health", components });
+    } catch {
+      // best-effort; next tick retries
+    } finally {
+      this.healthInFlight = false;
+    }
+  }
+
+  private healthContext(): HealthContext {
+    const cfg = vscode.workspace.getConfiguration("agenticenvChat");
+    return {
+      bridgeUrl: cfg.get<string>("bridgeUrl", "ws://127.0.0.1:8300"),
+      agenticEnvPath: cfg.get<string>("agenticEnvPath", "~/AgenticEnv"),
+    };
   }
 
   newSession(): void {
@@ -81,7 +135,27 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
       case "openDiff":
         void this.openDiff(msg.path);
         break;
+      case "refreshHealth":
+        void this.pollHealth();
+        break;
+      case "healthAction":
+        this.runHealthAction(msg.component, msg.action);
+        break;
     }
+  }
+
+  private runHealthAction(component: ComponentHealth["id"], action: HealthActionId): void {
+    const cmd = actionCommand(component, action, this.healthContext());
+    if (!cmd) {
+      return;
+    }
+    const term =
+      vscode.window.terminals.find((t) => t.name === "AgenticEnv") ??
+      vscode.window.createTerminal("AgenticEnv");
+    term.show();
+    term.sendText(cmd, true);
+    // Re-check shortly after so the panel reflects the result.
+    setTimeout(() => void this.pollHealth(), 4000);
   }
 
   private onBridgeMessage(message: Outbound): void {

@@ -1,11 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { GitChangeDTO, HostToWebview, Outbound, SdkEvent, Usage } from "../protocol";
+import type {
+  ComponentHealth,
+  GitChangeDTO,
+  HealthActionId,
+  HostToWebview,
+  Outbound,
+  SdkEvent,
+  Usage,
+} from "../protocol";
 import {
   ChatBubble,
   ConfirmCard,
   ConnectionBanner,
   ContextGauge,
   FileChanges,
+  HealthPanel,
   McpPicker,
   ToolRow,
   styles,
@@ -64,6 +73,7 @@ export function App(): JSX.Element {
   const [usage, setUsage] = useState<Usage | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState(false);
   const [sessionInfo, setSessionInfo] = useState<{ llmSource: string } | null>(null);
+  const [health, setHealth] = useState<ComponentHealth[]>([]);
   const [input, setInput] = useState("");
   const [running, setRunning] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -77,6 +87,8 @@ export function App(): JSX.Element {
         setConn({ state: msg.state, detail: msg.detail });
       } else if (msg.type === "mcpServers") {
         setMcpServers(msg.servers);
+      } else if (msg.type === "health") {
+        setHealth(msg.components);
       } else if (msg.type === "reset") {
         resetAll();
       } else if (msg.type === "bridge") {
@@ -247,6 +259,13 @@ export function App(): JSX.Element {
   return (
     <div style={styles.app}>
       <ConnectionBanner state={conn.state} detail={conn.detail} llmSource={sessionInfo?.llmSource} />
+      <HealthPanel
+        components={health}
+        onRefresh={() => post({ type: "refreshHealth" })}
+        onAction={(component: ComponentHealth["id"], action: HealthActionId) =>
+          post({ type: "healthAction", component, action })
+        }
+      />
       {body}
     </div>
   );

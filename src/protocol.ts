@@ -112,12 +112,29 @@ export interface SdkEvent {
   [key: string]: unknown;
 }
 
+// --- component health (checked by the extension host, not the bridge) ---
+
+export type HealthStatus = "up" | "down" | "degraded" | "unknown";
+
+export interface ComponentHealth {
+  /** stable id used for actions */
+  id: "bridge" | "llama-server" | "llama-bridge" | "docker" | "agent-server-image" | "gpu";
+  label: string;
+  status: HealthStatus;
+  detail: string;
+  /** action ids the client may trigger for this component */
+  actions: HealthActionId[];
+}
+
+export type HealthActionId = "start" | "stop" | "restart" | "pull";
+
 // --- messages between extension host and webview (postMessage) ---
 
 export type HostToWebview =
   | { type: "connection"; state: "connecting" | "open" | "closed"; detail?: string }
   | { type: "bridge"; message: Outbound }
   | { type: "mcpServers"; servers: { name: string; transport: string; tools: string[] }[] }
+  | { type: "health"; components: ComponentHealth[] }
   | { type: "reset" };
 
 export type WebviewToHost =
@@ -125,4 +142,6 @@ export type WebviewToHost =
   | { type: "startSession"; mcpServers: string[] }
   | { type: "userMessage"; text: string }
   | { type: "confirm"; accept: boolean }
-  | { type: "openDiff"; path: string };
+  | { type: "openDiff"; path: string }
+  | { type: "refreshHealth" }
+  | { type: "healthAction"; component: ComponentHealth["id"]; action: HealthActionId };

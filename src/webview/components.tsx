@@ -1,6 +1,12 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
-import type { GitChangeDTO, Usage } from "../protocol";
+import type {
+  ComponentHealth,
+  GitChangeDTO,
+  HealthActionId,
+  HealthStatus,
+  Usage,
+} from "../protocol";
 
 const v = (name: string, fallback: string): string => `var(--vscode-${name}, ${fallback})`;
 
@@ -340,4 +346,120 @@ function safeJson(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+// --- component health panel ---------------------------------------------------
+
+const HEALTH_COLOR: Record<HealthStatus, string> = {
+  up: "#89d185",
+  degraded: "#d7ba7d",
+  down: "#f14c4c",
+  unknown: "#8a8a8a",
+};
+
+const ACTION_LABEL: Record<HealthActionId, string> = {
+  start: "start",
+  stop: "stop",
+  restart: "restart",
+  pull: "pull",
+};
+
+const healthStyles: Record<string, CSSProperties> = {
+  wrap: { borderBottom: `1px solid ${v("panel-border", "#3336")}` },
+  header: {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "4px 8px",
+    cursor: "pointer",
+    fontSize: "11px",
+    userSelect: "none",
+  },
+  row: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: "6px",
+    padding: "3px 8px 3px 20px",
+    fontSize: "11px",
+  },
+  detail: { opacity: 0.6, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  actionBtn: {
+    background: "transparent",
+    color: v("textLink-foreground", "#3794ff"),
+    border: `1px solid ${v("textLink-foreground", "#3794ff")}`,
+    borderRadius: "3px",
+    fontSize: "10px",
+    padding: "0 5px",
+    cursor: "pointer",
+  },
+  refreshBtn: {
+    marginLeft: "auto",
+    background: "transparent",
+    color: v("foreground", "#ccc"),
+    border: "none",
+    cursor: "pointer",
+    fontSize: "11px",
+    opacity: 0.7,
+  },
+};
+
+function worst(components: ComponentHealth[]): HealthStatus {
+  const order: HealthStatus[] = ["down", "degraded", "unknown", "up"];
+  for (const s of order) {
+    if (components.some((c) => c.status === s)) {
+      return s;
+    }
+  }
+  return "unknown";
+}
+
+export function HealthPanel(props: {
+  components: ComponentHealth[];
+  onAction: (component: ComponentHealth["id"], action: HealthActionId) => void;
+  onRefresh: () => void;
+}): JSX.Element | null {
+  const [open, setOpen] = useState(false);
+  if (props.components.length === 0) {
+    return null;
+  }
+  const overall = worst(props.components);
+  const bad = props.components.filter((c) => c.status === "down" || c.status === "degraded").length;
+  return (
+    <div style={healthStyles.wrap}>
+      <div style={healthStyles.header} onClick={() => setOpen((o) => !o)}>
+        <span>{open ? "▾" : "▸"}</span>
+        <span style={dotStyle(HEALTH_COLOR[overall])} />
+        <span>components{bad > 0 ? ` — ${bad} need attention` : " ok"}</span>
+        <button
+          style={healthStyles.refreshBtn}
+          onClick={(e) => {
+            e.stopPropagation();
+            props.onRefresh();
+          }}
+          title="refresh"
+        >
+          ↻
+        </button>
+      </div>
+      {open &&
+        props.components.map((c) => (
+          <div key={c.id} style={healthStyles.row}>
+            <span style={dotStyle(HEALTH_COLOR[c.status])} />
+            <span style={{ fontWeight: 600 }}>{c.label}</span>
+            <span style={healthStyles.detail} title={c.detail}>
+              {c.detail}
+            </span>
+            {c.actions.map((a) => (
+              <button
+                key={a}
+                style={healthStyles.actionBtn}
+                onClick={() => props.onAction(c.id, a)}
+              >
+                {ACTION_LABEL[a]}
+              </button>
+            ))}
+          </div>
+        ))}
+    </div>
+  );
 }
