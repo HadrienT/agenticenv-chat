@@ -1,0 +1,102 @@
+{
+  "name": "agenticenv-chat",
+  "displayName": "AgenticEnv Chat",
+  "description": "Chat panel inside VS Code for a local OpenHands agent (AgenticEnv), via the openhands-bridge WebSocket server.",
+  "version": "0.1.0",
+  "publisher": "hadrient",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HadrienT/agenticenv-chat.git"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Chat",
+    "AI",
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "agenticenvChat",
+          "title": "AgenticEnv Chat",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "agenticenvChat": [
+        {
+          "id": "agenticenvChat.view",
+          "name": "Chat",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "agenticenvChat.newSession",
+        "title": "AgenticEnv Chat: New Session",
+        "icon": "$(add)"
+      },
+      {
+        "command": "agenticenvChat.reconnect",
+        "title": "AgenticEnv Chat: Reconnect to Bridge",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "agenticenvChat.newSession",
+          "when": "view == agenticenvChat.view",
+          "group": "navigation"
+        },
+        {
+          "command": "agenticenvChat.reconnect",
+          "when": "view == agenticenvChat.view",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "AgenticEnv Chat",
+      "properties": {
+        "agenticenvChat.bridgeUrl": {
+          "type": "string",
+          "default": "ws://127.0.0.1:8300",
+          "description": "WebSocket URL of the openhands-bridge server (packages/openhands-bridge in the AgenticEnv repo, started with `just run-bridge`)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "package": "node esbuild.mjs --production && vsce package --no-dependencies",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext ts,tsx"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@types/vscode": "^1.90.0",
+    "@types/ws": "^8.5.12",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "esbuild": "^0.23.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.5.4"
+  }
+}

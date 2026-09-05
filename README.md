@@ -1,0 +1,49 @@
+# AgenticEnv Chat
+
+A VS Code chat panel for a **local OpenHands agent** running in the
+[AgenticEnv](https://github.com/HadrienT/AgenticEnv) workshop — a self-hosted
+alternative to GitHub Copilot Chat / Claude Code's panel, backed by a local
+`llama-server` and a Dockerised OpenHands `agent-server` sandbox.
+
+It talks to the **`openhands-bridge`** WebSocket server (`packages/openhands-bridge`
+in the AgenticEnv repo), which owns the sandbox lifecycle and streams events.
+
+## Features (Phase 1)
+
+- Chat panel in the VS Code sidebar, streaming the agent's replies and tool calls.
+- List of files the agent changed in the sandbox workspace.
+- Context / token-usage gauge and accumulated cost.
+- MCP server picker shown before starting a session *(the list is real; actually
+  wiring MCP into the sandbox is Phase 2 — see AgenticEnv `blueprint/wp/WP08b` §7)*.
+- "Risky action" confirmation cards (Allow / Reject) — the agent pauses and waits.
+
+## Requirements
+
+- VS Code ≥ 1.90
+- The AgenticEnv bridge running: `just run-bridge` (defaults to `ws://127.0.0.1:8300`).
+- Node.js ≥ 20 to build the extension.
+
+## Develop
+
+```bash
+npm install
+npm run build          # or: npm run watch
+# then press F5 in VS Code ("Run Extension")
+```
+
+Set `agenticenvChat.bridgeUrl` if the bridge isn't on the default port.
+
+## Layout
+
+| Path | Role |
+|---|---|
+| `src/extension.ts` | extension host: webview view provider, wires the bridge client to the webview |
+| `src/bridgeClient.ts` | WebSocket client to `openhands-bridge` (auto-reconnect) |
+| `src/protocol.ts` | TypeScript mirror of the bridge wire protocol (`openhands_bridge/protocol.py`) |
+| `src/webview/` | React UI (chat, file changes, context gauge, confirm card, MCP picker) |
+
+## Roadmap
+
+- **Phase 2**: MCP servers actually reachable from inside the sandbox.
+- **Phase 3**: structured multiple-choice questions from the agent (needs a custom
+  `agent-server` image), replacing the Allow/Reject-only confirmation.
