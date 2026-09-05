@@ -7,7 +7,34 @@ import type { AppState } from "./types";
 export function applyLocal(state: AppState, action: LocalAction): AppState {
   switch (action.type) {
     case "composer/setDraft":
-      return { ...state, composer: { draft: action.draft } };
+      return { ...state, composer: { ...state.composer, draft: action.draft } };
+
+    case "composer/addAttachment": {
+      const exists = state.composer.attachments.some(
+        (a) => JSON.stringify(a.ref) === JSON.stringify(action.chip.ref),
+      );
+      return exists
+        ? state
+        : {
+            ...state,
+            composer: {
+              ...state.composer,
+              attachments: [...state.composer.attachments, action.chip],
+            },
+          };
+    }
+
+    case "composer/removeAttachment":
+      return {
+        ...state,
+        composer: {
+          ...state.composer,
+          attachments: state.composer.attachments.filter((_, i) => i !== action.index),
+        },
+      };
+
+    case "composer/clearAttachments":
+      return { ...state, composer: { ...state.composer, attachments: [] } };
 
     case "mcp/toggle": {
       const has = state.mcp.selected.includes(action.name);
@@ -38,7 +65,11 @@ export function applyLocal(state: AppState, action: LocalAction): AppState {
       if (state.phase.kind !== "idle") {
         return state;
       }
-      return { ...state, pendingSend: true };
+      return {
+        ...state,
+        pendingSend: true,
+        composer: { ...state.composer, attachments: [] },
+      };
     }
 
     case "intent/confirm": {

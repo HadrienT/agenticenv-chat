@@ -13,6 +13,11 @@ import {
 import { DEFAULT_SANDBOX_ROOT, resetMapping, setMapping, toHostUri } from "./paths";
 import { appendFeedback } from "./sessions/feedback";
 import { CLIENT_ID, CLIENT_PROTOCOL, type Outbound } from "./protocol";
+import { resolveRefs } from "./context";
+import { activeFileRef, searchFiles, selectionRef } from "./context/files";
+import { searchSymbols } from "./context/symbols";
+import { shellIntegrationAvailable } from "./context/terminal";
+import type { ContextRef, ContextRefKind } from "./messages";
 
 const HEALTH_POLL_MS = 8000;
 /** Debounce: un restart d'extension-host ou un blip de 1 s ne doit pas flasher la bannière. */
@@ -261,7 +266,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         break;
       }
       case "userMessage":
-        this.sendOrNotify({ type: "user_message", text: msg.text }, "send the message");
+        void this.sendUserMessage(msg.text, msg.context);
+        break;
+      case "searchFiles":
+        void this.runFileSearch(msg.query, msg.requestId);
+        break;
+      case "pickContext":
+        void this.runPickContext(msg.kind);
         break;
       case "cancelTurn":
         if (this.currentTurnId) {
@@ -313,6 +324,117 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         break;
       default:
         assertNever(msg, "WebviewToHost");
+    }
+  }
+
+  /** Résout les `ContextRef` **à l'envoi** (C04) puis transmet au bridge. */
+  private async sendUserMessage(text: string, refs: ContextRef[]): Promise<void> {
+    let context;
+    try {
+      context = await resolveRefs(refs);
+    } catch (err) {
+      log.warn("context resolution failed, sending without context:", err);
+      context = undefined;
+    }
+    this.sendOrNotify(
+      { type: "user_message", text, ...(context && context.length ? { context } : {}) },
+      "send the message",
+    );
+  }
+
+  private async runFileSearch(query: string, requestId: string): Promise<void> {
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    if (!folder) {
+      this.postToWebview({ type: "fileResults", requestId, results: [] });
+      return;
+    }
+    try {
+      const results = await searchFiles(query, folder.uri);
+      this.postToWebview({ type: "fileResults", requestId, results });
+    } catch (err) {
+      log.debug("file search failed:", err);
+      this.postToWebview({ type: "fileResults", requestId, results: [] });
+    }
+  }
+
+  private async runPickContext(kind: ContextRefKind): Promise<void> {
+    if (kind === "file") {
+      const active = activeFileRef();
+      if (active) {
+        this.postToWebview({ type: "attachContext", chip: active });
+      }
+      return;
+    }
+    if (kind === "selection") {
+      const sel = selectionRef();
+      if (sel) {
+        this.postToWebview({ type: "attachContext", chip: sel });
+      } else {
+        this.postToWebview({ type: "hostError", text: "No selection in the active editor." });
+      }
+      return;
+    }
+    if (kind === "diagnostics") {
+      this.postToWebview({
+        type: "attachContext",
+        chip: {
+          ref: { kind: "diagnostics", scope: "workspace" },
+          label: "diagnostics: workspace",
+          estBytes: 4000,
+        },
+      });
+      return;
+    }
+    if (kind === "git") {
+      const pick = await vscode.window.showQuickPick(["status", "diff", "log"], {
+        placeHolder: "Attach git…",
+      });
+      if (pick) {
+        this.postToWebview({
+          type: "attachContext",
+          chip: {
+            ref: { kind: "git", what: pick as "status" | "diff" | "log" },
+            label: `git ${pick}`,
+            estBytes: 4000,
+          },
+        });
+      }
+      return;
+    }
+    if (kind === "terminal") {
+      const options = shellIntegrationAvailable()
+        ? ["lastCommand", "selection"]
+        : ["selection"];
+      const pick = await vscode.window.showQuickPick(options, {
+        placeHolder: shellIntegrationAvailable()
+          ? "Attach terminal…"
+          : "Attach terminal… (shell integration inactive: last command unavailable)",
+      });
+      if (pick) {
+        this.postToWebview({
+          type: "attachContext",
+          chip: {
+            ref: { kind: "terminal", which: pick as "lastCommand" | "selection" },
+            label: `terminal ${pick}`,
+            estBytes: 3000,
+          },
+        });
+      }
+      return;
+    }
+    if (kind === "symbol") {
+      const query = await vscode.window.showInputBox({ prompt: "Symbol name" });
+      if (!query) {
+        return;
+      }
+      const chips = await searchSymbols(query);
+      const picked = await vscode.window.showQuickPick(
+        chips.map((c) => ({ label: c.label, description: c.detail, chip: c })),
+        { placeHolder: "Attach symbol definition" },
+      );
+      if (picked) {
+        this.postToWebview({ type: "attachContext", chip: picked.chip });
+      }
     }
   }
 

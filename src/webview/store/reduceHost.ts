@@ -61,6 +61,27 @@ export function applyHost(state: AppState, msg: HostToWebview, at: number): AppS
     case "health":
       return { ...state, health: msg.components };
 
+    case "fileResults":
+      return { ...state, fileSearch: { requestId: msg.requestId, results: msg.results } };
+
+    case "contextChips":
+      return { ...state, contextChips: msg.chips };
+
+    case "attachContext": {
+      const dup = state.composer.attachments.some(
+        (a) => JSON.stringify(a.ref) === JSON.stringify(msg.chip.ref),
+      );
+      return dup
+        ? state
+        : {
+            ...state,
+            composer: {
+              ...state.composer,
+              attachments: [...state.composer.attachments, msg.chip],
+            },
+          };
+    }
+
     case "hostError":
       return withNotice(endTurnOnError(state, true), {
         id: `host-${hash(msg.text)}`,

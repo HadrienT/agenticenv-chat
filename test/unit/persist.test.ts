@@ -18,7 +18,10 @@ function sample(): AppState {
     ],
     itemIndex: { "ev-0": 0, "ev-1": 1 },
     eventSeq: 2,
-    composer: { draft: "unsent draft" },
+    composer: {
+      draft: "unsent draft",
+      attachments: [{ ref: { kind: "file", uri: "file:///x/a.cpp" }, label: "a.cpp", estBytes: 100 }],
+    },
     panels: { health: true, workingSet: false },
   };
 }
@@ -34,6 +37,7 @@ describe("persist — round-trip (03-PROTOCOL §4)", () => {
 
     expect(res.state.items).toEqual(sample().items);
     expect(res.state.composer.draft).toBe("unsent draft");
+    expect(res.state.composer.attachments).toHaveLength(1);
     expect(res.state.panels).toEqual({ health: true, workingSet: false });
     expect(res.state.phase).toEqual({ kind: "idle", conversationId: "conv-7" });
     expect(res.state.itemIndex).toEqual({ "ev-0": 0, "ev-1": 1 });

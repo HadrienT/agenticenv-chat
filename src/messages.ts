@@ -39,6 +39,41 @@ export interface McpServerView {
   tools: string[];
 }
 
+/**
+ * Référence de contexte — **légère, sérialisable, affichable en chip** (01-ARCH
+ * §6). La webview manipule des références, jamais du contenu ; l'hôte résout au
+ * moment de l'envoi via `context/`.
+ */
+export type ContextRef =
+  | { kind: "file"; uri: string }
+  | { kind: "selection"; uri: string; range: [number, number] }
+  | { kind: "symbol"; uri: string; name: string }
+  | { kind: "diagnostics"; scope: "file" | "workspace"; uri?: string }
+  | { kind: "terminal"; which: "lastCommand" | "selection" }
+  | { kind: "git"; what: "status" | "diff" | "log" }
+  | { kind: "image"; id: string };
+
+export type ContextRefKind = ContextRef["kind"];
+
+/** Chip affichée dans le composer : ce que `describe()` d'un provider renvoie. */
+export interface ContextChip {
+  ref: ContextRef;
+  label: string;
+  detail?: string;
+  /** octets estimés, sans lire tout le contenu si évitable. */
+  estBytes: number;
+  /** `true` si la ref pointe un fichier sensible (`.env`, clé…) — avertissement C07. */
+  sensitive?: boolean;
+  /** message d'indisponibilité (git absent, shell integration absente…). */
+  unavailable?: string;
+}
+
+export interface FileHit {
+  uri: string;
+  /** chemin relatif au dossier, pour l'affichage. */
+  rel: string;
+}
+
 // --- hôte → webview ---
 
 export type HostToWebview =
@@ -48,6 +83,9 @@ export type HostToWebview =
   | { type: "mcpServers"; servers: McpServerView[] }
   | { type: "health"; components: ComponentHealth[] }
   | { type: "hostError"; text: string }
+  | { type: "fileResults"; requestId: string; results: FileHit[] }
+  | { type: "contextChips"; chips: ContextChip[] }
+  | { type: "attachContext"; chip: ContextChip }
   | {
       type: "workspace";
       folder: string | null;
@@ -65,6 +103,9 @@ export const HOST_TO_WEBVIEW_TYPES = [
   "mcpServers",
   "health",
   "hostError",
+  "fileResults",
+  "contextChips",
+  "attachContext",
   "workspace",
   "reset",
 ] as const;
@@ -74,7 +115,9 @@ export const HOST_TO_WEBVIEW_TYPES = [
 export type WebviewToHost =
   | { type: "ready"; stateVersion: number }
   | { type: "startSession"; mcpServers: string[] }
-  | { type: "userMessage"; text: string }
+  | { type: "userMessage"; text: string; context: ContextRef[] }
+  | { type: "searchFiles"; query: string; requestId: string }
+  | { type: "pickContext"; kind: ContextRefKind }
   | { type: "cancelTurn" }
   | { type: "forceNewSession" }
   | { type: "confirm"; accept: boolean }
@@ -92,6 +135,8 @@ export const WEBVIEW_TO_HOST_TYPES = [
   "ready",
   "startSession",
   "userMessage",
+  "searchFiles",
+  "pickContext",
   "cancelTurn",
   "forceNewSession",
   "confirm",

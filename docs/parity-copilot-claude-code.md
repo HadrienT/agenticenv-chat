@@ -86,7 +86,7 @@ Légende de faisabilité :
 | # | Subtilité | Qui | Faisab. |
 |---|---|---|---|
 | 1 | `/`-commandes (`/fix`, `/tests`, `/explain`, `/doc`, `/new`, `/clear`) avec menu filtrable | les deux | 🟢/🟡 |
-| 2 | `@`-participants (`@workspace`, `@terminal`, `@vscode`, `@github`) routant le prompt | Copilot | 🟡 |
+| 2 | `@`-participants (`@workspace`, `@terminal`, `@vscode`, `@github`) routant le prompt | Copilot | 🟡 — ✅ **C04** (raccourcis de saisie côté C03 : `@workspace`/`@terminal`/`@problems` groupent des refs, aucun routage — P1) |
 | 3 | `#`-références de contexte (`#file`, `#selection`, `#editor`, `#codebase`, `#<symbole>`, `#terminalSelection`, `#problems`) | Copilot | 🟢 (collecte) / 🟡 (envoi) |
 | 4 | Bouton « Ajouter du contexte » → quick-pick de fichiers / symboles / problèmes / terminal / images | les deux | 🟢 |
 | 5 | Chips de contexte au-dessus du champ, retirables individuellement, avec compteur | les deux | 🟢 |
@@ -180,17 +180,17 @@ Légende de faisabilité :
 |---|---|---|---|
 | 69 | Index sémantique du workspace (embeddings) pour `@workspace` / `#codebase` | Copilot | 🔴 |
 | 70 | Sélection automatique des fichiers pertinents pour la question | les deux | 🔴 |
-| 71 | Fichiers récemment ouverts / édités comme contexte implicite | Copilot | 🟡 |
-| 72 | Conscience de l'état git : branche courante, staged, diff, derniers commits | les deux | 🟢/🟡 |
-| 73 | Diagnostics / panneau Problems comme contexte | Copilot | 🟢 |
-| 74 | Dernière commande terminal + sa sortie comme contexte | Copilot | 🟢 |
-| 75 | Résolution symbole / définition / références | Copilot | 🟢 |
+| 71 | Fichiers récemment ouverts / édités comme contexte implicite | Copilot | 🟡 — ✅ **C04** (`recentFiles()` via `tabGroups`, filtrés `ignore`/sensibles ; proposés au quick-pick, jamais auto-attachés) |
+| 72 | Conscience de l'état git : branche courante, staged, diff, derniers commits | les deux | 🟢/🟡 — ✅ **C04** (`context/git.ts` via API `vscode.git` : status/diff/log ; binaires exclus ; dépôt absent = message clair) |
+| 73 | Diagnostics / panneau Problems comme contexte | Copilot | 🟢 — ✅ **C04** (`condense()` : groupé, trié, Error/Warning, plafond 50, cascade C++ dédupliquée) |
+| 74 | Dernière commande terminal + sa sortie comme contexte | Copilot | 🟢 — ✅ **C04** (`[À CONFIRMER]` levé : shell integration ≥ 1.93, `onDidEndTerminalShellExecution` ; dégrade en « selection » sinon ; terminal AgenticEnv exclu) |
+| 75 | Résolution symbole / définition / références | Copilot | 🟢 — ✅ **C04** (`executeWorkspaceSymbolProvider` + `executeDocumentSymbolProvider`) |
 | 76 | `CLAUDE.md` / `.github/copilot-instructions.md` chargés automatiquement | les deux | 🟡 |
 | 77 | Instructions à portée de chemin (`*.instructions.md` avec globs) | Copilot | 🟡 |
 | 78 | Fichiers de prompt réutilisables (`*.prompt.md` → `/`-commande) | Copilot | 🟢/🟡 |
-| 79 | `.copilotignore` / respect de `.gitignore` / exclusions d'org | Copilot | 🟢 |
+| 79 | `.copilotignore` / respect de `.gitignore` / exclusions d'org | Copilot | 🟢 — ✅ **C04** (`.gitignore` + `.agenticenvignore` + liste sensible toujours exclue de l'auto ; test « secret » sur `.env`) |
 | 80 | Budget de fenêtre de contexte : trim des vieux tours, indicateur d'usage | les deux | 🟡 |
-| 81 | `#` d'un symbole → embarque sa définition, pas tout le fichier | Copilot | 🟢 |
+| 81 | `#` d'un symbole → embarque sa définition, pas tout le fichier | Copilot | 🟢 — ✅ **C04** (`resolveSymbol` : `range` du DocumentSymbol + `#include`/imports + déclaration englobante, pas le fichier) |
 
 ### 2.7 Gestion des conversations
 

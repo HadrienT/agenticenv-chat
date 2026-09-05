@@ -15,8 +15,8 @@ quand ses critères d'acceptation **automatisables** sont verts.
 | C00 | Fondations | `wp/C00-foundations` | ✅ **fait** (commit `5353b2c`) | F5 + fixtures réelles à finir |
 | C01 | Protocole v2 : tours, deltas, annulation | `wp/C01-turn-protocol` | ✅ **client fait** | moitié AgenticEnv (bridge v2) + F5 à finir |
 | C02 | Rendu du fil (markdown, code, liens) | `wp/C02-thread-rendering` | ✅ **fait** (Mermaid/KaTeX différés) | F5 (thèmes) + fixture markdown réelle |
-| C03 | Composer (chips, /-commandes, #-refs) | — | ⏳ à faire | dépend de C04 |
-| C04 | Fournisseurs de contexte (hôte) | — | ⏳ à faire | |
+| C03 | Composer (chips, /-commandes, #-refs) | `wp/C03-composer` | 🚧 en cours | protocole hôte prêt (C04) |
+| C04 | Fournisseurs de contexte (hôte) | `wp/C04-context-providers` | ✅ **fait** | parties vscode non testées (F5/e2e) ; budget C13 |
 | C05 | Rendu des appels d'outils | `wp/C05-tool-rendering` | ✅ **fait** | filtre sortie + renderers browser/apply_patch différés |
 | C06 | Éditions, diffs, checkpoints | — | ⏳ à faire | |
 | C07 | Permissions, approbations | — | ⏳ à faire | |
@@ -138,6 +138,40 @@ Branche `wp/C05-tool-rendering`. Items 30, 35, 36, 37, 40, 43, 45.
 `apply_patch` / `browser` / `task_tracker` (repli générique) ; icônes codicon
 (glyphes texte en attendant).
 
-## C06 — Éditions, diffs, checkpoints 🚧
+## C04 — Fournisseurs de contexte ✅
 
-En cours.
+Branche `wp/C04-context-providers`. Items 2, 71–75, 79, 81.
+
+- `context/index.ts` : `resolveRefs(refs, budget)` — résolution **à l'envoi**,
+  un provider en échec renvoie un `ResolvedContext` d'erreur (ne bloque pas).
+- `context/files.ts` : fichier actif (ignore éditeurs virtuels), sélection avec
+  marge de 5 lignes, fichiers récents (`tabGroups`), recherche floue
+  (`fuzzyScore` + `.gitignore` + exclusions).
+- `context/symbols.ts` : définition du symbole (range + `#include` + classe
+  englobante), pas le fichier entier.
+- `context/diagnostics.ts` : `condense()` pur (groupé/trié, Error+Warning,
+  plafond 50, cascade C++ dédupliquée).
+- `context/terminal.ts` : `[À CONFIRMER]` levé — shell integration ≥ 1.93
+  (`engines.vscode` → `^1.93.0`), `watchTerminals()` mémorise la dernière
+  commande ; dégrade en « selection » sinon ; terminal AgenticEnv exclu.
+- `context/git.ts` : `[À CONFIRMER]` levé — API `vscode.git` `getAPI(1)` ;
+  status/diff/log ; binaires exclus ; dépôt absent = message.
+- `context/ignore.ts` : `.gitignore` + `.agenticenvignore` + `SENSITIVE_GLOBS`
+  toujours exclus de l'auto. Test « secret » sur `.env`.
+- `context/budget.ts` : `allocate()` — chips explicites avant automatiques,
+  part minimale garantie.
+- Protocole hôte↔webview : `userMessage` porte `context: ContextRef[]` ;
+  `searchFiles`/`fileResults`, `pickContext`/`attachContext`. Store :
+  `composer.attachments: ContextChip[]` (persisté, `PERSIST_VERSION` 2→3).
+- 134 tests.
+
+**Reste** : parties touchant l'API VS Code non testables ici (F5 / e2e C14) ;
+budget sur `context_window` réel = C13.
+
+## C03 — Composer 🚧
+
+En cours (l'UI ; le protocole hôte est prêt côté C04).
+
+## C06 — Éditions, diffs, checkpoints ⏳
+
+À faire.

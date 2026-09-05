@@ -166,7 +166,10 @@ export function App(): JSX.Element {
             connected={state.connection.state === "open"}
             onDraft={actions.setDraft}
             onSend={() => {
-              actions.sendMessage(state.composer.draft.trim());
+              actions.sendMessage(
+                state.composer.draft.trim(),
+                state.composer.attachments.map((a) => a.ref),
+              );
               actions.setDraft("");
             }}
             onStop={actions.cancelTurn}
