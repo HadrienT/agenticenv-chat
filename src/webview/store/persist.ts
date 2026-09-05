@@ -9,7 +9,7 @@ import { initialState } from "./types";
  * `version` est incrémentée à **chaque** changement de forme. Une version
  * inconnue ⇒ l'état est **jeté** (jamais migré à la devinette) + notice (I7).
  */
-export const PERSIST_VERSION = 6;
+export const PERSIST_VERSION = 7;
 
 const MAX_PERSISTED_ITEMS = 200;
 
@@ -21,6 +21,7 @@ const CHAT_ITEM_KINDS = new Set([
   "error",
   "turn-cancelled",
   "permission",
+  "hook",
 ]);
 
 export interface PersistedState {

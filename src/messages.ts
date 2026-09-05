@@ -103,6 +103,14 @@ export interface SlashCommand {
   source: "builtin" | "prompt" | "mcp";
   /** `true` si c'est une action locale (pas de texte à préremplir). */
   local?: boolean;
+  argsHint?: string;
+}
+
+export interface ModeView {
+  name: string;
+  permissions?: string;
+  mcp: string[];
+  model?: string;
 }
 
 // --- hôte → webview ---
@@ -119,6 +127,8 @@ export type HostToWebview =
   | { type: "attachContext"; chip: ContextChip }
   | { type: "autoContext"; chips: ContextChip[] }
   | { type: "commands"; commands: SlashCommand[] }
+  | { type: "modes"; modes: ModeView[] }
+  | { type: "instructionsInfo"; applied: string[]; ignored: { rel: string; reason: string }[]; truncated: boolean }
   | { type: "starters"; prompts: string[] }
   | { type: "commandResult"; command: string; prefill?: string; note?: string }
   | { type: "clearThread" }
@@ -127,6 +137,7 @@ export type HostToWebview =
   | { type: "pendingAction"; action: PendingActionView | null }
   | { type: "permissionMode"; mode: "ask" | "autoEdit" | "autoAll" | "readOnly"; trusted: boolean }
   | { type: "permissionOutcome"; verdict: "allowed" | "denied"; rule: string; summary: string }
+  | { type: "hookResult"; command: string; ok: boolean; output: string }
   | {
       type: "workspace";
       folder: string | null;
@@ -149,6 +160,8 @@ export const HOST_TO_WEBVIEW_TYPES = [
   "attachContext",
   "autoContext",
   "commands",
+  "modes",
+  "instructionsInfo",
   "starters",
   "commandResult",
   "clearThread",
@@ -157,6 +170,7 @@ export const HOST_TO_WEBVIEW_TYPES = [
   "pendingAction",
   "permissionMode",
   "permissionOutcome",
+  "hookResult",
   "workspace",
   "reset",
 ] as const;
@@ -165,11 +179,12 @@ export const HOST_TO_WEBVIEW_TYPES = [
 
 export type WebviewToHost =
   | { type: "ready"; stateVersion: number }
-  | { type: "startSession"; mcpServers: string[] }
+  | { type: "startSession"; mcpServers: string[]; mode?: string }
   | { type: "userMessage"; text: string; context: ContextRef[] }
   | { type: "searchFiles"; query: string; requestId: string }
   | { type: "pickContext"; kind: ContextRefKind | "menu" }
   | { type: "resolveCommand"; command: string; args: string }
+  | { type: "remember"; text: string }
   | { type: "dismissAuto"; refKey: string }
   | { type: "cancelTurn" }
   | { type: "forceNewSession" }
@@ -210,6 +225,7 @@ export const WEBVIEW_TO_HOST_TYPES = [
   "searchFiles",
   "pickContext",
   "resolveCommand",
+  "remember",
   "dismissAuto",
   "cancelTurn",
   "forceNewSession",

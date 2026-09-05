@@ -17,7 +17,9 @@ import type { PanelId } from "./types";
  */
 export interface Actions {
   ready(stateVersion: number): void;
-  startSession(mcpServers: string[]): void;
+  startSession(mcpServers: string[], mode: string | null): void;
+  selectMode(name: string | null): void;
+  remember(text: string): void;
   sendMessage(text: string, context: ContextRef[]): void;
   searchFiles(query: string, requestId: string): void;
   pickContext(kind: ContextRefKind | "menu"): void;
@@ -71,10 +73,12 @@ export function createActions(dispatch: (action: Action) => void, now: () => num
   const send = (a: LocalAction): void => dispatch(local(a));
   return {
     ready: (stateVersion) => post({ type: "ready", stateVersion }),
-    startSession: (mcpServers) => {
-      post({ type: "startSession", mcpServers });
+    startSession: (mcpServers, mode) => {
+      post({ type: "startSession", mcpServers, mode: mode ?? undefined });
       send({ type: "intent/startSession" });
     },
+    selectMode: (name) => send({ type: "mode/select", name }),
+    remember: (text) => post({ type: "remember", text }),
     sendMessage: (text, context) => {
       post({ type: "userMessage", text, context });
       send({ type: "intent/sendMessage", text });

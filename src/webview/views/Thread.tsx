@@ -32,6 +32,15 @@ function renderItem(item: ChatItem, afterCount: number): JSX.Element {
           <span className="agx-permline__rule">by rule {item.rule}</span>
         </div>
       );
+    case "hook":
+      return (
+        <div key={item.id} className="agx-tool">
+          <span className="agx-tool__name">
+            {item.ok ? "✓" : "✗"} hook: {item.command}
+          </span>
+          {item.output && <pre className="agx-output__pre">{item.output}</pre>}
+        </div>
+      );
     default:
       return assertNever(item, "ChatItem");
   }

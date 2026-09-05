@@ -80,6 +80,10 @@
       {
         "command": "agenticenvChat.exportConversation",
         "title": "AgenticEnv Chat: Export Conversation…"
+      },
+      {
+        "command": "agenticenvChat.remember",
+        "title": "AgenticEnv Chat: Remember… (add a note to AGENTS.md)"
       }
     ],
     "menus": {
@@ -141,6 +145,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show a gutter mark on lines the agent changed in the current turn."
+        },
+        "agenticenvChat.hooks": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "Client-side hooks (item 118). Events: `onTurnStarted`, `onTurnFinished`, `onFilesChanged`, `onSessionStarted`. Each is a list of `{ \"command\": \"...\", \"when\": \"always\" | \"filesChanged\" }`. Commands run **on your machine** through the permission policy; they are loaded only from VS Code settings (Workspace Trust applies), never from the repo. Example: `{ \"onTurnFinished\": [{ \"command\": \"npm run lint\", \"when\": \"filesChanged\" }] }`."
         },
         "agenticenvChat.notifications": {
           "type": "string",

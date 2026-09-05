@@ -12,6 +12,7 @@ export type LocalAction =
   | { type: "composer/clearAttachments" }
   | { type: "composer/dismissAuto"; refKey: string }
   | { type: "mcp/toggle"; name: string }
+  | { type: "mode/select"; name: string | null }
   | { type: "panel/toggle"; id: PanelId }
   | { type: "notice/push"; notice: Notice }
   | { type: "notice/dismiss"; id: string }

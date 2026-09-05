@@ -99,7 +99,7 @@ Légende de faisabilité :
 | 12 | Sélecteur de modèle inline (dans le composer) | les deux | 🟡 |
 | 13 | Sélecteur de mode : Ask / Edit / Agent | Copilot | 🟡 |
 | 14 | Complétion floue des chemins après `@`/`#` (fuzzy find, comme le file picker) | Claude Code | 🟢 — ✅ **C03** (`fuzzyScore` côté hôte, résultats dans le menu `#`, au clavier) |
-| 15 | Modes de chat custom / instructions custom mentionnables | Copilot | 🟢/🟡 |
+| 15 | Modes de chat custom / instructions custom mentionnables | Copilot | 🟢/🟡 — ✅ **C10** (`.agenticenv/modes/*.mode.md` : instructions + permissions + mcp + model ; sélecteur pré-session ; un mode restreint, ne relâche jamais les permissions) |
 | 16 | Indication « contexte trop gros » / troncature avant l'envoi | les deux | 🟢 — ✅ **C03** (`BudgetMeter` : seuils ok/warn/high/over vs `context_window` ; aucune troncature auto, l'utilisateur décide) |
 | 17 | Entrée vocale | Copilot Voice | 🔴 |
 | 18 | Placeholder contextuel (« Modifier X », « Poser une question sur Y ») | Copilot | 🟢 — ✅ **C03** (`composerPlaceholder` : « Message the agent… » / « Add a note while it works… » / « Not connected ») |
@@ -185,9 +185,9 @@ Légende de faisabilité :
 | 73 | Diagnostics / panneau Problems comme contexte | Copilot | 🟢 — ✅ **C04** (`condense()` : groupé, trié, Error/Warning, plafond 50, cascade C++ dédupliquée) |
 | 74 | Dernière commande terminal + sa sortie comme contexte | Copilot | 🟢 — ✅ **C04** (`[À CONFIRMER]` levé : shell integration ≥ 1.93, `onDidEndTerminalShellExecution` ; dégrade en « selection » sinon ; terminal AgenticEnv exclu) |
 | 75 | Résolution symbole / définition / références | Copilot | 🟢 — ✅ **C04** (`executeWorkspaceSymbolProvider` + `executeDocumentSymbolProvider`) |
-| 76 | `CLAUDE.md` / `.github/copilot-instructions.md` chargés automatiquement | les deux | 🟡 |
-| 77 | Instructions à portée de chemin (`*.instructions.md` avec globs) | Copilot | 🟡 |
-| 78 | Fichiers de prompt réutilisables (`*.prompt.md` → `/`-commande) | Copilot | 🟢/🟡 |
+| 76 | `CLAUDE.md` / `.github/copilot-instructions.md` chargés automatiquement | les deux | 🟡 — ✅ **C10** (`AGENTS.md` + `CLAUDE.md` + `.github/copilot-instructions.md` : tous chargés, étiquetés par source ; plafond 16 Kio ; hot-reload watcher ; **rien** si dossier non fiable) |
+| 77 | Instructions à portée de chemin (`*.instructions.md` avec globs) | Copilot | 🟡 — ✅ **C10** (`.agenticenv/instructions/*.instructions.md` + frontmatter `applyTo` ; s'applique si un fichier attaché matche ; sans `applyTo` → ignoré + notice ; chip « N instruction files ») |
+| 78 | Fichiers de prompt réutilisables (`*.prompt.md` → `/`-commande) | Copilot | 🟢/🟡 — ✅ **C10** (`.agenticenv/prompts/*.prompt.md` → `/`-commande à chaud ; `${arg}`/`${selection}`/`${file}`/`${workspaceFolder}` substitués côté hôte ; résultat **prérempli**, pas envoyé ; fichier manquant → message clair) |
 | 79 | `.copilotignore` / respect de `.gitignore` / exclusions d'org | Copilot | 🟢 — ✅ **C04** (`.gitignore` + `.agenticenvignore` + liste sensible toujours exclue de l'auto ; test « secret » sur `.env`) |
 | 80 | Budget de fenêtre de contexte : trim des vieux tours, indicateur d'usage | les deux | 🟡 |
 | 81 | `#` d'un symbole → embarque sa définition, pas tout le fichier | Copilot | 🟢 — ✅ **C04** (`resolveSymbol` : `range` du DocumentSymbol + `#include`/imports + déclaration englobante, pas le fichier) |
@@ -246,9 +246,9 @@ Légende de faisabilité :
 | # | Subtilité | Faisab. |
 |---|---|---|
 | 116 | Niveaux de réflexion (« think » / « ultrathink ») pilotant le budget de raisonnement | 🔴 |
-| 117 | Mémoire projet : `#` pour ajouter une consigne persistante à `CLAUDE.md` | 🟢/🟡 |
-| 118 | Hooks pre/post tool-use (lint après édition, etc.) | 🟡/🔴 |
-| 119 | `/`-commandes custom définies par le repo | 🟢/🟡 |
+| 117 | Mémoire projet : `#` pour ajouter une consigne persistante à `CLAUDE.md` | 🟢/🟡 — ✅ **C10** (`/remember <note>` + commande `agenticenvChat.remember` → puce dans `AGENTS.md` sous `## Agent memory`, **confirmation modale** montrant la ligne) |
+| 118 | Hooks pre/post tool-use (lint après édition, etc.) | 🟡/🔴 — ✅ **C10** (hooks **côté hôte** sur `onTurnStarted/Finished`/`onFilesChanged`/`onSessionStarted` ; passent par `evaluate()` ; item « hook » visible ; chargés **uniquement** depuis les réglages VS Code, jamais le dépôt) |
+| 119 | `/`-commandes custom définies par le repo | 🟢/🟡 — ✅ **C10** (`.prompt.md` du dépôt → `/`-commande listée dans le menu C03, rechargée à chaud) |
 | 120 | Statusline configurable (branche, modèle, contexte restant, coût) | 🟢 |
 | 121 | Ressources / prompts MCP exposés comme `/`-commandes | 🟡 |
 | 122 | Rendu de diff en couleur dans le fil, style unified | 🟢 |
