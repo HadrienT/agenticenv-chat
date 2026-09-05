@@ -156,13 +156,31 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  private projectPath(): string | null {
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    return folder && folder.uri.scheme === "file" ? folder.uri.fsPath : null;
+  }
+
+  private sendWorkspace(): void {
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    this.postToWebview({
+      type: "workspace",
+      folder: folder ? folder.name : null,
+      path: this.projectPath(),
+    });
+  }
+
   private onWebviewMessage(msg: WebviewToHost): void {
     switch (msg.type) {
       case "ready":
         this.bridge?.send({ type: "list_mcp_servers" });
+        this.sendWorkspace();
         break;
       case "startSession":
-        this.sendOrNotify({ type: "start_session", mcp_servers: msg.mcpServers }, "start a session");
+        this.sendOrNotify(
+          { type: "start_session", mcp_servers: msg.mcpServers, project_path: this.projectPath() },
+          "start a session",
+        );
         break;
       case "userMessage":
         this.sendOrNotify({ type: "user_message", text: msg.text }, "send the message");

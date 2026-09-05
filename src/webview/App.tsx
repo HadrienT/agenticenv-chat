@@ -74,6 +74,10 @@ export function App(): JSX.Element {
   const [pendingConfirm, setPendingConfirm] = useState(false);
   const [sessionInfo, setSessionInfo] = useState<{ llmSource: string } | null>(null);
   const [health, setHealth] = useState<ComponentHealth[]>([]);
+  const [workspace, setWorkspace] = useState<{ folder: string | null; path: string | null }>({
+    folder: null,
+    path: null,
+  });
   const [notice, setNotice] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [running, setRunning] = useState(false);
@@ -93,6 +97,8 @@ export function App(): JSX.Element {
         setMcpServers(msg.servers);
       } else if (msg.type === "health") {
         setHealth(msg.components);
+      } else if (msg.type === "workspace") {
+        setWorkspace({ folder: msg.folder, path: msg.path });
       } else if (msg.type === "hostError") {
         setStarting(false);
         setRunning(false);
@@ -150,12 +156,14 @@ export function App(): JSX.Element {
         setPendingConfirm(true);
         break;
       case "error":
-        setItems((prev) => [
-          ...prev,
-          { kind: "error", id: `err-${evIndex.current++}`, text: `${message.code}: ${message.message}` },
-        ]);
-        setRunning(false);
-        setStarting(false);
+        // PROJECT_READONLY is a non-fatal notice about the session that just
+        // started; keep it in the always-visible notice bar. Turn-level errors
+        // also go there so they're visible during the picking phase.
+        setNotice(`${message.code}: ${message.message}`);
+        if (message.code !== "PROJECT_READONLY") {
+          setRunning(false);
+          setStarting(false);
+        }
         break;
     }
   }
@@ -191,6 +199,7 @@ export function App(): JSX.Element {
         <McpPicker
           servers={mcpServers}
           selected={selectedMcp}
+          workspaceFolder={workspace.folder}
           disabled={conn.state !== "open" || starting}
           onToggle={(name) => {
             setSelectedMcp((prev) => {
@@ -253,6 +262,7 @@ export function App(): JSX.Element {
     phase,
     mcpServers,
     selectedMcp,
+    workspace.folder,
     conn.state,
     starting,
     items,

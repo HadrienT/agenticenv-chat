@@ -6,6 +6,8 @@
 export interface StartSession {
   type: "start_session";
   mcp_servers: string[];
+  /** Host path bind-mounted into the sandbox; the extension host fills this in. */
+  project_path?: string | null;
 }
 
 export interface UserMessage {
@@ -136,6 +138,7 @@ export type HostToWebview =
   | { type: "mcpServers"; servers: { name: string; transport: string; tools: string[] }[] }
   | { type: "health"; components: ComponentHealth[] }
   | { type: "hostError"; text: string }
+  | { type: "workspace"; folder: string | null; path: string | null }
   | { type: "reset" };
 
 export type WebviewToHost =

@@ -206,6 +206,7 @@ export function ConnectionBanner(props: {
 export function McpPicker(props: {
   servers: { name: string; transport: string; tools: string[] }[];
   selected: Set<string>;
+  workspaceFolder: string | null;
   disabled: boolean;
   starting: boolean;
   onToggle: (name: string) => void;
@@ -214,6 +215,11 @@ export function McpPicker(props: {
   return (
     <div style={styles.picker}>
       <div style={styles.pickerTitle}>New session</div>
+      <div style={styles.pickerHint}>
+        {props.workspaceFolder
+          ? `The agent will work in your open folder "${props.workspaceFolder}" (bind-mounted into the sandbox). It can read and modify files there.`
+          : "No folder open in VS Code — the agent will run in an empty sandbox workspace (nothing to edit). Open a folder for a useful session."}
+      </div>
       <div style={styles.pickerHint}>
         Select the MCP servers this session may use, then start. (Phase 1: the list is shown but MCP
         access inside the sandbox is not wired yet — see WP08b §7.)
