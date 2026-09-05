@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { host, local } from "../../src/webview/store/actions";
 import { reduce } from "../../src/webview/store/reducer";
 import { budgetStatus, effectiveAttachments } from "../../src/webview/store/selectors";
-import { initialState, pushHistory } from "../../src/webview/store/types";
+import { initialState } from "../../src/webview/store/types";
+import { pushHistory } from "../../src/webview/store/composerHelpers";
 import type { ContextChip } from "../../src/messages";
 
 const chip = (uri: string, bytes = 400): ContextChip => ({

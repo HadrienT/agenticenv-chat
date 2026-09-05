@@ -135,7 +135,7 @@ Légende de faisabilité :
 | 38 | Libellé de progression en direct : « Lecture de X… », « Édition de Y… », « Exécution de Z… » | les deux | 🟡 — ✅ **C01** (ligne `progress`, jamais inventée ; `progress` côté bridge à faire) |
 | 39 | État par étape : en cours (spinner) / réussi (✓) / échoué (✗) / ignoré | les deux | 🟢 — ✅ **C01** (`tool_status` → ⟳/✓/✗ ; `tool_status` côté bridge à faire) |
 | 40 | Regroupement : « A cherché dans la base de code », « A utilisé 3 outils » avec compteur | Copilot | 🟢 — ✅ **C05** (3+ outils consécutifs même famille → groupe replié ; libellé dérivé, jamais inventé ; groupe avec erreur non replié) |
-| 41 | Diffs de fichiers **inline** dans le fil, coloration +/−, repliables par hunk | les deux | 🟡 |
+| 41 | Diffs de fichiers **inline** dans le fil, coloration +/−, repliables par hunk | les deux | 🟡 — ✅ **C06** (`Diff` : hunks parsés, +/− colorés, replié > 40 lignes, `revert hunk`) |
 | 42 | Sortie terminal capturée et streamée sous le bloc de commande | les deux | 🟡 |
 | 43 | Survol d'une ligne d'outil → tooltip avec les args complets | Claude Code | 🟢 — ✅ **C05** (tooltip `title` sur l'entête = args JSON complets) |
 | 44 | Liens cliquables dans les résultats d'outil (chemins → éditeur) | les deux | 🟢 — ✅ **C02** (mêmes liens `path:line` dans les sorties d'outil) |
@@ -145,14 +145,14 @@ Légende de faisabilité :
 
 | # | Subtilité | Qui | Faisab. |
 |---|---|---|---|
-| 46 | « Working set » / panneau des fichiers modifiés, avec compteur « N fichiers modifiés » | Copilot | 🟡 |
-| 47 | Édition **streamée dans le fichier** avec overlay de diff live | Copilot | 🟡/🔴 |
-| 48 | Accepter / Rejeter **par hunk** et **par fichier** | Copilot | 🟡 |
-| 49 | « Tout garder » / « Tout annuler » global | Copilot | 🟡 |
-| 50 | Navigation entre les modifications (flèches haut/bas dans le diff) | Copilot | 🟢 |
-| 51 | Diff « avant/après agent » réel (snapshot sandbox), pas juste contre HEAD git | — | 🔴 |
-| 52 | Barre de progression multi-fichiers pendant que l'agent édite | Copilot | 🟡 |
-| 53 | Ouvrir le fichier édité automatiquement (ou pas — réglage) | les deux | 🟢 |
+| 46 | « Working set » / panneau des fichiers modifiés, avec compteur « N fichiers modifiés » | Copilot | 🟡 — ✅ **C06** (`WorkingSet` : « N files changed by this turn », badges M/A/D, compteurs +/− paresseux) |
+| 47 | Édition **streamée dans le fichier** avec overlay de diff live | Copilot | 🟡/🔴 — ⚠️ **C06 partiel** (l'agent édite déjà le disque, P4 ; « overlay live » = décorations de gouttière du tour, pas de streaming ligne à ligne) |
+| 48 | Accepter / Rejeter **par hunk** et **par fichier** | Copilot | 🟡 — ✅ **C06** (`revert hunk` via `WorkspaceEdit` annulable par Ctrl+Z ; `revert` par fichier ; pas d'« accept » — l'écriture a déjà eu lieu) |
+| 49 | « Tout garder » / « Tout annuler » global | Copilot | 🟡 — ✅ **C06** (`Undo turn` restaure tout le checkpoint ; `Open all` plafonné à 10) |
+| 50 | Navigation entre les modifications (flèches haut/bas dans le diff) | Copilot | 🟢 — ✅ **C06** (diff virtuel `agenticenv-checkpoint:` + `vscode.diff` → navigation native) |
+| 51 | Diff « avant/après agent » réel (snapshot sandbox), pas juste contre HEAD git | — | 🔴 — ✅ **C06** (checkpoint **hôte-git** `git stash create` avant le tour → `git diff <sha>` = avant-le-tour → maintenant, **pas** HEAD ; ref dangling invisible) |
+| 52 | Barre de progression multi-fichiers pendant que l'agent édite | Copilot | 🟡 — ✅ **C06** (working set se remplit sur `files_changed`, fichier en cours marqué ⟳) |
+| 53 | Ouvrir le fichier édité automatiquement (ou pas — réglage) | les deux | 🟢 — ✅ **C06** (`agenticenvChat.edits.autoOpen` : never / first / all, défaut never) |
 
 ### 2.5 Boucle agent & exécution
 
@@ -170,7 +170,7 @@ Légende de faisabilité :
 | 63 | Changer de modèle en cours de session | Claude Code | 🟡 |
 | 64 | Sous-agents / délégation de tâche | Claude Code | 🔴 |
 | 65 | Compaction / résumé automatique du contexte quand il se remplit ; barre « X% restant » | Claude Code | 🟡/🔴 |
-| 66 | Checkpoint avant chaque édition + « Restaurer ce checkpoint » | les deux | 🟡/🔴 |
+| 66 | Checkpoint avant chaque édition + « Restaurer ce checkpoint » | les deux | 🟡/🔴 — ✅ **C06** (checkpoint **par tour** ; `undoTurn`/`restoreCheckpoint` ; conflit utilisateur → confirmation modale ; purge 20 / 7 j) |
 | 67 | Cap d'itérations / « l'agent continue ? » après N étapes | Copilot | 🟡 |
 | 68 | Question à choix multiples structurée de l'agent (au-delà du Allow/Reject) | — | 🔴 (image custom) |
 
@@ -221,7 +221,7 @@ Légende de faisabilité :
 | 99 | Chat inline terminal (Ctrl+I dans le terminal) — génère/explique une commande | Copilot | 🟢/🟡 |
 | 100 | Suggestions de renommage de symbole | Copilot | 🔴 |
 | 101 | Next Edit Suggestions (prédit le prochain endroit à éditer) | Copilot | 🔴 |
-| 102 | Décorations dans la gouttière pour les lignes touchées par l'agent | Copilot | 🟢 |
+| 102 | Décorations dans la gouttière pour les lignes touchées par l'agent | Copilot | 🟢 — ✅ **C06** (`TurnDecorations` : overview ruler, couleur de token distincte du git, effacé au tour suivant, `edits.decorations`) |
 | 103 | Annoncer la progression aux lecteurs d'écran (ARIA live) | les deux | 🟢 |
 | 104 | Raccourcis clavier partout (focus composer, nouveau chat, accepter diff…) | les deux | 🟢 |
 | 105 | Badge sur l'icône activity bar (agent en attente / terminé) | Copilot | 🟢 |

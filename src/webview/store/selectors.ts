@@ -1,5 +1,6 @@
 import type { ContextChip } from "../../messages";
-import { refKey, type AppState, type ChatItem } from "./types";
+import type { AppState, ChatItem } from "./types";
+import { refKey } from "./composerHelpers";
 
 /** Dérivations pures du store. Bon marché : pas de mémoïsation ici. */
 

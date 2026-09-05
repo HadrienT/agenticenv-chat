@@ -112,7 +112,17 @@ export function App(): JSX.Element {
             services={services}
           />
           {pendingConfirmation(state) && <ConfirmCard onAnswer={actions.confirm} />}
-          <WorkingSet files={state.workingSet} onOpen={actions.openDiff} />
+          <WorkingSet
+            files={state.workingSet}
+            fileDiffs={state.fileDiffs}
+            strategy={state.checkpointStrategy}
+            onRequestDiff={actions.requestFileDiff}
+            onOpenFileDiff={actions.openFileDiff}
+            onRevertFile={actions.revertFile}
+            onRevertHunk={actions.revertHunk}
+            onUndoTurn={actions.undoTurn}
+            onOpenAll={() => state.workingSet.slice(0, 10).forEach((f) => actions.openFile(f.path))}
+          />
           {state.usage && <ContextGauge usage={state.usage} />}
           {state.items.length === 0 && state.phase.kind === "idle" && (
             <StarterPrompts prompts={state.starters} onPick={actions.setDraft} />

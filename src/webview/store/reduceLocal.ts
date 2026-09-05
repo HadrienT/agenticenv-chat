@@ -1,7 +1,8 @@
 import { assertNever } from "../../assertNever";
 import type { LocalAction } from "./actions";
 import { withNotice } from "./reduceHelpers";
-import { pushHistory, type AppState } from "./types";
+import type { AppState } from "./types";
+import { pushHistory } from "./composerHelpers";
 
 /** Routeur exhaustif des intentions locales (`assertNever` en garde). */
 export function applyLocal(state: AppState, action: LocalAction): AppState {

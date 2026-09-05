@@ -33,6 +33,11 @@ export interface Actions {
   togglePanel(id: PanelId): void;
   dismissNotice(id: string): void;
   openDiff(path: string): void;
+  requestFileDiff(path: string): void;
+  openFileDiff(path: string): void;
+  revertFile(path: string): void;
+  revertHunk(path: string, hunkHeader: string): void;
+  undoTurn(): void;
   openFile(path: string, line?: number): void;
   copy(text: string): void;
   insertAtCursor(text: string): void;
@@ -78,6 +83,11 @@ export function createActions(dispatch: (action: Action) => void, now: () => num
     togglePanel: (id) => send({ type: "panel/toggle", id }),
     dismissNotice: (id) => send({ type: "notice/dismiss", id }),
     openDiff: (path) => post({ type: "openDiff", path }),
+    requestFileDiff: (path) => post({ type: "requestFileDiff", path }),
+    openFileDiff: (path) => post({ type: "openFileDiff", path }),
+    revertFile: (path) => post({ type: "revertFile", path }),
+    revertHunk: (path, hunkHeader) => post({ type: "revertHunk", path, hunkHeader }),
+    undoTurn: () => post({ type: "undoTurn" }),
     openFile: (path, line) => post({ type: "openFile", path, line }),
     copy: (text) => post({ type: "copy", text }),
     insertAtCursor: (text) => post({ type: "insertAtCursor", text }),

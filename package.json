@@ -49,6 +49,22 @@
         "command": "agenticenvChat.reconnect",
         "title": "AgenticEnv Chat: Reconnect to Bridge",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "agenticenvChat.undoTurn",
+        "title": "AgenticEnv Chat: Undo Last Turn (restore checkpoint)"
+      },
+      {
+        "command": "agenticenvChat.restoreCheckpoint",
+        "title": "AgenticEnv Chat: Restore Checkpoint"
+      },
+      {
+        "command": "agenticenvChat.openTurnDiff",
+        "title": "AgenticEnv Chat: Open Diff of the Last Turn"
+      },
+      {
+        "command": "agenticenvChat.purgeCheckpoints",
+        "title": "AgenticEnv Chat: Purge Checkpoints"
       }
     ],
     "menus": {
@@ -94,6 +110,17 @@
           "type": "boolean",
           "default": false,
           "description": "Expand the agent's reasoning blocks by default instead of collapsing them."
+        },
+        "agenticenvChat.edits.autoOpen": {
+          "type": "string",
+          "enum": ["never", "first", "all"],
+          "default": "never",
+          "description": "Open files the agent edits: never, only the first, or all (capped at 10)."
+        },
+        "agenticenvChat.edits.decorations": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a gutter mark on lines the agent changed in the current turn."
         }
       }
     }
