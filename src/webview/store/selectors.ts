@@ -77,6 +77,17 @@ export function lastItem(s: AppState): ChatItem | undefined {
   return s.items[s.items.length - 1];
 }
 
+/** Titre auto : 6–8 premiers mots du premier message utilisateur. Aucun appel LLM (C08 §3). */
+export function titleFor(s: AppState): string | null {
+  const first = s.items.find((i) => i.kind === "user") as { text?: string } | undefined;
+  const text = (first?.text ?? "").replace(/\s+/g, " ").trim();
+  if (!text) {
+    return null;
+  }
+  const words = text.split(" ").slice(0, 8).join(" ");
+  return words.length > 60 ? words.slice(0, 57) + "…" : words;
+}
+
 /** Chips qui partiront réellement : explicites + auto non retirées, dédupliquées. */
 export function effectiveAttachments(s: AppState): { chip: ContextChip; auto: boolean }[] {
   const seen = new Set(s.composer.attachments.map((a) => refKey(a.ref)));

@@ -43,6 +43,20 @@ export interface Actions {
   revertFile(path: string): void;
   revertHunk(path: string, hunkHeader: string): void;
   undoTurn(): void;
+  truncateFrom(itemId: string, count: number): void;
+  editMessage(itemId: string, text: string): void;
+  regenerate(itemId: string, text: string): void;
+  restoreBranch(index: number): void;
+  openHistory(): void;
+  exportConversation(format: "markdown" | "json"): void;
+  snapshot(payload: {
+    items: unknown[];
+    branches: unknown[];
+    title: string | null;
+    cost: number;
+    promptTokens: number;
+    completionTokens: number;
+  }): void;
   openFile(path: string, line?: number): void;
   copy(text: string): void;
   insertAtCursor(text: string): void;
@@ -93,6 +107,22 @@ export function createActions(dispatch: (action: Action) => void, now: () => num
     revertFile: (path) => post({ type: "revertFile", path }),
     revertHunk: (path, hunkHeader) => post({ type: "revertHunk", path, hunkHeader }),
     undoTurn: () => post({ type: "undoTurn" }),
+    truncateFrom: (itemId, count) => {
+      post({ type: "truncateFrom", itemId, count });
+      send({ type: "thread/truncateFrom", itemId, at: now() });
+    },
+    editMessage: (itemId, text) => {
+      post({ type: "editMessage", itemId, text });
+      send({ type: "thread/editMessage", itemId, text, at: now() });
+    },
+    regenerate: (itemId, text) => {
+      post({ type: "regenerate", itemId, text });
+      send({ type: "thread/editMessage", itemId, text, at: now() });
+    },
+    restoreBranch: (index) => send({ type: "thread/restoreBranch", index }),
+    openHistory: () => post({ type: "openHistory" }),
+    exportConversation: (format) => post({ type: "exportConversation", format }),
+    snapshot: (payload) => post({ type: "persistSnapshot", ...payload }),
     openFile: (path, line) => post({ type: "openFile", path, line }),
     copy: (text) => post({ type: "copy", text }),
     insertAtCursor: (text) => post({ type: "insertAtCursor", text }),

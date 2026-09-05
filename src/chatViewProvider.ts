@@ -12,6 +12,8 @@ import {
 } from "./messages";
 import { DEFAULT_SANDBOX_ROOT, resetMapping, setMapping, toHostUri } from "./paths";
 import { appendFeedback } from "./sessions/feedback";
+import { ConversationStore, STORE_VERSION, type StoredConversation } from "./sessions/store";
+import { toJson, toMarkdown } from "./sessions/export";
 import { CLIENT_ID, CLIENT_PROTOCOL, type Outbound } from "./protocol";
 import { destructiveMatches, evaluate } from "./permissions/policy";
 import { PermissionStore } from "./permissions/store";
@@ -32,6 +34,7 @@ import { shellIntegrationAvailable } from "./context/terminal";
 import { starterPrompts } from "./context/starters";
 import type { ContextRef, ContextRefKind } from "./messages";
 
+const VIEW_ID = "agenticenvChat.view";
 const HEALTH_POLL_MS = 8000;
 /** Debounce: un restart d'extension-host ou un blip de 1 s ne doit pas flasher la bannière. */
 const CLOSED_DEBOUNCE_MS = 2500;
@@ -64,9 +67,20 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private readonly permissions: PermissionStore;
   private lastAction: LastAction | null = null;
   private pendingActionSeq = 0;
+  private conversations: ConversationStore | undefined;
+  private snapshot: Omit<StoredConversation, "version" | "createdAt" | "workspacePath"> | undefined;
+  private turnStartMs = 0;
 
   constructor(private readonly context: vscode.ExtensionContext) {
     this.permissions = new PermissionStore(context);
+    if (context.storageUri) {
+      this.conversations = new ConversationStore(context.storageUri.fsPath);
+      void this.conversations.purge().then((r) => {
+        if (r.purged.length) {
+          log.info(`purged ${r.purged.length} old conversation(s) (retention 100 / 90 days)`);
+        }
+      });
+    }
     context.subscriptions.push(
       vscode.workspace.registerTextDocumentContentProvider(SCHEME, this.diffProvider),
       this.diffProvider,
@@ -162,6 +176,22 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
   reconnect(): void {
     this.bridge?.reconnect();
+  }
+
+  /** Commande `agenticenvChat.history`. */
+  history(): void {
+    void this.openHistory();
+  }
+
+  /** Commande `agenticenvChat.exportConversation`. */
+  export(): void {
+    void vscode.window
+      .showQuickPick(["markdown", "json"], { placeHolder: "Export format" })
+      .then((f) => {
+        if (f) {
+          void this.exportConversation(f as "markdown" | "json");
+        }
+      });
   }
 
   // --- bridge ----------------------------------------------------------
@@ -283,6 +313,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case "turn_started":
         this.currentTurnId = message.turn_id;
         this.lastTurnId = message.turn_id;
+        this.turnStartMs = Date.now();
+        this.setBadge("running");
         this.autoOpened.clear();
         this.turnDecorations.clear();
         void this.checkpoints.beginTurn(message.turn_id);
@@ -294,6 +326,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           this.currentTurnId = undefined;
         }
         void this.checkpoints.finishTurn(message.turn_id).then(() => this.sendWorkingSet());
+        this.setBadge("idle");
+        this.maybeNotify("turn-done");
+        void this.persistConversation();
         this.postToWebview({ type: "bridge", message });
         return;
 
@@ -314,6 +349,111 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
       default:
         this.postToWebview({ type: "bridge", message });
+    }
+  }
+
+  // --- sessions / history (C08) ---------------------------------
+
+  private async persistConversation(): Promise<void> {
+    if (!this.conversations || !this.snapshot || !this.conversationId) {
+      return;
+    }
+    const existing = await this.conversations.load(this.conversationId);
+    const conv: StoredConversation = {
+      version: STORE_VERSION,
+      createdAt: existing?.createdAt ?? Date.now(),
+      workspacePath: this.projectPath(),
+      ...this.snapshot,
+      id: this.conversationId,
+      title: existing?.titleManual ? existing.title : this.snapshot.title,
+      titleManual: existing?.titleManual,
+    };
+    await this.conversations.save(conv).catch((err) => log.warn("persistConversation failed:", err));
+  }
+
+  private async openHistory(): Promise<void> {
+    if (!this.conversations) {
+      return;
+    }
+    const query = await vscode.window.showInputBox({
+      prompt: "Search conversations (title + messages) — leave empty to list all",
+    });
+    if (query === undefined) {
+      return;
+    }
+    const entries = await this.conversations.search(this.projectPath(), query);
+    if (entries.length === 0) {
+      void vscode.window.showInformationMessage("No matching conversations in this folder.");
+      return;
+    }
+    const pick = await vscode.window.showQuickPick(
+      entries.map((e) => ({
+        label: e.title ?? "(untitled)",
+        description: `${new Date(e.updatedAt).toLocaleString()} · ${e.turns} turns · $${e.cost.toFixed(3)}`,
+        detail: e.version !== STORE_VERSION ? "⚠ saved by a different version — cannot open" : undefined,
+        entry: e,
+      })),
+      { placeHolder: "Open a past conversation (read-only)" },
+    );
+    if (pick && pick.entry.version === STORE_VERSION) {
+      await this.restoreConversation(pick.entry.id);
+    }
+  }
+
+  private async restoreConversation(id: string): Promise<void> {
+    const conv = await this.conversations?.load(id);
+    if (!conv) {
+      return;
+    }
+    this.postToWebview({ type: "reset" });
+    for (const item of conv.items) {
+      this.postToWebview({ type: "bridge", message: { type: "event", event: reconstructEvent(item) } });
+    }
+    this.postToWebview({
+      type: "hostError",
+      text: "Opened a past conversation (read-only). \"Resume\" needs a bridge that can reattach; otherwise start a new session.",
+    });
+  }
+
+  private async exportConversation(format: "markdown" | "json"): Promise<void> {
+    if (!this.snapshot) {
+      return;
+    }
+    const conv: StoredConversation = {
+      version: STORE_VERSION,
+      createdAt: Date.now(),
+      workspacePath: this.projectPath(),
+      ...this.snapshot,
+    };
+    const body = format === "json" ? toJson(conv) : toMarkdown(conv, DEFAULT_SANDBOX_ROOT);
+    const doc = await vscode.workspace.openTextDocument({
+      content: body,
+      language: format === "json" ? "json" : "markdown",
+    });
+    await vscode.window.showTextDocument(doc);
+  }
+
+  private maybeNotify(reason: "turn-done" | "awaiting"): void {
+    const mode = vscode.workspace
+      .getConfiguration("agenticenvChat")
+      .get<"never" | "awaiting" | "always">("notifications", "awaiting");
+    if (mode === "never") {
+      return;
+    }
+    const visible = this.view?.visible ?? false;
+    if (reason === "awaiting") {
+      if (!visible || mode === "always") {
+        void vscode.window
+          .showWarningMessage("The agent is waiting for your approval.", "Show")
+          .then((a) => a === "Show" && vscode.commands.executeCommand(`${VIEW_ID}.focus`));
+      }
+      return;
+    }
+    const longEnough = Date.now() - this.turnStartMs > 30_000;
+    if ((!visible && longEnough) || mode === "always") {
+      void vscode.window
+        .showInformationMessage("The agent finished a turn.", "Show")
+        .then((a) => a === "Show" && vscode.commands.executeCommand(`${VIEW_ID}.focus`));
     }
   }
 
@@ -371,6 +511,21 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
     // ask
     this.postToWebview({ type: "pendingAction", action: pending });
+    this.setBadge("awaiting");
+    this.maybeNotify("awaiting");
+  }
+
+  /** Badge sur l'icône de l'activity bar (items 105) : activité / alerte. */
+  private setBadge(phase: "running" | "awaiting" | "idle"): void {
+    if (!this.view) {
+      return;
+    }
+    this.view.badge =
+      phase === "awaiting"
+        ? { value: 1, tooltip: "AgenticEnv: approval needed" }
+        : phase === "running"
+          ? { value: 0, tooltip: "AgenticEnv: the agent is working" }
+          : undefined;
   }
 
   private onConfirm(msg: Extract<WebviewToHost, { type: "confirm" }>): void {
@@ -476,6 +631,34 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         break;
       case "undoTurn":
         void this.undoTurn();
+        break;
+      case "editMessage":
+      case "regenerate":
+        // La webview a déjà tronqué son fil ; on renvoie le message au bridge.
+        this.sendOrNotify({ type: "user_message", text: msg.text }, "resend the message");
+        void this.persistConversation();
+        break;
+      case "truncateFrom":
+        void this.persistConversation();
+        break;
+      case "openHistory":
+        void this.openHistory();
+        break;
+      case "exportConversation":
+        void this.exportConversation(msg.format);
+        break;
+      case "persistSnapshot":
+        this.snapshot = {
+          id: this.conversationId ?? "unsaved",
+          title: msg.title,
+          updatedAt: Date.now(),
+          model: this.llmSource ?? null,
+          items: msg.items as Record<string, unknown>[],
+          branches: msg.branches as { at: number; removed: Record<string, unknown>[] }[],
+          usage: { cost: msg.cost, promptTokens: msg.promptTokens, completionTokens: msg.completionTokens },
+          mcpServers: [],
+        };
+        void this.persistConversation();
         break;
       case "openFile":
         void this.openFile(msg.path, msg.line);
@@ -1082,6 +1265,29 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   </body>
 </html>`;
   }
+}
+
+/** Rebuild un `SdkEvent` minimal depuis un `ChatItem` stocké (relecture d'archive). */
+function reconstructEvent(item: Record<string, unknown>): Record<string, unknown> {
+  const kind = item.kind;
+  if (kind === "user" || kind === "assistant") {
+    return {
+      kind: "MessageEvent",
+      llm_message: { role: kind, content: [{ text: String(item.text ?? "") }] },
+    };
+  }
+  if (kind === "tool") {
+    return {
+      kind: "ActionEvent",
+      tool_name: item.toolName,
+      tool_call_id: item.toolCallId,
+      action: item.args,
+    };
+  }
+  if (kind === "error") {
+    return { kind: "AgentErrorEvent", error: String(item.text ?? "") };
+  }
+  return { kind: "unknown" };
 }
 
 function getNonce(): string {

@@ -196,18 +196,18 @@ Légende de faisabilité :
 
 | # | Subtilité | Qui | Faisab. |
 |---|---|---|---|
-| 82 | Plusieurs chats / onglets / sessions en parallèle | les deux | 🔴 (bridge mono-session) |
-| 83 | Persistance de session au rechargement + reprise (`--resume` / `--continue`) | les deux | 🟡 |
-| 84 | Titre de session auto-généré | les deux | 🟡/🔴 |
-| 85 | Navigateur d'historique / recherche dans les sessions passées | les deux | 🟡 |
-| 86 | Export de la conversation (markdown / json) | Copilot | 🟢 |
+| 82 | Plusieurs chats / onglets / sessions en parallèle | les deux | 🔴 (bridge mono-session) — assumé : « History » (relecture/export/reprise) au lieu d'onglets parallèles |
+| 83 | Persistance de session au rechargement + reprise (`--resume` / `--continue`) | les deux | 🟡 — ✅ **C08** (`setState` léger + `storageUri/conversations/<id>.json` complet, écriture atomique, `seq`/`resume` en C01 ; reprise réelle = bridge) |
+| 84 | Titre de session auto-généré | les deux | 🟡/🔴 — ✅ **C08** (`titleFor` : 6–8 premiers mots du 1er message user, **aucun appel LLM** ; titre manuel non écrasé) |
+| 85 | Navigateur d'historique / recherche dans les sessions passées | les deux | 🟡 — ✅ **C08** (`agenticenvChat.history` : quick-pick + recherche **plein texte** sur titres ET messages ; bouton History dans l'entête) |
+| 86 | Export de la conversation (markdown / json) | Copilot | 🟢 — ✅ **C08** (`toMarkdown` : outils en `<details>`, chemins relatifs au dépôt ; `toJson` = `StoredConversation` brut) |
 | 87 | « Nouveau chat » efface le contexte (déjà là via New Session) | les deux | ✅ |
-| 88 | Ouvrir le chat dans un onglet éditeur / sidebar / quick chat flottant | Copilot | 🟢 |
+| 88 | Ouvrir le chat dans un onglet éditeur / sidebar / quick chat flottant | Copilot | 🟢 — ⏸️ **différé** (`openInEditor` : `WebviewPanel` + transfert d'état à concevoir — item 93 déjà couvert par VS Code) |
 | 89 | Chat inline dans l'éditeur (Ctrl+I) — widget flottant sur la sélection | Copilot | 🟢/🟡 |
-| 90 | Éditer un message user précédent et relancer (branche la conversation) | Copilot | 🟡 |
-| 91 | Supprimer un message / tronquer la conversation à partir d'un point | Copilot | 🟡 |
-| 92 | Régénérer la dernière réponse | Copilot | 🟡 |
-| 93 | Déplacer le chat entre panel / sidebar / éditeur en gardant l'état | Copilot | 🟢 |
+| 90 | Éditer un message user précédent et relancer (branche la conversation) | Copilot | 🟡 — ✅ **C08** (`editMessage` : items suivants retirés, branche conservée, « show previous version » ; bloqué pendant `running` ; l'agent « se souvient » tant que le bridge ne tronque pas) |
+| 91 | Supprimer un message / tronquer la conversation à partir d'un point | Copilot | 🟡 — ✅ **C08** (`truncateFrom` : retire l'item + suivants ; n'annule PAS les fichiers écrits — dit explicitement, cf. Undo turn) |
+| 92 | Régénérer la dernière réponse | Copilot | 🟡 — ✅ **C08** (`regenerate` = edit & resend sans changer le texte) |
+| 93 | Déplacer le chat entre panel / sidebar / éditeur en gardant l'état | Copilot | 🟢 — ✅ (déjà géré par VS Code ; `resolveWebviewView` réhydrate l'état) |
 
 ### 2.8 Intégration éditeur & VS Code
 
@@ -224,8 +224,8 @@ Légende de faisabilité :
 | 102 | Décorations dans la gouttière pour les lignes touchées par l'agent | Copilot | 🟢 — ✅ **C06** (`TurnDecorations` : overview ruler, couleur de token distincte du git, effacé au tour suivant, `edits.decorations`) |
 | 103 | Annoncer la progression aux lecteurs d'écran (ARIA live) | les deux | 🟢 |
 | 104 | Raccourcis clavier partout (focus composer, nouveau chat, accepter diff…) | les deux | 🟢 |
-| 105 | Badge sur l'icône activity bar (agent en attente / terminé) | Copilot | 🟢 |
-| 106 | Notification VS Code quand l'agent finit alors que le panneau est caché | Claude Code | 🟢 |
+| 105 | Badge sur l'icône activity bar (agent en attente / terminé) | Copilot | 🟢 — ✅ **C08** (`view.badge` : `value:0` = activité pendant `running`, `value:1` = alerte en `awaiting`) |
+| 106 | Notification VS Code quand l'agent finit alors que le panneau est caché | Claude Code | 🟢 — ✅ **C08** (`maybeNotify` : fin de tour seulement si panneau caché ET tour > 30 s ; approbation notifiée immédiatement ; `agenticenvChat.notifications` never/awaiting/always) |
 
 ### 2.9 Confiance, quotas, robustesse
 

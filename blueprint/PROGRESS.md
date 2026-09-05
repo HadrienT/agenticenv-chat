@@ -20,7 +20,7 @@ quand ses critères d'acceptation **automatisables** sont verts.
 | C05 | Rendu des appels d'outils | `wp/C05-tool-rendering` | ✅ **fait** | filtre sortie + renderers browser/apply_patch différés |
 | C06 | Éditions, diffs, checkpoints | `wp/C06-edits-and-diffs` | ✅ **fait** | hors-git limité ; F5 ; extraire EditsController (C14) |
 | C07 | Permissions, approbations | `wp/C07-permissions` | ✅ **fait** | `pending_action` bridge + F5 (persistance workspace) |
-| C08 | Sessions, historique | `wp/C08-sessions` | 🚧 en cours | |
+| C08 | Sessions, historique | `wp/C08-sessions` | ✅ **fait** | `openInEditor` différé ; F5 |
 | C09 | Plan, todo, pilotage boucle agent | — | ⏳ à faire | |
 | C10 | Instructions, prompts, mémoire | — | ⏳ à faire | |
 | C11 | Intégration éditeur & commandes | — | ⏳ à faire | |
@@ -248,6 +248,28 @@ Branche `wp/C07-permissions`. Items 28, 42, 57–60, 107, 114.
 **Reste** : `pending_action` / `confirm_action{edited_command}` côté bridge
 (`CLIENT_AHEAD`) ; F5 (persistance workspace, capture terminal réelle).
 
-## C08 — Sessions, historique 🚧
+## C08 — Sessions, historique ✅
+
+Branche `wp/C08-sessions`. Items 82–88, 90–93, 105, 106.
+
+- `sessions/store.ts` : `ConversationStore` (`node:fs`, `rename` atomique),
+  `storageUri/conversations/<id>.json` + `index.json` reconstructible, recherche
+  plein texte, purge 100 / 90 j annoncée. `titleFrom` sans LLM.
+- `sessions/export.ts` : `toMarkdown` (outils en `<details>`, chemins relatifs)
+  + `toJson`.
+- Webview : `useSnapshot` (envoi débouncé de `persistSnapshot` à l'hôte),
+  `reduceThread.ts` (`truncateFrom`/`editMessage`/`restoreBranch`, `state.branches`,
+  bloqué pendant `running`), `titleFor` selector, `views/ThreadBar.tsx`,
+  actions Edit/Regenerate/Truncate au survol d'un message user.
+- Hôte : `persistConversation`, `openHistory` (quick-pick + recherche),
+  `restoreConversation` (relecture read-only), `exportConversation`,
+  `maybeNotify` (item 106), `setBadge` (item 105).
+- Commandes `agenticenvChat.history` / `exportConversation` ; réglage
+  `agenticenvChat.notifications`.
+- `PERSIST_VERSION` 5→6 (`branches`). 221 tests.
+
+**Reste** : `openInEditor` (item 88, `WebviewPanel` + transfert d'état) ; F5.
+
+## C09 — Plan, todo, pilotage 🚧
 
 En cours.

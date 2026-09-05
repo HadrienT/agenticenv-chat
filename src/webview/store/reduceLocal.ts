@@ -3,6 +3,7 @@ import type { LocalAction } from "./actions";
 import { withNotice } from "./reduceHelpers";
 import type { AppState } from "./types";
 import { pushHistory } from "./composerHelpers";
+import { editMessage, restoreBranch, truncateFrom } from "./reduceThread";
 
 /** Routeur exhaustif des intentions locales (`assertNever` en garde). */
 export function applyLocal(state: AppState, action: LocalAction): AppState {
@@ -113,6 +114,15 @@ export function applyLocal(state: AppState, action: LocalAction): AppState {
         progress: "stopping…",
       };
     }
+
+    case "thread/truncateFrom":
+      return truncateFrom(state, action.itemId, action.at);
+
+    case "thread/editMessage":
+      return editMessage(state, action.itemId, action.text, action.at);
+
+    case "thread/restoreBranch":
+      return restoreBranch(state, action.index);
 
     default:
       return assertNever(action, "LocalAction");
