@@ -103,13 +103,13 @@ Légende de faisabilité :
 | 16 | Indication « contexte trop gros » / troncature avant l'envoi | les deux | 🟢 |
 | 17 | Entrée vocale | Copilot Voice | 🔴 |
 | 18 | Placeholder contextuel (« Modifier X », « Poser une question sur Y ») | Copilot | 🟢 |
-| 19 | Bouton d'envoi qui devient **Stop** pendant la génération | les deux | 🟢 |
+| 19 | Bouton d'envoi qui devient **Stop** pendant la génération | les deux | 🟢 — ✅ **C01** (client ; `cancel_turn` côté bridge à faire) |
 
 ### 2.2 Rendu de la réponse
 
 | # | Subtilité | Qui | Faisab. |
 |---|---|---|---|
-| 20 | Streaming token par token avec rendu markdown **incrémental** (pas de flash à la fin) | les deux | 🟢 (UI) / 🟡 (deltas) |
+| 20 | Streaming token par token avec rendu markdown **incrémental** (pas de flash à la fin) | les deux | 🟢 (UI) / 🟡 (deltas) — ✅ **C01** (coalescing rAF, `event` final écrase ; `event_delta` côté bridge à faire) |
 | 21 | Markdown complet : titres, listes, tableaux, citations, liens, `code inline`, cases à cocher | les deux | 🟢 |
 | 22 | Blocs de code **colorés** avec détection de langage | les deux | 🟢 |
 | 23 | Barre d'outils par bloc de code : Copier, Insérer au curseur, Insérer dans le terminal, Nouveau fichier, **Appliquer au fichier** | les deux | 🟢/🟡 |
@@ -132,8 +132,8 @@ Légende de faisabilité :
 |---|---|---|---|
 | 36 | Rendu **par type d'outil**, pas du JSON générique : `Read` → « Lu `path` (L10-40) », `Edit` → mini-diff, `Bash` → commande + sortie, `Grep` → motif + nb de hits | Claude Code | 🟢 |
 | 37 | Lignes d'outil repliées par défaut, dépliables ; sortie longue scrollable dans son cadre | les deux | 🟢 |
-| 38 | Libellé de progression en direct : « Lecture de X… », « Édition de Y… », « Exécution de Z… » | les deux | 🟡 |
-| 39 | État par étape : en cours (spinner) / réussi (✓) / échoué (✗) / ignoré | les deux | 🟢 |
+| 38 | Libellé de progression en direct : « Lecture de X… », « Édition de Y… », « Exécution de Z… » | les deux | 🟡 — ✅ **C01** (ligne `progress`, jamais inventée ; `progress` côté bridge à faire) |
+| 39 | État par étape : en cours (spinner) / réussi (✓) / échoué (✗) / ignoré | les deux | 🟢 — ✅ **C01** (`tool_status` → ⟳/✓/✗ ; `tool_status` côté bridge à faire) |
 | 40 | Regroupement : « A cherché dans la base de code », « A utilisé 3 outils » avec compteur | Copilot | 🟢 |
 | 41 | Diffs de fichiers **inline** dans le fil, coloration +/−, repliables par hunk | les deux | 🟡 |
 | 42 | Sortie terminal capturée et streamée sous le bloc de commande | les deux | 🟡 |
@@ -234,9 +234,9 @@ Légende de faisabilité :
 | 107 | Workspace Trust : pas d'exécution d'outil dans un dossier non fiable | les deux | 🟢 |
 | 108 | Compteur de requêtes premium / quota restant | Copilot | 🟡 |
 | 109 | Messages d'erreur actionnables (bouton Réessayer, lien vers le réglage) | les deux | 🟢 |
-| 110 | Reprise après perte de connexion sans perdre le fil (déjà : backoff ; manque : rejouer l'état) | les deux | 🟡 |
+| 110 | Reprise après perte de connexion sans perdre le fil (déjà : backoff ; manque : rejouer l'état) | les deux | 🟡 — ✅ **C01** (client : `resume {conversation_id, last_seq}`, `seq` tracké en `workspaceState` ; `resume`/`seq` côté bridge à faire) |
 | 111 | Exclusion de contenu par politique d'organisation | Copilot | 🔴 |
-| 112 | UI optimiste / masquage de latence (« Working… » tout de suite) | les deux | 🟢 |
+| 112 | UI optimiste / masquage de latence (« Working… » tout de suite) | les deux | 🟢 — ✅ **C01** (`pendingSend` : composer verrouillé + « sending… » jusqu'au `turn_started`, sans mentir sur `running`) |
 | 113 | Layout responsive quand la sidebar est étroite | les deux | 🟢 |
 | 114 | Avertissement avant une action destructrice (rm, reset --hard, push --force) | Claude Code | 🟡 |
 | 115 | Indicateur de coût / tokens en continu (pas seulement après `usage`) | Claude Code | 🟡 |

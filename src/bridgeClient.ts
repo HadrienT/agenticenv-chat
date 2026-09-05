@@ -12,6 +12,11 @@ export interface BridgeHandlers {
 /**
  * Thin WebSocket client to the openhands-bridge server. Runs in the extension
  * host (Node). Auto-reconnects with a capped backoff while `enabled`.
+ *
+ * `send()` is strict — it returns `false` if the socket is not open (the caller
+ * must surface a "not sent" notice for user-driven messages). `enqueue()` is
+ * lenient — the message is buffered and flushed, in order, on the next open
+ * (C01 §7 : `hello`, `resume`, `list_*` sont rejouables).
  */
 export class BridgeClient {
   private ws: WebSocket | undefined;
@@ -19,6 +24,7 @@ export class BridgeClient {
   private reconnectTimer: NodeJS.Timeout | undefined;
   private backoffMs = 1000;
   private readonly maxBackoffMs = 15000;
+  private pending: Inbound[] = [];
 
   constructor(
     private url: string,
@@ -43,6 +49,7 @@ export class BridgeClient {
   stop(): void {
     this.enabled = false;
     this.clearReconnect();
+    this.pending = [];
     this.ws?.close();
     this.ws = undefined;
   }
@@ -55,14 +62,36 @@ export class BridgeClient {
     this.connect();
   }
 
+  private isOpen(): boolean {
+    return this.ws?.readyState === WebSocket.OPEN;
+  }
+
   send(message: Inbound): boolean {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(message));
+    if (this.isOpen()) {
+      this.ws?.send(JSON.stringify(message));
       log.trace("bridge <-", message.type);
       return true;
     }
     log.debug("bridge send dropped, socket not open:", message.type);
     return false;
+  }
+
+  /** Bufferisé si le socket est fermé ; rejoué à l'ouverture, dans l'ordre. */
+  enqueue(message: Inbound): void {
+    if (this.isOpen()) {
+      this.send(message);
+      return;
+    }
+    this.pending.push(message);
+    log.debug("bridge enqueue (socket not open):", message.type);
+  }
+
+  private flushPending(): void {
+    const queued = this.pending;
+    this.pending = [];
+    for (const m of queued) {
+      this.send(m);
+    }
   }
 
   private connect(): void {
@@ -84,6 +113,9 @@ export class BridgeClient {
     ws.on("open", () => {
       this.backoffMs = 1000;
       this.handlers.onState("open");
+      // L'hôte envoie son préambule (hello/resume) pendant `onState("open")` ;
+      // on vide la file juste après, donc après le hello.
+      this.flushPending();
     });
 
     ws.on("message", (data) => {

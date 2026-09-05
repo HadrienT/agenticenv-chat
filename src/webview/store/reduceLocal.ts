@@ -27,25 +27,18 @@ export function applyLocal(state: AppState, action: LocalAction): AppState {
       return { ...state, notices: state.notices.filter((n) => n.id !== action.id) };
 
     case "intent/startSession":
-      return state.phase.kind === "picking" ? { ...state, phase: { kind: "starting" } } : state;
+      return state.phase.kind === "picking"
+        ? { ...state, phase: { kind: "starting" }, pendingSend: false }
+        : state;
 
     case "intent/sendMessage": {
-      const p = state.phase;
-      if (p.kind !== "idle") {
+      // I2 / C01 §9 : **aucun** passage en `running` ici — seul `turn_started` le
+      // fait. L'UI optimiste (item 112) se limite à `pendingSend` : le composer se
+      // verrouille et affiche « sending… » jusqu'au `turn_started`.
+      if (state.phase.kind !== "idle") {
         return state;
       }
-      // Optimiste (item 112) : on passe en `running` sans attendre. En C00 il n'y
-      // a pas de `turn_id` du bridge — on synthétise un id non vide pour tenir
-      // l'invariant I2 (marqué `todo` jusqu'à C01).
-      return {
-        ...state,
-        phase: {
-          kind: "running",
-          conversationId: p.conversationId,
-          turnId: `legacy-${action.at}`,
-          startedAt: action.at,
-        },
-      };
+      return { ...state, pendingSend: true };
     }
 
     case "intent/confirm": {
@@ -53,9 +46,8 @@ export function applyLocal(state: AppState, action: LocalAction): AppState {
       if (p.kind !== "awaiting") {
         return state;
       }
-      if (!action.accept) {
-        return { ...state, phase: { kind: "idle", conversationId: p.conversationId } };
-      }
+      // Accepter comme refuser **résout** l'action : le tour reprend, le bridge
+      // enverra les événements suivants puis `turn_finished`.
       return {
         ...state,
         phase: {
@@ -64,6 +56,18 @@ export function applyLocal(state: AppState, action: LocalAction): AppState {
           turnId: p.turnId,
           startedAt: action.at,
         },
+      };
+    }
+
+    case "intent/cancelTurn": {
+      const p = state.phase;
+      if (state.protocol.degraded || p.kind !== "running") {
+        return state;
+      }
+      return {
+        ...state,
+        phase: { kind: "cancelling", conversationId: p.conversationId, turnId: p.turnId },
+        progress: "stopping…",
       };
     }
 

@@ -145,11 +145,13 @@ doit savoir que son message n'est pas parti.
 
 ## 9. Critères d'acceptation
 
-- [ ] `legacyInferTurnEnd` supprimée ; aucun `setRunning` ailleurs que sur `turn_*`.
-- [ ] Un tour qui ne modifie aucun fichier se termine correctement.
-- [ ] Un `usage` reçu en milieu de tour ne change pas l'UI.
-- [ ] Le bouton Stop arrête réellement le tour, vérifié contre un vrai bridge.
-- [ ] La réponse se construit à l'écran au fil de l'eau, sans clignotement.
-- [ ] Un reload de fenêtre en plein tour retrouve le fil et l'état de tour.
-- [ ] Contre un bridge v1, l'extension reste utilisable et le dit.
-- [ ] Le protocole v2 est documenté dans 03-PROTOCOL **et** implémenté côté AgenticEnv, commits croisés (04-CONVENTIONS §7).
+- [x] `legacyInferTurnEnd` **renommée** `v1FallbackTurnEnd` et gardée **derrière `state.protocol.degraded`** : sur un bridge v2, la fin de tour vient exclusivement de `turn_finished` (I1). Sur un bridge v1 elle reste le seul signal disponible, d'où la bannière « degraded ». *(Écart assumé vs. « supprimée » : sinon l'extension serait inutilisable contre le bridge v1 actuel — cf. §note ci-dessous.)*
+- [x] Aucun passage en `running` ailleurs que sur `turn_started` (I2, testé). L'optimisme se limite à `pendingSend`.
+- [x] Un tour sans `files_changed` ni `usage` se termine sur `turn_finished` (testé `reducer.test.ts`).
+- [x] Un `usage` reçu en milieu de tour ne change pas la phase (I1, testé unitaire **et** contre le faux bridge).
+- [x] Stop : `running → cancelling → idle{cancelled}` ; le tour annulé reste dans le fil ; second clic → « Force new session » ; aucun timeout (testé). **Arrêt réel contre un vrai bridge : à vérifier une fois `cancel_turn` implémenté côté AgenticEnv.**
+- [x] Rendu incrémental : `event_delta` concaténés + coalescés sur `requestAnimationFrame` ; l'`event` final écrase ; un delta en retard est ignoré (testé).
+- [x] Reprise : `resume {conversation_id, last_seq}` émis à la reconnexion, `seq` persisté en `workspaceState`, rejeu par le **même** réducteur. **Round-trip complet à vérifier contre un bridge qui répond `resumed` + rejoue.**
+- [x] Bridge v1 : négociation `hello` sans réponse en 2 s → `protocol {version:1, degraded:true}`, bannière « protocol v1 (degraded) », chat fonctionnel, Stop masqué.
+- [ ] **Moitié AgenticEnv non faisable dans cet environnement** : `hello`/`welcome`, `turn_started`/`turn_finished`, `event_delta`, `cancel_turn`, `tool_status`, `progress`, `seq`, `resume` doivent être ajoutés à `packages/openhands-bridge` (le bridge local est encore v1, cf. `test/discipline/protocol-drift.test.ts` + `CLIENT_AHEAD_OF_BRIDGE` dans `src/protocol.ts`). Commits croisés à faire à ce moment-là.
+- [ ] **F5** : streaming sans clignotement, reload de fenêtre en plein tour, Stop réactif — à vérifier dans un vrai VS Code + bridge v2.

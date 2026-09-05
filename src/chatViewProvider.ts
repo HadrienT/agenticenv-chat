@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { assertNever } from "./assertNever";
 import { BridgeClient, type BridgeState } from "./bridgeClient";
 import { actionCommand, checkHealth, type HealthContext } from "./health";
 import { log } from "./logging";
@@ -10,16 +11,20 @@ import {
   type WebviewToHost,
 } from "./messages";
 import { DEFAULT_SANDBOX_ROOT, resetMapping, setMapping, toHostUri } from "./paths";
-import type { Outbound } from "./protocol";
-import { assertNever } from "./assertNever";
+import { CLIENT_ID, CLIENT_PROTOCOL, type Outbound } from "./protocol";
 
 const HEALTH_POLL_MS = 8000;
 /** Debounce: un restart d'extension-host ou un blip de 1 s ne doit pas flasher la bannière. */
 const CLOSED_DEBOUNCE_MS = 2500;
+/** Délai après lequel l'absence de `welcome` fait basculer en mode v1 dégradé (03-PROTOCOL §2.1). */
+const NEGOTIATION_MS = 2000;
+
+const K_CONVERSATION = "agenticenvChat.conversationId";
+const K_LAST_SEQ = "agenticenvChat.lastSeq";
 
 /**
  * `WebviewViewProvider` : HTML+CSP, routage `WebviewToHost`, cycle de vie du
- * bridge et sondage santé. Extrait de `extension.ts` par C00 (§ 02-REPOSITORY-TREE).
+ * bridge (négociation v2, `resume` après coupure), sondage santé.
  */
 export class ChatViewProvider implements vscode.WebviewViewProvider {
   private view: vscode.WebviewView | undefined;
@@ -27,14 +32,22 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private healthTimer: NodeJS.Timeout | undefined;
   private healthInFlight = false;
   private closedTimer: NodeJS.Timeout | undefined;
+  private negotiationTimer: NodeJS.Timeout | undefined;
+  private negotiated = false;
+  private conversationId: string | undefined;
+  private currentTurnId: string | undefined;
+  private lastSeq = 0;
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
   resolveWebviewView(view: vscode.WebviewView): void {
-    // resolveWebviewView peut être rappelée (déplacement du panneau). On coupe le
-    // bridge précédent d'abord pour ne jamais lancer deux clients contre le
-    // bridge mono-session (C00 §8).
+    // resolveWebviewView peut être rappelée (déplacement du panneau) : on coupe le
+    // bridge précédent d'abord (C00 §8).
     this.bridge?.stop();
+    this.clearNegotiationTimer();
+
+    this.conversationId = this.context.workspaceState.get<string>(K_CONVERSATION);
+    this.lastSeq = this.context.workspaceState.get<number>(K_LAST_SEQ, 0);
 
     this.view = view;
     view.webview.options = {
@@ -75,6 +88,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       if (this.closedTimer) {
         clearTimeout(this.closedTimer);
       }
+      this.clearNegotiationTimer();
       this.bridge?.stop();
       this.bridge = undefined;
       this.view = undefined;
@@ -83,15 +97,19 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
   newSession(): void {
     resetMapping();
+    this.conversationId = undefined;
+    this.currentTurnId = undefined;
+    this.lastSeq = 0;
+    void this.context.workspaceState.update(K_CONVERSATION, undefined);
+    void this.context.workspaceState.update(K_LAST_SEQ, undefined);
     this.postToWebview({ type: "reset" });
-    // La webview pilote le start_session réel (elle détient la sélection MCP).
   }
 
   reconnect(): void {
     this.bridge?.reconnect();
   }
 
-  // --- bridge ------------------------------------------------------------
+  // --- bridge ----------------------------------------------------------
 
   private onBridgeState(state: BridgeState, detail?: string): void {
     if (this.closedTimer) {
@@ -106,37 +124,117 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
     this.postToWebview({ type: "connection", state, detail });
     if (state === "open") {
-      // Re-demander ce dont une connexion fraîche a besoin : le premier
-      // list_mcp_servers de la webview a pu courir contre un socket non ouvert
-      // (AgenticEnv WP08c §3).
-      this.bridge?.send({ type: "list_mcp_servers" });
+      this.beginNegotiation();
     }
     void this.pollHealth();
   }
 
-  private onBridgeMessage(message: Outbound): void {
-    if (message.type === "mcp_servers") {
-      this.postToWebview({
-        type: "mcpServers",
-        servers: message.servers.map((s) => ({
-          name: s.name,
-          transport: s.transport,
-          tools: s.tools_allowlist,
-        })),
+  private beginNegotiation(): void {
+    this.negotiated = false;
+    this.clearNegotiationTimer();
+    // `hello` en premier (send direct, socket ouvert), puis le reste en file.
+    this.bridge?.send({ type: "hello", protocol: CLIENT_PROTOCOL, client: CLIENT_ID });
+    if (this.conversationId) {
+      // Resynchronisation après coupure : le bridge rejoue seq > last_seq (C01 §6).
+      this.bridge?.enqueue({
+        type: "resume",
+        conversation_id: this.conversationId,
+        last_seq: this.lastSeq,
       });
-      return;
+    } else {
+      this.bridge?.enqueue({ type: "list_mcp_servers" });
     }
-    this.postToWebview({ type: "bridge", message });
+    this.negotiationTimer = setTimeout(() => this.onNegotiationTimeout(), NEGOTIATION_MS);
   }
 
-  // --- webview -> hôte -------------------------------------------------
+  private onNegotiationTimeout(): void {
+    this.negotiationTimer = undefined;
+    if (this.negotiated) {
+      return;
+    }
+    log.warn("bridge did not answer `hello` — falling back to protocol v1 (degraded)");
+    this.postToWebview({ type: "protocol", version: 1, capabilities: [], degraded: true });
+  }
+
+  private clearNegotiationTimer(): void {
+    if (this.negotiationTimer) {
+      clearTimeout(this.negotiationTimer);
+      this.negotiationTimer = undefined;
+    }
+  }
+
+  private onBridgeMessage(message: Outbound): void {
+    if (typeof message.seq === "number" && message.seq > this.lastSeq) {
+      this.lastSeq = message.seq;
+      void this.context.workspaceState.update(K_LAST_SEQ, this.lastSeq);
+    }
+
+    switch (message.type) {
+      case "welcome":
+        this.negotiated = true;
+        this.clearNegotiationTimer();
+        this.postToWebview({
+          type: "protocol",
+          version: message.protocol,
+          capabilities: message.capabilities,
+          degraded: message.protocol < 2,
+        });
+        return;
+
+      case "resumed":
+        log.info("bridge resumed conversation at seq", message.seq ?? this.lastSeq);
+        return;
+
+      case "mcp_servers":
+        this.postToWebview({
+          type: "mcpServers",
+          servers: message.servers.map((s) => ({
+            name: s.name,
+            transport: s.transport,
+            tools: s.tools_allowlist,
+          })),
+        });
+        return;
+
+      case "session_started":
+        this.conversationId = message.conversation_id;
+        void this.context.workspaceState.update(K_CONVERSATION, this.conversationId);
+        this.postToWebview({ type: "bridge", message });
+        return;
+
+      case "turn_started":
+        this.currentTurnId = message.turn_id;
+        this.postToWebview({ type: "bridge", message });
+        return;
+
+      case "turn_finished":
+        if (this.currentTurnId === message.turn_id) {
+          this.currentTurnId = undefined;
+        }
+        this.postToWebview({ type: "bridge", message });
+        return;
+
+      case "error":
+        if (message.code === "UNKNOWN_CONVERSATION") {
+          this.conversationId = undefined;
+          void this.context.workspaceState.update(K_CONVERSATION, undefined);
+        }
+        this.postToWebview({ type: "bridge", message });
+        return;
+
+      default:
+        this.postToWebview({ type: "bridge", message });
+    }
+  }
+
+  // --- webview -> hôte ------------------------------------------------
 
   private onWebviewMessage(msg: WebviewToHost): void {
     switch (msg.type) {
       case "ready":
         log.debug("webview ready, stateVersion", msg.stateVersion);
-        this.bridge?.send({ type: "list_mcp_servers" });
         this.sendWorkspace();
+        this.bridge?.enqueue({ type: "list_mcp_servers" });
         break;
       case "startSession": {
         const projectPath = this.projectPath();
@@ -152,6 +250,19 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       }
       case "userMessage":
         this.sendOrNotify({ type: "user_message", text: msg.text }, "send the message");
+        break;
+      case "cancelTurn":
+        if (this.currentTurnId) {
+          this.sendOrNotify({ type: "cancel_turn", turn_id: this.currentTurnId }, "stop the turn");
+        } else {
+          log.debug("cancelTurn with no active turn id");
+        }
+        break;
+      case "forceNewSession":
+        // Pas de message bridge pour relancer la sandbox : on repart d'une
+        // nouvelle conversation et on reconnecte le socket.
+        this.newSession();
+        this.bridge?.reconnect();
         break;
       case "confirm":
         this.sendOrNotify({ type: "confirm_action", accept: msg.accept }, "answer");
@@ -229,7 +340,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     };
   }
 
-  // --- workspace & diff -------------------------------------------
+  // --- workspace & diff --------------------------------------------
 
   private projectPath(): string | null {
     const folder = vscode.workspace.workspaceFolders?.[0];
@@ -251,8 +362,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       log.debug("openDiff: no folder open");
       return;
     }
-    // Chemin conteneur absolu → URI hôte via le traducteur unique ; sinon on le
-    // traite comme relatif au dossier ouvert (chemins v1 de files_changed).
     const uri = toHostUri(agentPath) ?? vscode.Uri.joinPath(folder.uri, agentPath);
     try {
       await vscode.commands.executeCommand("git.openChange", uri);
@@ -262,7 +371,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  // --- plumbing --------------------------------------------------
+  // --- plumbing ---------------------------------------------------
 
   private postToWebview(msg: HostToWebview): void {
     void this.view?.webview.postMessage(msg);

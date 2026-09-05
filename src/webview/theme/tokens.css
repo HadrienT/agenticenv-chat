@@ -26,6 +26,7 @@
   --agx-btn-secondary-fg: var(--vscode-button-secondaryForeground, #ffffff);
 
   --agx-code-bg: var(--vscode-textCodeBlock-background, #1e1e1e);
+  --agx-shadow: var(--vscode-widget-shadow, rgba(0, 0, 0, 0.36));
 
   --agx-ok: var(--vscode-charts-green, #89d185);
   --agx-warn: var(--vscode-charts-yellow, #d7ba7d);

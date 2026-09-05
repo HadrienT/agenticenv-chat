@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { assertNever } from "../../assertNever";
 import type { ChatItem } from "../store/types";
 import { ErrorItem } from "./items/ErrorItem";
@@ -15,38 +15,70 @@ function renderItem(item: ChatItem): JSX.Element {
       return <ToolItem key={item.id} item={item} />;
     case "error":
       return <ErrorItem key={item.id} item={item} />;
+    case "turn-cancelled":
+      return (
+        <div key={item.id} className="agx-thinking">
+          — turn ended —
+        </div>
+      );
     default:
       return assertNever(item, "ChatItem");
   }
 }
 
 /**
- * Liste du fil, ancrée en bas. En C00 sans virtualisation (jusqu'à 200 items,
- * 04-CONVENTIONS §6) ; C14 virtualise. L'auto-scroll suit le bas tant que
- * l'utilisateur n'a pas scrollé vers le haut (item 20, affiné en C01).
+ * Liste du fil, ancrée en bas. L'auto-scroll suit le bas **sauf** si l'utilisateur
+ * a scrollé vers le haut ; un bouton « ↓ new content » apparaît alors (C01 §4).
+ * Sans virtualisation en C01 (jusqu'à 200 items) ; C14 virtualise.
  */
-export function Thread(props: { items: ChatItem[]; working: boolean }): JSX.Element {
+export function Thread(props: { items: ChatItem[]; statusLine: string | null }): JSX.Element {
   const ref = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
+  const [detached, setDetached] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
-    if (el && pinned.current) {
-      el.scrollTop = el.scrollHeight;
+    if (!el) {
+      return;
     }
-  }, [props.items, props.working]);
+    if (pinned.current) {
+      el.scrollTop = el.scrollHeight;
+    } else {
+      setDetached(true);
+    }
+  }, [props.items, props.statusLine]);
+
+  const toBottom = (): void => {
+    const el = ref.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+      pinned.current = true;
+      setDetached(false);
+    }
+  };
 
   return (
-    <div
-      className="agx-thread"
-      ref={ref}
-      onScroll={(e) => {
-        const el = e.currentTarget;
-        pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
-      }}
-    >
-      {props.items.map(renderItem)}
-      {props.working && <div className="agx-thinking">agent is working…</div>}
+    <div className="agx-thread-wrap">
+      <div
+        className="agx-thread"
+        ref={ref}
+        aria-live="polite"
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+          if (pinned.current) {
+            setDetached(false);
+          }
+        }}
+      >
+        {props.items.map(renderItem)}
+        {props.statusLine && <div className="agx-thinking">{props.statusLine}</div>}
+      </div>
+      {detached && (
+        <button className="agx-jump" onClick={toBottom}>
+          ↓ new content
+        </button>
+      )}
     </div>
   );
 }
