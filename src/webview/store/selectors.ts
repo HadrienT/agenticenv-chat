@@ -1,4 +1,5 @@
-import type { AppState, ChatItem } from "./types";
+import type { ContextChip } from "../../messages";
+import { refKey, type AppState, type ChatItem } from "./types";
 
 /** Dérivations pures du store. Bon marché : pas de mémoïsation ici. */
 
@@ -73,4 +74,49 @@ export function conversationId(s: AppState): string | null {
 
 export function lastItem(s: AppState): ChatItem | undefined {
   return s.items[s.items.length - 1];
+}
+
+/** Chips qui partiront réellement : explicites + auto non retirées, dédupliquées. */
+export function effectiveAttachments(s: AppState): { chip: ContextChip; auto: boolean }[] {
+  const seen = new Set(s.composer.attachments.map((a) => refKey(a.ref)));
+  const explicit = s.composer.attachments.map((chip) => ({ chip, auto: false }));
+  const auto = s.autoContext
+    .filter((c) => !s.dismissedAuto.includes(refKey(c.ref)) && !seen.has(refKey(c.ref)))
+    .map((chip) => ({ chip, auto: true }));
+  return [...explicit, ...auto];
+}
+
+export interface BudgetStatus {
+  bytes: number;
+  windowBytes: number | null;
+  ratio: number | null;
+  level: "ok" | "warn" | "high" | "over";
+}
+
+/** ~4 octets par token (approximation UTF-8 courante pour du code). */
+const BYTES_PER_TOKEN = 4;
+
+export function budgetStatus(s: AppState): BudgetStatus {
+  const bytes = effectiveAttachments(s).reduce((n, a) => n + (a.chip.estBytes || 0), 0);
+  const windowBytes = s.usage?.contextWindow ? s.usage.contextWindow * BYTES_PER_TOKEN : null;
+  const ratio = windowBytes ? bytes / windowBytes : null;
+  const level: BudgetStatus["level"] =
+    ratio === null || ratio < 0.5
+      ? "ok"
+      : ratio < 0.8
+        ? "warn"
+        : ratio <= 1
+          ? "high"
+          : "over";
+  return { bytes, windowBytes, ratio, level };
+}
+
+export function composerPlaceholder(s: AppState): string {
+  if (s.connection.state !== "open") {
+    return "Not connected";
+  }
+  if (s.phase.kind === "running" || s.phase.kind === "cancelling") {
+    return "Add a note while it works…";
+  }
+  return "Message the agent…";
 }

@@ -85,24 +85,24 @@ Légende de faisabilité :
 
 | # | Subtilité | Qui | Faisab. |
 |---|---|---|---|
-| 1 | `/`-commandes (`/fix`, `/tests`, `/explain`, `/doc`, `/new`, `/clear`) avec menu filtrable | les deux | 🟢/🟡 |
+| 1 | `/`-commandes (`/fix`, `/tests`, `/explain`, `/doc`, `/new`, `/clear`) avec menu filtrable | les deux | 🟢/🟡 — ✅ **C03** (menu `/` en tête de champ ; builtins `new`/`clear`/`stop`/`components`/`help` ; `/x` inconnu = texte ; prompts MCP/`.prompt.md` = C10/C12) |
 | 2 | `@`-participants (`@workspace`, `@terminal`, `@vscode`, `@github`) routant le prompt | Copilot | 🟡 — ✅ **C04** (raccourcis de saisie côté C03 : `@workspace`/`@terminal`/`@problems` groupent des refs, aucun routage — P1) |
-| 3 | `#`-références de contexte (`#file`, `#selection`, `#editor`, `#codebase`, `#<symbole>`, `#terminalSelection`, `#problems`) | Copilot | 🟢 (collecte) / 🟡 (envoi) |
-| 4 | Bouton « Ajouter du contexte » → quick-pick de fichiers / symboles / problèmes / terminal / images | les deux | 🟢 |
-| 5 | Chips de contexte au-dessus du champ, retirables individuellement, avec compteur | les deux | 🟢 |
-| 6 | Auto-attache du fichier actif + de la sélection (retirable) | les deux | 🟢 |
-| 7 | Glisser-déposer de fichiers / d'images dans le chat | les deux | 🟢 |
-| 8 | Coller une image (capture d'écran) depuis le presse-papier | les deux | 🟢 (UI) / 🔴 (vision LLM) |
-| 9 | Historique des prompts : flèche ↑ pour rappeler les précédents | les deux | 🟢 |
-| 10 | Prompts de démarrage / suggestions quand le chat est vide | Copilot | 🟢 |
-| 11 | Textarea auto-grandissante (min/max lignes), `Enter` envoie, `Shift+Enter` saut de ligne, `Esc` annule | les deux | 🟢 |
+| 3 | `#`-références de contexte (`#file`, `#selection`, `#editor`, `#codebase`, `#<symbole>`, `#terminalSelection`, `#problems`) | Copilot | 🟢/🟡 — ✅ **C03** (`#` ouvre un menu webview : recherche floue débouncée 120 ms + `#problems`/`#terminal`/`#git`/`#selection`/`#sym:` ; jeton retiré du texte, contexte dans `context[]`) |
+| 4 | Bouton « Ajouter du contexte » → quick-pick de fichiers / symboles / problèmes / terminal / images | les deux | 🟢 — ✅ **C03** (`＋` → quick-pick natif : File/Selection/Symbol/Problems/Terminal/Git) |
+| 5 | Chips de contexte au-dessus du champ, retirables individuellement, avec compteur | les deux | 🟢 — ✅ **C03** (`ChipBar` : retrait, doublon fusionné, taille estimée, marque « auto ») |
+| 6 | Auto-attache du fichier actif + de la sélection (retirable) | les deux | 🟢 — ✅ **C03** (fichier actif + sélection poussés en auto-chips ; retrait mémorisé pour les tours suivants) |
+| 7 | Glisser-déposer de fichiers / d'images dans le chat | les deux | 🟢 — ⏸️ **différé** (glisser-déposer : demande le drag&drop VS Code + protocole d'image) |
+| 8 | Coller une image (capture d'écran) depuis le presse-papier | les deux | 🟢 (UI) / 🔴 (vision LLM) — ⏸️ **différé** (collage d'image : pas de modèle vision local ; chip afficherait « unavailable ») |
+| 9 | Historique des prompts : flèche ↑ pour rappeler les précédents | les deux | 🟢 — ✅ **C03** (`↑`/`↓` sur champ vide, historique de 50 persistant par dossier, ne détruit pas un brouillon) |
+| 10 | Prompts de démarrage / suggestions quand le chat est vide | Copilot | 🟢 — ✅ **C03** (`starterPrompts()` hôte : dérivés des diagnostics/git réels ; repli neutre sinon ; affichés fil vide) |
+| 11 | Textarea auto-grandissante (min/max lignes), `Enter` envoie, `Shift+Enter` saut de ligne, `Esc` annule | les deux | 🟢 — ✅ **C03** (auto-grandissement 1→12 lignes, `Enter`/`Shift+Enter`, `Esc` ferme le menu) |
 | 12 | Sélecteur de modèle inline (dans le composer) | les deux | 🟡 |
 | 13 | Sélecteur de mode : Ask / Edit / Agent | Copilot | 🟡 |
-| 14 | Complétion floue des chemins après `@`/`#` (fuzzy find, comme le file picker) | Claude Code | 🟢 |
+| 14 | Complétion floue des chemins après `@`/`#` (fuzzy find, comme le file picker) | Claude Code | 🟢 — ✅ **C03** (`fuzzyScore` côté hôte, résultats dans le menu `#`, au clavier) |
 | 15 | Modes de chat custom / instructions custom mentionnables | Copilot | 🟢/🟡 |
-| 16 | Indication « contexte trop gros » / troncature avant l'envoi | les deux | 🟢 |
+| 16 | Indication « contexte trop gros » / troncature avant l'envoi | les deux | 🟢 — ✅ **C03** (`BudgetMeter` : seuils ok/warn/high/over vs `context_window` ; aucune troncature auto, l'utilisateur décide) |
 | 17 | Entrée vocale | Copilot Voice | 🔴 |
-| 18 | Placeholder contextuel (« Modifier X », « Poser une question sur Y ») | Copilot | 🟢 |
+| 18 | Placeholder contextuel (« Modifier X », « Poser une question sur Y ») | Copilot | 🟢 — ✅ **C03** (`composerPlaceholder` : « Message the agent… » / « Add a note while it works… » / « Not connected ») |
 | 19 | Bouton d'envoi qui devient **Stop** pendant la génération | les deux | 🟢 — ✅ **C01** (client ; `cancel_turn` côté bridge à faire) |
 
 ### 2.2 Rendu de la réponse

@@ -27,7 +27,7 @@ function idle(conversationId = "c1", degraded = false): AppState {
 
 function running(turnId = "t1"): AppState {
   let s = idle();
-  s = reduce(s, local({ type: "intent/sendMessage" }));
+  s = reduce(s, local({ type: "intent/sendMessage", text: "hi" }));
   return reduce(s, bridge({ type: "turn_started", turn_id: turnId }, 5000));
 }
 
@@ -46,7 +46,7 @@ describe("reducer — machine à états v2 (C01)", () => {
 
   it("I2 — `running` n'est atteint que par `turn_started`, avec son turnId", () => {
     let s = idle();
-    s = reduce(s, local({ type: "intent/sendMessage" }));
+    s = reduce(s, local({ type: "intent/sendMessage", text: "hi" }));
     // envoi optimiste : pas encore running, juste pendingSend
     expect(s.phase.kind).toBe("idle");
     expect(s.pendingSend).toBe(true);
@@ -100,7 +100,7 @@ describe("reducer — machine à états v2 (C01)", () => {
 
   it("Stop indisponible sur bridge v1 (degraded)", () => {
     let s = idle("c1", true);
-    s = reduce(s, local({ type: "intent/sendMessage" }));
+    s = reduce(s, local({ type: "intent/sendMessage", text: "hi" }));
     // v1 : pas de turn_started ; le repli termine sur files_changed
     s = reduce(s, bridge({ type: "files_changed", changes: [] }));
     expect(s.phase.kind).toBe("idle");

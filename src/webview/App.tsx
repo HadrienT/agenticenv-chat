@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
-import { isHostToWebview } from "../messages";
-import { host, local } from "./store/actions";
+import { useCallback, useMemo, useReducer, useRef } from "react";
+import { local } from "./store/actions";
 import { createActions } from "./store/dispatch";
 import { PERSIST_VERSION, fromPersisted, toPersisted } from "./store/persist";
 import { reduce } from "./store/reducer";
 import {
+  budgetStatus,
   canSendMessage,
   canStartSession,
   composerButton,
+  composerPlaceholder,
+  effectiveAttachments,
   isPickingScreen,
   isStarting,
   isTurnActive,
@@ -15,70 +17,39 @@ import {
   turnStatusLine,
 } from "./store/selectors";
 import { initialState } from "./store/types";
-import { loadPersisted, savePersisted } from "./vscodeApi";
-import { Composer } from "./views/Composer";
+import { useHostMessages } from "./store/useHostMessages";
+import { usePersist } from "./store/usePersist";
+import { loadPersisted } from "./vscodeApi";
+import { Composer } from "./views/composer/Composer";
+import { StarterPrompts } from "./views/composer/StarterPrompts";
 import { ConfirmCard } from "./views/ConfirmCard";
 import { ConnectionBanner } from "./views/ConnectionBanner";
+import { ContextGauge } from "./views/ContextGauge";
 import { Notices } from "./views/Notices";
 import { Thread } from "./views/Thread";
 import type { ThreadServices } from "./views/threadContext";
-import { ContextGauge } from "./views/ContextGauge";
 import { Health } from "./views/panels/Health";
 import { McpPicker } from "./views/panels/McpPicker";
 import { WorkingSet } from "./views/panels/WorkingSet";
-import type { EventDelta } from "../protocol";
 
 /**
  * `App` fait de la **composition seulement** : elle lit le store et place les
- * vues (01-ARCHITECTURE §2). La seule logique ici est le **bord impur** —
- * écoute `postMessage`, coalescing des deltas sur `requestAnimationFrame`
- * (04-CONVENTIONS §6), persistance.
+ * vues (01-ARCHITECTURE §2). Les effets de bord (postMessage, persistance) sont
+ * dans des hooks dédiés.
  */
 export function App(): JSX.Element {
-  const boot = useRef<{ stale: boolean } | null>(null);
+  const stale = useRef(false);
   const [state, dispatch] = useReducer(reduce, undefined, () => {
     const res = fromPersisted(loadPersisted());
-    boot.current = { stale: !res.ok && res.reason === "unknown-version" };
+    stale.current = !res.ok && res.reason === "unknown-version";
     return res.ok ? res.state : initialState();
   });
 
   const actions = useMemo(() => createActions(dispatch), []);
 
-  // --- coalescing des event_delta -----------------------------------------
-  const deltaBuf = useRef(new Map<string, EventDelta>());
-  const rafId = useRef(0);
-  const flushDeltas = useCallback(() => {
-    rafId.current = 0;
-    const buffered = [...deltaBuf.current.values()];
-    deltaBuf.current.clear();
-    for (const d of buffered) {
-      dispatch(host({ type: "bridge", message: d }));
-    }
-  }, []);
-
-  useEffect(() => {
-    const handler = (e: MessageEvent): void => {
-      if (!isHostToWebview(e.data)) {
-        return;
-      }
-      const msg = e.data;
-      if (msg.type === "bridge" && msg.message.type === "event_delta") {
-        const d = msg.message;
-        const prev = deltaBuf.current.get(d.event_id);
-        deltaBuf.current.set(
-          d.event_id,
-          prev ? { ...d, text: prev.text + d.text } : d,
-        );
-        if (!rafId.current) {
-          rafId.current = requestAnimationFrame(flushDeltas);
-        }
-        return;
-      }
-      dispatch(host(msg));
-    };
-    window.addEventListener("message", handler);
+  const onReady = useCallback(() => {
     actions.ready(PERSIST_VERSION);
-    if (boot.current?.stale) {
+    if (stale.current) {
       dispatch(
         local({
           type: "notice/push",
@@ -91,17 +62,10 @@ export function App(): JSX.Element {
         }),
       );
     }
-    return () => {
-      window.removeEventListener("message", handler);
-      if (rafId.current) {
-        cancelAnimationFrame(rafId.current);
-      }
-    };
-  }, [actions, flushDeltas]);
+  }, [actions]);
 
-  useEffect(() => {
-    savePersisted(toPersisted(state));
-  }, [state]);
+  useHostMessages(dispatch, onReady);
+  usePersist(() => toPersisted(state), [state]);
 
   const services = useMemo<ThreadServices>(
     () => ({
@@ -117,12 +81,7 @@ export function App(): JSX.Element {
       onOpenFile: actions.openFile,
       onFeedback: actions.feedback,
     }),
-    [
-      actions,
-      state.workspace.sandboxRoot,
-      state.workspace.editorAvailable,
-      state.workspace.expandThinking,
-    ],
+    [actions, state.workspace],
   );
 
   return (
@@ -132,11 +91,7 @@ export function App(): JSX.Element {
         protocol={state.protocol}
         llmSource={state.session?.llmSource}
       />
-      <Health
-        components={state.health}
-        onRefresh={actions.refreshHealth}
-        onAction={actions.healthAction}
-      />
+      <Health components={state.health} onRefresh={actions.refreshHealth} onAction={actions.healthAction} />
       <Notices notices={state.notices} onDismiss={actions.dismissNotice} />
       {isPickingScreen(state) ? (
         <McpPicker
@@ -159,21 +114,40 @@ export function App(): JSX.Element {
           {pendingConfirmation(state) && <ConfirmCard onAnswer={actions.confirm} />}
           <WorkingSet files={state.workingSet} onOpen={actions.openDiff} />
           {state.usage && <ContextGauge usage={state.usage} />}
+          {state.items.length === 0 && state.phase.kind === "idle" && (
+            <StarterPrompts prompts={state.starters} onPick={actions.setDraft} />
+          )}
           <Composer
             draft={state.composer.draft}
+            chips={effectiveAttachments(state)}
+            history={state.composer.history}
+            commands={state.commands}
+            fileSearch={state.fileSearch}
+            budget={budgetStatus(state)}
             button={composerButton(state)}
+            placeholder={composerPlaceholder(state)}
             canSend={canSendMessage(state)}
-            connected={state.connection.state === "open"}
             onDraft={actions.setDraft}
             onSend={() => {
               actions.sendMessage(
                 state.composer.draft.trim(),
-                state.composer.attachments.map((a) => a.ref),
+                effectiveAttachments(state).map((a) => a.chip.ref),
               );
               actions.setDraft("");
             }}
             onStop={actions.cancelTurn}
             onForceNew={actions.forceNewSession}
+            onSearchFiles={actions.searchFiles}
+            onAddChip={actions.addAttachment}
+            onRemoveChip={(index, auto, key) =>
+              auto ? actions.dismissAuto(key) : actions.removeAttachment(index)
+            }
+            onPickContext={() => actions.pickContext("menu")}
+            onCommand={(cmd, args) =>
+              cmd.name === "components"
+                ? actions.togglePanel("health")
+                : actions.resolveCommand(cmd.name, args)
+            }
           />
         </>
       )}

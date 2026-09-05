@@ -1,16 +1,7 @@
 import { assertNever } from "../../assertNever";
 import type { HostToWebview } from "../../messages";
-import type { Outbound } from "../../protocol";
+import { applyBridge, endTurnOnError } from "./reduceBridge";
 import { hash, resetState, withNotice } from "./reduceHelpers";
-import {
-  applyEvent,
-  applyEventDelta,
-  applyProgress,
-  applyToolStatus,
-  finishTurn,
-  maybeV1EndTurn,
-  startTurn,
-} from "./reduceTurn";
 import type { AppState } from "./types";
 
 /** Routeur exhaustif des messages hôte → webview (`assertNever` en garde). */
@@ -75,11 +66,32 @@ export function applyHost(state: AppState, msg: HostToWebview, at: number): AppS
         ? state
         : {
             ...state,
-            composer: {
-              ...state.composer,
-              attachments: [...state.composer.attachments, msg.chip],
-            },
+            composer: { ...state.composer, attachments: [...state.composer.attachments, msg.chip] },
           };
+    }
+
+    case "autoContext":
+      return { ...state, autoContext: msg.chips };
+
+    case "commands":
+      return { ...state, commands: msg.commands };
+
+    case "starters":
+      return { ...state, starters: msg.prompts };
+
+    case "commandResult": {
+      const withDraft =
+        msg.prefill !== undefined
+          ? { ...state, composer: { ...state.composer, draft: msg.prefill } }
+          : state;
+      return msg.note
+        ? withNotice(withDraft, {
+            id: `cmd-${msg.command}`,
+            level: "info",
+            text: msg.note,
+            dismissible: true,
+          })
+        : withDraft;
     }
 
     case "hostError":
@@ -89,6 +101,9 @@ export function applyHost(state: AppState, msg: HostToWebview, at: number): AppS
         text: msg.text,
         dismissible: true,
       });
+
+    case "clearThread":
+      return { ...state, items: [], itemIndex: {}, eventSeq: 0, workingSet: [], progress: null };
 
     case "workspace":
       return {
@@ -108,113 +123,4 @@ export function applyHost(state: AppState, msg: HostToWebview, at: number): AppS
     default:
       return assertNever(msg, "HostToWebview");
   }
-}
-
-/** Routeur exhaustif du fil bridge (`assertNever` en garde). */
-function applyBridge(state: AppState, msg: Outbound, at: number): AppState {
-  switch (msg.type) {
-    case "welcome":
-    case "resumed":
-      // Interceptés/traduits par l'hôte (→ message `protocol`). No-op ici.
-      return state;
-
-    case "session_started":
-      return {
-        ...state,
-        session: { llmSource: msg.llm_source },
-        phase: { kind: "idle", conversationId: msg.conversation_id },
-        pendingSend: false,
-      };
-
-    case "turn_started":
-      return startTurn(state, msg, at);
-
-    case "turn_finished":
-      return finishTurn(state, msg);
-
-    case "event":
-      return applyEvent(state, msg, at);
-
-    case "event_delta":
-      return applyEventDelta(state, msg, at);
-
-    case "tool_status":
-      return applyToolStatus(state, msg);
-
-    case "progress":
-      return applyProgress(state, msg);
-
-    case "files_changed": {
-      const workingSet = msg.changes.map((c) => ({ path: c.path, status: c.status }));
-      return maybeV1EndTurn({ ...state, workingSet }, msg);
-    }
-
-    case "usage": {
-      const usage = {
-        accumulatedCost: msg.accumulated_cost,
-        promptTokens: msg.prompt_tokens,
-        completionTokens: msg.completion_tokens,
-        contextWindow: msg.context_window,
-      };
-      return maybeV1EndTurn({ ...state, usage }, msg);
-    }
-
-    case "awaiting_confirmation": {
-      const p = state.phase;
-      return p.kind === "running"
-        ? { ...state, phase: { kind: "awaiting", conversationId: p.conversationId, turnId: p.turnId } }
-        : state;
-    }
-
-    case "error": {
-      const fatal = msg.code !== "PROJECT_READONLY";
-      const withN = withNotice(state, {
-        id: `bridge-${msg.code}`,
-        level: fatal ? "error" : "warn",
-        text: `${msg.code}: ${msg.message}`,
-        dismissible: msg.code !== "PROJECT_READONLY",
-      });
-      // En v2 une `error` fatale est suivie de `turn_finished{reason:"error"}` :
-      // on laisse la machine à `turn_finished`. En v1 (dégradé) il faut rendre la
-      // main ici, sinon le tour ne se termine jamais.
-      return fatal ? endTurnOnError(withN, state.protocol.degraded) : withN;
-    }
-
-    case "mcp_servers": {
-      const servers = msg.servers.map((s) => ({
-        name: s.name,
-        transport: s.transport,
-        tools: s.tools_allowlist,
-      }));
-      const names = new Set(servers.map((s) => s.name));
-      return {
-        ...state,
-        mcp: { servers, selected: state.mcp.selected.filter((n) => names.has(n)) },
-      };
-    }
-
-    default:
-      return assertNever(msg, "Outbound");
-  }
-}
-
-/** `starting → picking` toujours ; `running/awaiting/cancelling → idle` si `endActive`. */
-function endTurnOnError(state: AppState, endActive: boolean): AppState {
-  const p = state.phase;
-  if (p.kind === "starting") {
-    return { ...state, phase: { kind: "picking" }, pendingSend: false, progress: null };
-  }
-  if (endActive && (p.kind === "running" || p.kind === "awaiting" || p.kind === "cancelling")) {
-    const items = state.items.map((it) =>
-      it.kind === "assistant" && it.streaming ? { ...it, streaming: false } : it,
-    );
-    return {
-      ...state,
-      items,
-      phase: { kind: "idle", conversationId: p.conversationId },
-      pendingSend: false,
-      progress: null,
-    };
-  }
-  return { ...state, pendingSend: false };
 }

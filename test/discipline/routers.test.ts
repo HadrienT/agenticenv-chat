@@ -11,15 +11,16 @@ import { read, SRC_DIR } from "./helpers";
  */
 describe("discipline — routeurs exhaustifs", () => {
   it("le réducteur webview traite tout HostToWebview + tout Outbound et garde assertNever", () => {
-    const src = read(join(SRC_DIR, "webview", "store", "reduceHost.ts"));
+    const host = read(join(SRC_DIR, "webview", "store", "reduceHost.ts"));
+    const bridge = read(join(SRC_DIR, "webview", "store", "reduceBridge.ts"));
     for (const t of HOST_TO_WEBVIEW_TYPES) {
-      expect(src, `case "${t}" manquant dans applyHost`).toContain(`case "${t}"`);
+      expect(host, `case "${t}" manquant dans applyHost`).toContain(`case "${t}"`);
     }
     for (const t of OUTBOUND_TYPES) {
-      expect(src, `case "${t}" manquant dans applyBridge`).toContain(`case "${t}"`);
+      expect(bridge, `case "${t}" manquant dans applyBridge`).toContain(`case "${t}"`);
     }
-    expect(src).toMatch(/assertNever\(msg, "HostToWebview"\)/);
-    expect(src).toMatch(/assertNever\(msg, "Outbound"\)/);
+    expect(host).toMatch(/assertNever\(msg, "HostToWebview"\)/);
+    expect(bridge).toMatch(/assertNever\(msg, "Outbound"\)/);
   });
 
   it("le routeur hôte traite tout WebviewToHost et garde assertNever", () => {

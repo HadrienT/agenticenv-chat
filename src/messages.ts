@@ -74,6 +74,14 @@ export interface FileHit {
   rel: string;
 }
 
+export interface SlashCommand {
+  name: string;
+  description: string;
+  source: "builtin" | "prompt" | "mcp";
+  /** `true` si c'est une action locale (pas de texte à préremplir). */
+  local?: boolean;
+}
+
 // --- hôte → webview ---
 
 export type HostToWebview =
@@ -86,6 +94,11 @@ export type HostToWebview =
   | { type: "fileResults"; requestId: string; results: FileHit[] }
   | { type: "contextChips"; chips: ContextChip[] }
   | { type: "attachContext"; chip: ContextChip }
+  | { type: "autoContext"; chips: ContextChip[] }
+  | { type: "commands"; commands: SlashCommand[] }
+  | { type: "starters"; prompts: string[] }
+  | { type: "commandResult"; command: string; prefill?: string; note?: string }
+  | { type: "clearThread" }
   | {
       type: "workspace";
       folder: string | null;
@@ -106,6 +119,11 @@ export const HOST_TO_WEBVIEW_TYPES = [
   "fileResults",
   "contextChips",
   "attachContext",
+  "autoContext",
+  "commands",
+  "starters",
+  "commandResult",
+  "clearThread",
   "workspace",
   "reset",
 ] as const;
@@ -117,7 +135,9 @@ export type WebviewToHost =
   | { type: "startSession"; mcpServers: string[] }
   | { type: "userMessage"; text: string; context: ContextRef[] }
   | { type: "searchFiles"; query: string; requestId: string }
-  | { type: "pickContext"; kind: ContextRefKind }
+  | { type: "pickContext"; kind: ContextRefKind | "menu" }
+  | { type: "resolveCommand"; command: string; args: string }
+  | { type: "dismissAuto"; refKey: string }
   | { type: "cancelTurn" }
   | { type: "forceNewSession" }
   | { type: "confirm"; accept: boolean }
@@ -137,6 +157,8 @@ export const WEBVIEW_TO_HOST_TYPES = [
   "userMessage",
   "searchFiles",
   "pickContext",
+  "resolveCommand",
+  "dismissAuto",
   "cancelTurn",
   "forceNewSession",
   "confirm",

@@ -15,7 +15,7 @@ quand ses critères d'acceptation **automatisables** sont verts.
 | C00 | Fondations | `wp/C00-foundations` | ✅ **fait** (commit `5353b2c`) | F5 + fixtures réelles à finir |
 | C01 | Protocole v2 : tours, deltas, annulation | `wp/C01-turn-protocol` | ✅ **client fait** | moitié AgenticEnv (bridge v2) + F5 à finir |
 | C02 | Rendu du fil (markdown, code, liens) | `wp/C02-thread-rendering` | ✅ **fait** (Mermaid/KaTeX différés) | F5 (thèmes) + fixture markdown réelle |
-| C03 | Composer (chips, /-commandes, #-refs) | `wp/C03-composer` | 🚧 en cours | protocole hôte prêt (C04) |
+| C03 | Composer (chips, /-commandes, #-refs) | `wp/C03-composer` | ✅ **fait** | drag&drop + image différés ; F5 (ancrage menu) |
 | C04 | Fournisseurs de contexte (hôte) | `wp/C04-context-providers` | ✅ **fait** | parties vscode non testées (F5/e2e) ; budget C13 |
 | C05 | Rendu des appels d'outils | `wp/C05-tool-rendering` | ✅ **fait** | filtre sortie + renderers browser/apply_patch différés |
 | C06 | Éditions, diffs, checkpoints | — | ⏳ à faire | |
@@ -168,10 +168,30 @@ Branche `wp/C04-context-providers`. Items 2, 71–75, 79, 81.
 **Reste** : parties touchant l'API VS Code non testables ici (F5 / e2e C14) ;
 budget sur `context_window` réel = C13.
 
-## C03 — Composer 🚧
+## C03 — Composer ✅
 
-En cours (l'UI ; le protocole hôte est prêt côté C04).
+Branche `wp/C03-composer`. Items 1, 3–11, 14, 16, 18.
 
-## C06 — Éditions, diffs, checkpoints ⏳
+- `views/composer/` : `Composer.tsx` (orchestrateur), `ChipBar`, `Menu`
+  (`SlashMenu`/`MentionMenu`), `BudgetMeter`, `StarterPrompts`,
+  `composerParse.ts` (détection `#`/`/` sous le caret, pur),
+  `menuOptions.ts`, `useHistoryNav.ts`.
+- Store : `composer.{attachments,history}` + `autoContext`/`dismissedAuto` +
+  `commands`/`starters`/`fileSearch`. `effectiveAttachments`/`budgetStatus`/
+  `composerPlaceholder` selectors. `PERSIST_VERSION` 3→4.
+- `#` : menu webview, `searchFiles` débouncé, jeton retiré du texte, contexte
+  dans `context[]`. `/` : builtins (`new`/`clear`/`stop`/`components`/`help`),
+  `/x` inconnu = texte, prompts MCP/`.prompt.md` = C10/C12.
+- Auto-chips fichier actif + sélection ; retrait mémorisé.
+- Historique de prompts (`↑`/`↓` sur champ vide, 50, persistant).
+- `BudgetMeter` : seuils vs `context_window`, aucune troncature auto.
+- Hôte : `sendAutoContext`, `starterPrompts()` (diagnostics/git réels),
+  `runCommand`, `runPickContext` (quick-pick natif), `resolveCommand`.
+- Effets de bord d'App extraits en hooks (`useHostMessages`, `usePersist`).
+- 155 tests.
 
-À faire.
+**Différé** : glisser-déposer (item 7), collage d'image (item 8 — pas de vision).
+
+## C06 — Éditions, diffs, checkpoints 🚧
+
+En cours.
