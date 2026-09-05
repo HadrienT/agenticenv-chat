@@ -25,7 +25,7 @@ quand ses critères d'acceptation **automatisables** sont verts.
 | C10 | Instructions, prompts, mémoire | `wp/C10-instructions` | ✅ **fait** | chip instructions à rendre ; F5 |
 | C11 | Intégration éditeur & commandes | — | ⏳ à faire | |
 | C12 | MCP opérationnel & sélection modèle | — | ⏳ à faire | |
-| C13 | Budget de contexte, compaction | — | ⏳ à faire | |
+| C13 | Budget de contexte, compaction | `wp/C13-context-budget` | ✅ **client fait** | `context_stats`/`history_compacted`/`compact` = moitié AgenticEnv ; F5 |
 | C14 | Robustesse, a11y, packaging | — | ⏳ à faire | |
 
 Ordre d'exécution suivi : C00 → C01 → C02 → C05 → C04 → C03 → C06 → C07 → C08 →
@@ -296,6 +296,43 @@ Branche `wp/C10-instructions`. Items 15, 76–78, 117–119.
 
 **Reste** : rendre la chip « N instruction files » ; `context:` d'un prompt
 n'attache pas encore les chips ; F5.
+
+## C13 — Budget de contexte, compaction ✅ (client)
+
+Branche `wp/C13-context-budget`. Items 65, 80, 108, 115, 120.
+
+**Fait (client, testé contre le faux bridge)** :
+- `protocol.ts` : `context_stats` (usage poussé **pendant** le tour, pas
+  seulement à la fin), `history_compacted` (compaction faite par le bridge,
+  résumé consultable), `compact` (le client ne résume **jamais** lui-même).
+  Capability `compact`. Ajoutés à `CLIENT_AHEAD_OF_BRIDGE`.
+- `messages.ts` : `metrics {contextWindow?, tokensPerSec?}` (hôte→webview,
+  renseigne la jauge avant le premier tour + débit) ; `compact` (webview→hôte).
+- Store : `UsageState.tokensPerSec`, `AppState.compacted`, `ChatItem` kind
+  `compaction`. `reduceBridge` route `context_stats`/`history_compacted` ;
+  `reduceHost` route `metrics`. `persist` dérive `compacted` du fil
+  (`PERSIST_VERSION` inchangé — 8, déjà bumpé plus tôt dans la branche).
+- `views/ContextGauge.tsx` réécrit : visible dès que la fenêtre est connue,
+  trois zones (< 60 % / 60–85 % / > 85 %), tooltip de ventilation
+  (fenêtre / attaché / historique), débit tokens/s, coût. En zone alerte :
+  trois options concrètes (retirer des chips / `/compact` / nouvelle session),
+  aucune imposée.
+- `views/items/CompactionItem.tsx` : marqueur **toujours visible**
+  « history compacted — N turns », résumé dépliable.
+- `statusBar.ts` : `StatusBarItem` à droite (item 120), visible seulement en
+  session. Modèle · contexte % · coût ; pendant un tour : spinner + durée
+  écoulée ; en attente d'approbation : fond d'avertissement. Format
+  `agenticenvChat.statusBar.format`, masquable via `statusBar.hidden`.
+- Hôte : `StatusBar` câblé (`session_started`/`turn_started`/`turn_finished`/
+  `usage`/`context_stats`/`pending_action`/mode) ; `usage` calcule le débit
+  (`completion_tokens` / durée du tour) ; `metrics` poussé au `ready` et au
+  `session_started`. Builtin `/compact` → message bridge (inerte si v1).
+- Réglages `agenticenvChat.defaultContextWindow`, `statusBar.format`,
+  `statusBar.hidden`. 238 tests. Bundle 449 Ko webview / 119 Ko extension.
+
+**Reste** : moitié AgenticEnv (`context_stats`/`history_compacted`/`compact`
+dans `packages/openhands-bridge`) ; F5 (statusline en thème clair, jauge en
+plein tour, `/compact` réel).
 
 ## C09 — Plan, todo, pilotage 🚧
 

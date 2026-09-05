@@ -4,6 +4,7 @@ import type { ChatItem } from "../store/types";
 import { ErrorItem } from "./items/ErrorItem";
 import { MessageItem } from "./items/MessageItem";
 import { ToolItem } from "./items/ToolItem";
+import { CompactionItem } from "./items/CompactionItem";
 import { ToolGroup } from "./ToolGroup";
 import { UsedReferences } from "./UsedReferences";
 import { groupRows } from "./threadGroups";
@@ -41,6 +42,8 @@ function renderItem(item: ChatItem, afterCount: number): JSX.Element {
           {item.output && <pre className="agx-output__pre">{item.output}</pre>}
         </div>
       );
+    case "compaction":
+      return <CompactionItem key={item.id} item={item} />;
     default:
       return assertNever(item, "ChatItem");
   }

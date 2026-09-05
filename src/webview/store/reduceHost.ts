@@ -140,6 +140,25 @@ export function applyHost(state: AppState, msg: HostToWebview, at: number): AppS
     case "permissionOutcome":
       return applyPermission(state, msg, at);
 
+    case "metrics": {
+      // Jauge utile **avant** le premier tour (C13 §1) + débit tokens/s (§5).
+      const usage = state.usage ?? {
+        accumulatedCost: 0,
+        promptTokens: 0,
+        completionTokens: 0,
+        contextWindow: 0,
+        tokensPerSec: null,
+      };
+      return {
+        ...state,
+        usage: {
+          ...usage,
+          contextWindow: msg.contextWindow ?? usage.contextWindow,
+          tokensPerSec: msg.tokensPerSec !== undefined ? msg.tokensPerSec : usage.tokensPerSec,
+        },
+      };
+    }
+
     case "hookResult": {
       const next = appendItems(state, [
         {

@@ -69,6 +69,11 @@ export interface RestoreCheckpoint {
   checkpoint_id: string;
 }
 
+/** [v2] Demande au bridge de compacter l'historique (C13 §2). Le client ne résume jamais lui-même. */
+export interface Compact {
+  type: "compact";
+}
+
 export interface ListMcpServers {
   type: "list_mcp_servers";
 }
@@ -82,6 +87,7 @@ export type Inbound =
   | Resume
   | RequestDiff
   | RestoreCheckpoint
+  | Compact
   | ListMcpServers;
 
 // --- bridge -> client ---
@@ -167,6 +173,21 @@ export interface FileDiffMessage extends Seq {
   truncated: boolean;
 }
 
+/** [v2] État du contexte, poussé **pendant** le tour (C13 §1), pas seulement à la fin. */
+export interface ContextStats extends Seq {
+  type: "context_stats";
+  prompt_tokens: number;
+  context_window: number;
+  compacted: boolean;
+}
+
+/** [v2] Compaction effectuée par le bridge (item 65). Le résumé est consultable. */
+export interface HistoryCompacted extends Seq {
+  type: "history_compacted";
+  turns_summarized: number;
+  summary: string;
+}
+
 /** [v2] Checkpoint pris par le bridge avant un tour. */
 export interface CheckpointMessage extends Seq {
   type: "checkpoint";
@@ -228,6 +249,8 @@ export type Outbound =
   | ToolStatus
   | Progress
   | PendingActionMessage
+  | ContextStats
+  | HistoryCompacted
   | FileDiffMessage
   | CheckpointMessage
   | FilesChanged
@@ -248,6 +271,8 @@ export const OUTBOUND_TYPES = [
   "tool_status",
   "progress",
   "pending_action",
+  "context_stats",
+  "history_compacted",
   "file_diff",
   "checkpoint",
   "files_changed",
@@ -267,6 +292,7 @@ export const INBOUND_TYPES = [
   "resume",
   "request_diff",
   "restore_checkpoint",
+  "compact",
   "list_mcp_servers",
 ] as const;
 
@@ -288,6 +314,7 @@ export const CLIENT_AHEAD_OF_BRIDGE = [
   "resume",
   "request_diff",
   "restore_checkpoint",
+  "compact",
   "welcome",
   "resumed",
   "turn_started",
@@ -296,6 +323,8 @@ export const CLIENT_AHEAD_OF_BRIDGE = [
   "tool_status",
   "progress",
   "pending_action",
+  "context_stats",
+  "history_compacted",
   "file_diff",
   "checkpoint",
 ] as const;
@@ -308,6 +337,7 @@ export type Capability =
   | "diffs"
   | "todo"
   | "checkpoints"
+  | "compact"
   | "models";
 
 // --- contexte résolu (hôte → bridge), défini ici car il transite sur le fil ---

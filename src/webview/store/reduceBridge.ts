@@ -56,12 +56,44 @@ export function applyBridge(state: AppState, msg: Outbound, at: number): AppStat
 
     case "usage": {
       const usage = {
+        ...(state.usage ?? {
+          accumulatedCost: 0,
+          promptTokens: 0,
+          completionTokens: 0,
+          contextWindow: 0,
+          tokensPerSec: null as number | null,
+        }),
         accumulatedCost: msg.accumulated_cost,
         promptTokens: msg.prompt_tokens,
         completionTokens: msg.completion_tokens,
-        contextWindow: msg.context_window,
+        contextWindow: msg.context_window || state.usage?.contextWindow || 0,
       };
       return maybeV1EndTurn({ ...state, usage }, msg);
+    }
+
+    case "context_stats": {
+      const usage = {
+        accumulatedCost: state.usage?.accumulatedCost ?? 0,
+        completionTokens: state.usage?.completionTokens ?? 0,
+        tokensPerSec: state.usage?.tokensPerSec ?? null,
+        promptTokens: msg.prompt_tokens,
+        contextWindow: msg.context_window,
+      };
+      return { ...state, usage, compacted: msg.compacted };
+    }
+
+    case "history_compacted": {
+      const items = [
+        ...state.items,
+        {
+          kind: "compaction" as const,
+          id: `compact-${state.eventSeq}`,
+          turns: msg.turns_summarized,
+          summary: msg.summary,
+        },
+      ];
+      const itemIndex = { ...state.itemIndex, [`compact-${state.eventSeq}`]: items.length - 1 };
+      return { ...state, items, itemIndex, eventSeq: state.eventSeq + 1, compacted: true };
     }
 
     case "awaiting_confirmation": {

@@ -361,6 +361,53 @@ button {
 .agx-gauge__fill--high {
   background: var(--agx-error);
 }
+.agx-gauge--warn .agx-gauge__fill {
+  background: var(--agx-warning, var(--agx-link));
+}
+.agx-gauge--alert {
+  border-top-color: var(--agx-error);
+}
+.agx-gauge__note {
+  color: var(--agx-muted);
+  font-style: italic;
+}
+.agx-gauge__options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--agx-muted);
+}
+.agx-gauge__opt {
+  text-decoration: underline dotted;
+}
+
+/* --- compaction marker -------------------------------------- */
+
+.agx-compaction {
+  margin: 6px 0;
+  border-top: 1px dashed var(--agx-border);
+  border-bottom: 1px dashed var(--agx-border);
+  padding: 4px 0;
+}
+.agx-compaction__head {
+  background: none;
+  border: none;
+  color: var(--agx-muted);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+}
+.agx-compaction__summary {
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  background: var(--agx-input-bg);
+  border-radius: 4px;
+  white-space: pre-wrap;
+  font-size: 11px;
+  max-height: 220px;
+  overflow: auto;
+}
 
 /* --- composer ------------------------------------------------ */
 
