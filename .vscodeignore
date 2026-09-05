@@ -1,8 +1,15 @@
 .vscode/**
+.github/**
 src/**
+test/**
+blueprint/**
+docs/**
 node_modules/**
 esbuild.mjs
 tsconfig.json
+tsconfig.test.json
+vitest.config.ts
 .eslintrc.json
 .gitignore
+*.vsix
 **/*.map

@@ -1,4 +1,5 @@
 import WebSocket from "ws";
+import { log } from "./logging";
 import type { Inbound, Outbound } from "./protocol";
 
 export type BridgeState = "connecting" | "open" | "closed";
@@ -57,8 +58,10 @@ export class BridgeClient {
   send(message: Inbound): boolean {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
+      log.trace("bridge <-", message.type);
       return true;
     }
+    log.debug("bridge send dropped, socket not open:", message.type);
     return false;
   }
 
@@ -71,6 +74,7 @@ export class BridgeClient {
     try {
       ws = new WebSocket(this.url);
     } catch (err) {
+      log.warn("bridge connect failed:", err);
       this.handlers.onState("closed", String(err));
       this.scheduleReconnect();
       return;
@@ -83,11 +87,16 @@ export class BridgeClient {
     });
 
     ws.on("message", (data) => {
+      const raw = data.toString();
+      let parsed: Outbound;
       try {
-        this.handlers.onMessage(JSON.parse(data.toString()) as Outbound);
-      } catch {
-        // ignore malformed frames
+        parsed = JSON.parse(raw) as Outbound;
+      } catch (err) {
+        log.debug("bridge -> malformed frame ignored:", err, raw.slice(0, 200));
+        return;
       }
+      log.trace("bridge ->", (parsed as { type?: string }).type ?? "?");
+      this.handlers.onMessage(parsed);
     });
 
     ws.on("error", (err) => {

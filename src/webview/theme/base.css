@@ -1,0 +1,438 @@
+/*
+ * Reset, typographie, densité, et toutes les classes de l'UI. Aucune couleur en
+ * dur ici : uniquement les tokens de tokens.css (04-CONVENTIONS §3).
+ *
+ * La sidebar peut faire 250 px : aucun élément ne provoque de scroll horizontal
+ * du corps (05-TESTING §5).
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--agx-fg);
+  background: var(--agx-bg);
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: 13px;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* --- layout ------------------------------------------------------------- */
+
+.agx-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* --- connection banner ------------------------------------------------- */
+
+.agx-banner {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 8px;
+  font-size: 11px;
+  border-bottom: 1px solid var(--agx-border);
+}
+
+.agx-banner__meta {
+  color: var(--agx-fg-muted);
+}
+
+.agx-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--agx-unknown);
+}
+.agx-dot--ok {
+  background: var(--agx-ok);
+}
+.agx-dot--warn {
+  background: var(--agx-warn);
+}
+.agx-dot--error {
+  background: var(--agx-error);
+}
+.agx-dot--unknown {
+  background: var(--agx-unknown);
+}
+
+/* --- thread ----------------------------------------------------------- */
+
+.agx-thread {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.agx-bubble--user {
+  align-self: flex-end;
+  max-width: 85%;
+  background: var(--agx-input-bg);
+  border-radius: 8px;
+  padding: 6px 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.agx-msg--assistant {
+  align-self: flex-start;
+  max-width: 95%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+
+.agx-thinking {
+  color: var(--agx-fg-muted);
+  font-style: italic;
+}
+
+/* --- tool rows ------------------------------------------------------- */
+
+.agx-tool {
+  align-self: flex-start;
+  max-width: 95%;
+  border-left: 2px solid var(--agx-link);
+  padding-left: 8px;
+  font-size: 12px;
+}
+
+.agx-tool__name {
+  font-weight: 600;
+  color: var(--agx-link);
+}
+.agx-tool__status {
+  margin-left: 4px;
+  color: var(--agx-fg-muted);
+}
+.agx-tool__status--ok {
+  color: var(--agx-ok);
+}
+.agx-tool__status--error {
+  color: var(--agx-error);
+}
+
+.agx-tool__thought {
+  color: var(--agx-fg-muted);
+  font-style: italic;
+  margin: 2px 0;
+}
+
+.agx-pre {
+  background: var(--agx-code-bg);
+  padding: 4px 6px;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 11px;
+  margin: 2px 0 0;
+}
+
+/* --- error item ---------------------------------------------------- */
+
+.agx-error-item {
+  align-self: stretch;
+  background: var(--agx-error-bg);
+  border: 1px solid var(--agx-error-border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* --- notices ------------------------------------------------------ */
+
+.agx-notice {
+  margin: 6px 8px 0;
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 11px;
+  border: 1px solid var(--agx-info-border);
+  background: var(--agx-info-bg);
+}
+.agx-notice--warn {
+  border-color: var(--agx-warn-border);
+  background: var(--agx-warn-bg);
+}
+.agx-notice--error {
+  border-color: var(--agx-error-border);
+  background: var(--agx-error-bg);
+}
+.agx-notice__row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.agx-notice__text {
+  flex: 1;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.agx-notice__dismiss {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+/* --- confirm card ----------------------------------------------- */
+
+.agx-confirm {
+  margin: 0 8px 8px;
+  background: var(--agx-warn-bg);
+  border: 1px solid var(--agx-warn-border);
+  border-radius: 6px;
+  padding: 8px;
+}
+.agx-confirm__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* --- working set (files changed) ------------------------------- */
+
+.agx-files {
+  border-top: 1px solid var(--agx-border);
+  padding: 6px 8px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.agx-files__head {
+  color: var(--agx-fg-muted);
+  font-size: 11px;
+  margin-bottom: 3px;
+}
+.agx-file-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 1px 0;
+  background: transparent;
+  border: none;
+  color: inherit;
+  width: 100%;
+  text-align: left;
+}
+.agx-file-row:hover {
+  color: var(--agx-link);
+}
+.agx-file-badge {
+  width: 14px;
+  text-align: center;
+  border-radius: 3px;
+  color: var(--agx-badge-fg);
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+  background: var(--agx-unknown);
+}
+.agx-file-badge--added {
+  background: var(--agx-added);
+}
+.agx-file-badge--deleted {
+  background: var(--agx-deleted);
+}
+.agx-file-badge--updated {
+  background: var(--agx-modified);
+}
+.agx-file-badge--moved {
+  background: var(--agx-moved);
+}
+
+/* --- context gauge -------------------------------------------- */
+
+.agx-gauge {
+  border-top: 1px solid var(--agx-border);
+  padding: 6px 8px;
+  font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.agx-gauge__head {
+  display: flex;
+  justify-content: space-between;
+}
+.agx-gauge__track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--agx-input-bg);
+  overflow: hidden;
+}
+.agx-gauge__fill {
+  height: 100%;
+  background: var(--agx-link);
+}
+.agx-gauge__fill--high {
+  background: var(--agx-error);
+}
+
+/* --- composer ------------------------------------------------ */
+
+.agx-composer {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid var(--agx-border);
+}
+.agx-composer__input {
+  flex: 1;
+  resize: none;
+  min-height: 38px;
+  max-height: 160px;
+  background: var(--agx-input-bg);
+  color: var(--agx-input-fg);
+  border: 1px solid var(--agx-input-border);
+  border-radius: 4px;
+  padding: 6px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+/* --- buttons ----------------------------------------------- */
+
+.agx-btn {
+  background: var(--agx-btn-bg);
+  color: var(--agx-btn-fg);
+  border: none;
+  border-radius: 4px;
+  padding: 0 12px;
+  cursor: pointer;
+}
+.agx-btn:hover:not(:disabled) {
+  background: var(--agx-btn-hover);
+}
+.agx-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.agx-btn--danger {
+  background: var(--agx-error);
+}
+.agx-btn--small {
+  padding: 0 6px;
+  font-size: 10px;
+  margin-top: 2px;
+}
+.agx-btn--block {
+  align-self: flex-start;
+  margin-top: 8px;
+  padding: 6px 14px;
+}
+
+/* --- MCP picker ------------------------------------------- */
+
+.agx-picker {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+.agx-picker__title {
+  font-weight: 600;
+}
+.agx-picker__hint {
+  color: var(--agx-fg-muted);
+  font-size: 11px;
+}
+.agx-mcp-item {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.agx-mcp-item__meta {
+  color: var(--agx-fg-muted);
+}
+.agx-mcp-item__tools {
+  color: var(--agx-fg-muted);
+  font-size: 11px;
+}
+
+/* --- health panel -------------------------------------- */
+
+.agx-health {
+  border-bottom: 1px solid var(--agx-border);
+}
+.agx-health__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 11px;
+  user-select: none;
+  background: transparent;
+  border: none;
+  color: inherit;
+  width: 100%;
+  text-align: left;
+}
+.agx-health__row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 8px 3px 20px;
+  font-size: 11px;
+}
+.agx-health__label {
+  font-weight: 600;
+}
+.agx-health__detail {
+  color: var(--agx-fg-muted);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agx-health__action {
+  background: transparent;
+  color: var(--agx-link);
+  border: 1px solid var(--agx-link);
+  border-radius: 3px;
+  font-size: 10px;
+  padding: 0 5px;
+  cursor: pointer;
+}
+.agx-health__refresh {
+  margin-left: auto;
+  background: transparent;
+  color: var(--agx-fg-muted);
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+/* --- misc --------------------------------------------- */
+
+.agx-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

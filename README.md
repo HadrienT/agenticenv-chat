@@ -33,22 +33,49 @@ in the AgenticEnv repo), which owns the sandbox lifecycle and streams events.
 ```bash
 npm install
 npm run build          # or: npm run watch
+npm run typecheck      # tsc on src + test
+npm run lint
+npm test               # vitest: unit, render, discipline, fake-bridge integration
 # then press F5 in VS Code ("Run Extension")
 ```
 
-Set `agenticenvChat.bridgeUrl` if the bridge isn't on the default port.
+Set `agenticenvChat.bridgeUrl` if the bridge isn't on the default port. Set
+`agenticenvChat.logLevel` to `trace` to see every bridge frame in the
+"AgenticEnv Chat" output channel.
 
 ## Layout
 
 | Path | Role |
 |---|---|
-| `src/extension.ts` | extension host: webview view provider, wires the bridge client to the webview |
+| `src/extension.ts` | `activate`/`deactivate` and command registration only |
+| `src/chatViewProvider.ts` | webview view provider: HTML+CSP, host↔webview routing, bridge lifecycle, health polling |
 | `src/bridgeClient.ts` | WebSocket client to `openhands-bridge` (auto-reconnect) |
 | `src/protocol.ts` | TypeScript mirror of the bridge wire protocol (`openhands_bridge/protocol.py`) |
-| `src/webview/` | React UI (chat, file changes, context gauge, confirm card, MCP picker) |
+| `src/messages.ts` | internal host↔webview contract (separate from the bridge wire) |
+| `src/paths.ts` | the single sandbox↔host path translator |
+| `src/logging.ts` | "AgenticEnv Chat" output channel, levels, secret redaction |
+| `src/webview/store/` | pure reducer + state machine, selectors, persistence, dispatch |
+| `src/webview/theme/` | `tokens.css` (the only place a hex appears) + `base.css` |
+| `src/webview/views/` | composition-only React views (thread, composer, panels) |
+| `test/` | vitest suite: `unit/`, `render/`, `discipline/`, `fake-bridge/`, `integration/` |
 
 ## Roadmap
 
-- **Phase 2**: MCP servers actually reachable from inside the sandbox.
+The full development plan lives in [`blueprint/`](blueprint/README.md): 15 work
+packages (`C00`–`C14`) with their dependencies, acceptance criteria and the list
+of bridge-side changes they need from AgenticEnv.
+
+- [`docs/parity-copilot-claude-code.md`](docs/parity-copilot-claude-code.md) —
+  catalogue of 124 numbered Copilot / Claude Code behaviours; every work package
+  declares which numbers it covers.
+- [`blueprint/00-PRIMER.md`](blueprint/00-PRIMER.md) — read this first.
+
+Near-term milestones:
+
+- **C00 → C01**: real turn lifecycle (`turn_started`/`turn_finished`), Stop button,
+  incremental streaming — replaces today's heuristic turn tracking.
+- **C02 → C05**: markdown + syntax-highlighted code + per-tool rendering — the
+  biggest visual gap with Copilot Chat.
+- **Phase 2** (C12): MCP servers actually reachable from inside the sandbox.
 - **Phase 3**: structured multiple-choice questions from the agent (needs a custom
   `agent-server` image), replacing the Allow/Reject-only confirmation.

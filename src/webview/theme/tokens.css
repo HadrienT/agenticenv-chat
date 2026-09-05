@@ -1,0 +1,48 @@
+/*
+ * SEUL fichier où un hex apparaît (fallbacks compris) — décision D5 du primer,
+ * vérifiée par test/discipline/no-hardcoded-colors.test.ts.
+ *
+ * Chaque token est adossé à une variable de thème VS Code : l'extension suit le
+ * thème de l'utilisateur, thèmes clairs et à fort contraste inclus. Le hex n'est
+ * qu'un filet quand la variable n'existe pas.
+ */
+:root {
+  --agx-fg: var(--vscode-foreground, #cccccc);
+  --agx-fg-muted: var(--vscode-descriptionForeground, #9d9d9d);
+  --agx-bg: var(--vscode-sideBar-background, #252526);
+  --agx-border: var(--vscode-panel-border, #454545);
+
+  --agx-input-bg: var(--vscode-input-background, #3c3c3c);
+  --agx-input-fg: var(--vscode-input-foreground, #cccccc);
+  --agx-input-border: var(--vscode-input-border, #3c3c3c);
+
+  --agx-link: var(--vscode-textLink-foreground, #3794ff);
+  --agx-focus: var(--vscode-focusBorder, #007fd4);
+
+  --agx-btn-bg: var(--vscode-button-background, #0e639c);
+  --agx-btn-fg: var(--vscode-button-foreground, #ffffff);
+  --agx-btn-hover: var(--vscode-button-hoverBackground, #1177bb);
+  --agx-btn-secondary-bg: var(--vscode-button-secondaryBackground, #3a3d41);
+  --agx-btn-secondary-fg: var(--vscode-button-secondaryForeground, #ffffff);
+
+  --agx-code-bg: var(--vscode-textCodeBlock-background, #1e1e1e);
+
+  --agx-ok: var(--vscode-charts-green, #89d185);
+  --agx-warn: var(--vscode-charts-yellow, #d7ba7d);
+  --agx-error: var(--vscode-charts-red, #f14c4c);
+  --agx-info: var(--vscode-charts-blue, #3794ff);
+  --agx-unknown: var(--vscode-descriptionForeground, #8a8a8a);
+
+  --agx-added: var(--vscode-gitDecoration-addedResourceForeground, #81b88b);
+  --agx-deleted: var(--vscode-gitDecoration-deletedResourceForeground, #c74e39);
+  --agx-modified: var(--vscode-gitDecoration-modifiedResourceForeground, #e2c08d);
+  --agx-moved: var(--vscode-gitDecoration-renamedResourceForeground, #73c991);
+  --agx-badge-fg: var(--vscode-badge-foreground, #ffffff);
+
+  --agx-info-bg: var(--vscode-inputValidation-infoBackground, #063b49);
+  --agx-info-border: var(--vscode-inputValidation-infoBorder, #1177bb);
+  --agx-warn-bg: var(--vscode-inputValidation-warningBackground, #352a05);
+  --agx-warn-border: var(--vscode-inputValidation-warningBorder, #b89500);
+  --agx-error-bg: var(--vscode-inputValidation-errorBackground, #5a1d1d);
+  --agx-error-border: var(--vscode-inputValidation-errorBorder, #be1100);
+}

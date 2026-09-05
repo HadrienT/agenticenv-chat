@@ -1,5 +1,9 @@
-// Mirror of packages/openhands-bridge/src/openhands_bridge/protocol.py.
-// Keep in sync by hand -- the wire format is a small, stable contract.
+// Miroir **manuel** de packages/openhands-bridge/src/openhands_bridge/protocol.py
+// (décision D4 du primer). Un test de dérive est obligatoire — voir
+// test/discipline/protocol-drift.test.ts et 05-TESTING §4.
+//
+// Ce fichier ne contient QUE le fil bridge (snake_case, JSON sur WebSocket). Le
+// contrat interne hôte↔webview vit dans src/messages.ts.
 
 // --- client -> bridge ---
 
@@ -90,6 +94,25 @@ export type Outbound =
   | ErrorMessage
   | McpServers;
 
+/** Discriminants `type` de tous les messages bridge → client (pour le test de dérive). */
+export const OUTBOUND_TYPES = [
+  "session_started",
+  "event",
+  "files_changed",
+  "usage",
+  "awaiting_confirmation",
+  "error",
+  "mcp_servers",
+] as const;
+
+/** Discriminants `type` de tous les messages client → bridge. */
+export const INBOUND_TYPES = [
+  "start_session",
+  "user_message",
+  "confirm_action",
+  "list_mcp_servers",
+] as const;
+
 // --- a loose shape for the SDK Event payloads we actually render ---
 // The bridge forwards `Event.model_dump(mode="json")` verbatim; we only read a
 // few fields. `kind` discriminates (MessageEvent / ActionEvent / ObservationEvent
@@ -113,39 +136,3 @@ export interface SdkEvent {
   error?: string;
   [key: string]: unknown;
 }
-
-// --- component health (checked by the extension host, not the bridge) ---
-
-export type HealthStatus = "up" | "down" | "degraded" | "unknown";
-
-export interface ComponentHealth {
-  /** stable id used for actions */
-  id: "bridge" | "llama-server" | "llama-bridge" | "docker" | "agent-server-image" | "gpu";
-  label: string;
-  status: HealthStatus;
-  detail: string;
-  /** action ids the client may trigger for this component */
-  actions: HealthActionId[];
-}
-
-export type HealthActionId = "start" | "stop" | "restart" | "pull";
-
-// --- messages between extension host and webview (postMessage) ---
-
-export type HostToWebview =
-  | { type: "connection"; state: "connecting" | "open" | "closed"; detail?: string }
-  | { type: "bridge"; message: Outbound }
-  | { type: "mcpServers"; servers: { name: string; transport: string; tools: string[] }[] }
-  | { type: "health"; components: ComponentHealth[] }
-  | { type: "hostError"; text: string }
-  | { type: "workspace"; folder: string | null; path: string | null }
-  | { type: "reset" };
-
-export type WebviewToHost =
-  | { type: "ready" }
-  | { type: "startSession"; mcpServers: string[] }
-  | { type: "userMessage"; text: string }
-  | { type: "confirm"; accept: boolean }
-  | { type: "openDiff"; path: string }
-  | { type: "refreshHealth" }
-  | { type: "healthAction"; component: ComponentHealth["id"]; action: HealthActionId };
