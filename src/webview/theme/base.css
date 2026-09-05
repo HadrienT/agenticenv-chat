@@ -568,6 +568,15 @@ button {
   color: var(--agx-fg-muted);
   font-size: 11px;
 }
+.agx-picker__mode {
+  font-size: 12px;
+}
+.agx-picker__mode select {
+  background: var(--agx-input-bg);
+  color: var(--agx-input-fg);
+  border: 1px solid var(--agx-input-border);
+  border-radius: 3px;
+}
 .agx-mcp-item {
   display: flex;
   gap: 6px;

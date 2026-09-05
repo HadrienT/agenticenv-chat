@@ -106,11 +106,14 @@ export function App(): JSX.Element {
         <McpPicker
           servers={state.mcp.servers}
           selected={state.mcp.selected}
+          modes={state.modes}
+          selectedMode={state.selectedMode}
           workspaceFolder={state.workspace.folder}
           disabled={!canStartSession(state)}
           starting={isStarting(state)}
           onToggle={actions.toggleMcp}
-          onStart={() => actions.startSession(state.mcp.selected)}
+          onSelectMode={actions.selectMode}
+          onStart={() => actions.startSession(state.mcp.selected, state.selectedMode)}
         />
       ) : (
         <>
@@ -178,11 +181,15 @@ export function App(): JSX.Element {
               auto ? actions.dismissAuto(key) : actions.removeAttachment(index)
             }
             onPickContext={() => actions.pickContext("menu")}
-            onCommand={(cmd, args) =>
-              cmd.name === "components"
-                ? actions.togglePanel("health")
-                : actions.resolveCommand(cmd.name, args)
-            }
+            onCommand={(cmd, args) => {
+              if (cmd.name === "components") {
+                actions.togglePanel("health");
+              } else if (cmd.name === "remember") {
+                actions.remember(args);
+              } else {
+                actions.resolveCommand(cmd.name, args);
+              }
+            }}
           />
         </>
       )}

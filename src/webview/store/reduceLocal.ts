@@ -51,6 +51,9 @@ export function applyLocal(state: AppState, action: LocalAction): AppState {
       return { ...state, mcp: { ...state.mcp, selected } };
     }
 
+    case "mode/select":
+      return { ...state, selectedMode: action.name };
+
     case "panel/toggle":
       return { ...state, panels: { ...state.panels, [action.id]: !state.panels[action.id] } };
 

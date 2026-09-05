@@ -3,6 +3,7 @@ import type {
   ContextChip,
   FileHit,
   McpServerView,
+  ModeView,
   PendingActionView,
   SlashCommand,
 } from "../../messages";
@@ -61,7 +62,8 @@ export type ChatItem =
       rule: string;
       summary: string;
       ts?: number;
-    };
+    }
+  | { kind: "hook"; id: string; command: string; ok: boolean; output: string; ts?: number };
 
 export type NoticeLevel = "info" | "warn" | "error";
 
@@ -134,6 +136,11 @@ export interface AppState {
     expandThinking: boolean;
   };
   mcp: { servers: McpServerView[]; selected: string[] };
+  /** Modes de session (`.mode.md`) + sélection avant `startSession` (C10 §4). */
+  modes: ModeView[];
+  selectedMode: string | null;
+  /** Fichiers d'instructions appliqués au dernier envoi (C10 §2, chip composer). */
+  instructions: { applied: string[]; ignored: { rel: string; reason: string }[]; truncated: boolean };
   health: ComponentHealth[];
   usage: UsageState | null;
   workingSet: WorkingSetFile[];

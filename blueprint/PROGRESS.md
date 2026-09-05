@@ -22,7 +22,7 @@ quand ses critères d'acceptation **automatisables** sont verts.
 | C07 | Permissions, approbations | `wp/C07-permissions` | ✅ **fait** | `pending_action` bridge + F5 (persistance workspace) |
 | C08 | Sessions, historique | `wp/C08-sessions` | ✅ **fait** | `openInEditor` différé ; F5 |
 | C09 | Plan, todo, pilotage boucle agent | — | ⏳ à faire | |
-| C10 | Instructions, prompts, mémoire | — | ⏳ à faire | |
+| C10 | Instructions, prompts, mémoire | `wp/C10-instructions` | ✅ **fait** | chip instructions à rendre ; F5 |
 | C11 | Intégration éditeur & commandes | — | ⏳ à faire | |
 | C12 | MCP opérationnel & sélection modèle | — | ⏳ à faire | |
 | C13 | Budget de contexte, compaction | — | ⏳ à faire | |
@@ -269,6 +269,33 @@ Branche `wp/C08-sessions`. Items 82–88, 90–93, 105, 106.
 - `PERSIST_VERSION` 5→6 (`branches`). 221 tests.
 
 **Reste** : `openInEditor` (item 88, `WebviewPanel` + transfert d'état) ; F5.
+
+## C10 — Instructions, prompts, mémoire ✅
+
+Branche `wp/C10-instructions`. Items 15, 76–78, 117–119.
+
+- `instructions/frontmatter.ts` : parseur minimal pur (`clé: valeur`, listes).
+- `instructions/assemble.ts` : `assembleInstructions` pur — racines dans l'ordre,
+  `applyTo` (match si un fichier attaché correspond), sans `applyTo` → ignoré +
+  raison, plafond 16 Kio, bloc étiqueté par source.
+- `instructions/prompts.ts` : `.prompt.md` → `PromptDef` ; `substitute`
+  (`${arg}`/`${selection}`/`${file}`/`${workspaceFolder}`) + variables manquantes.
+- `instructions/loader.ts` : chargement `AGENTS.md`/`CLAUDE.md`/
+  `copilot-instructions.md` + `.agenticenv/{instructions,prompts,modes}` ;
+  `FileSystemWatcher` hot-reload ; **Workspace Trust** (rien si non fiable) ;
+  `remember()` → puce dans `AGENTS.md` avec confirmation modale.
+- `instructions/hooks.ts` : hooks côté hôte (`onTurn*`/`onFilesChanged`/
+  `onSessionStarted`), passent par `evaluate()`, jamais chargés du dépôt.
+- `PermissionStore.setModeOverride` : un mode restreint, ne relâche jamais (`RANK`).
+- Hôte : instructions `unshift`ées dans `context[]` (`kind:"instructions"`),
+  `sendCommandsAndModes`, `resolvePromptCommand`, `applyMode`.
+- Store : `state.modes`/`selectedMode`/`instructions`, item `hook`. McpPicker :
+  sélecteur de mode. Builtin `/remember`. `PERSIST_VERSION` inchangé (nouveau
+  kind d'item tolère l'ancien état... en fait 6→7 : bumpé).
+- 231 tests.
+
+**Reste** : rendre la chip « N instruction files » ; `context:` d'un prompt
+n'attache pas encore les chips ; F5.
 
 ## C09 — Plan, todo, pilotage 🚧
 

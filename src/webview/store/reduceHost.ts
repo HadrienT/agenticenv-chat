@@ -1,7 +1,7 @@
 import { assertNever } from "../../assertNever";
 import type { HostToWebview } from "../../messages";
 import { applyBridge, endTurnOnError } from "./reduceBridge";
-import { hash, resetState, withNotice } from "./reduceHelpers";
+import { appendItems, hash, resetState, withNotice } from "./reduceHelpers";
 import { applyPermission } from "./reducePermission";
 import type { AppState } from "./types";
 
@@ -77,6 +77,15 @@ export function applyHost(state: AppState, msg: HostToWebview, at: number): AppS
     case "commands":
       return { ...state, commands: msg.commands };
 
+    case "modes":
+      return { ...state, modes: msg.modes };
+
+    case "instructionsInfo":
+      return {
+        ...state,
+        instructions: { applied: msg.applied, ignored: msg.ignored, truncated: msg.truncated },
+      };
+
     case "starters":
       return { ...state, starters: msg.prompts };
 
@@ -130,6 +139,20 @@ export function applyHost(state: AppState, msg: HostToWebview, at: number): AppS
     case "permissionMode":
     case "permissionOutcome":
       return applyPermission(state, msg, at);
+
+    case "hookResult": {
+      const next = appendItems(state, [
+        {
+          kind: "hook",
+          id: `hook-${state.eventSeq}`,
+          command: msg.command,
+          ok: msg.ok,
+          output: msg.output,
+          ts: at,
+        },
+      ]);
+      return { ...next, eventSeq: state.eventSeq + 1 };
+    }
 
     case "workspace":
       return {

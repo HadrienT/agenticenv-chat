@@ -29,6 +29,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("agenticenvChat.restoreCheckpoint", () => provider.undoTurn()),
     vscode.commands.registerCommand("agenticenvChat.history", () => provider.history()),
     vscode.commands.registerCommand("agenticenvChat.exportConversation", () => provider.export()),
+    vscode.commands.registerCommand("agenticenvChat.remember", () => provider.remember()),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("agenticenvChat.logLevel")) {
         log.setLevel(

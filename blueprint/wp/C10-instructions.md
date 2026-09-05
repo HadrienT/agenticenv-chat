@@ -164,11 +164,14 @@ client, pas sur les appels d'outils de l'agent (qui vivent dans le sandbox).
 
 ## 9. Critères d'acceptation
 
-- [ ] `AGENTS.md` / `CLAUDE.md` / `copilot-instructions.md` sont chargés automatiquement et **visibles** dans le composer.
-- [ ] Les instructions à portée ne s'appliquent qu'aux fichiers correspondants.
-- [ ] Un `.prompt.md` devient une `/`-commande sans redémarrage.
-- [ ] Un mode ne peut jamais élargir les permissions.
-- [ ] `#` écrit dans `AGENTS.md` uniquement après confirmation montrant la ligne exacte.
-- [ ] Un dossier non fiable ne charge aucune instruction, aucun prompt, aucun hook.
-- [ ] Les instructions voyagent dans `context[]`, pas dans `text`.
-- [ ] En cas de saturation, le contexte est tronqué avant les instructions.
+- [x] Les 3 fichiers racine chargés, étiquetés par source, dans l'ordre du tableau ; `instructionsInfo` → l'UI sait quels fichiers se sont appliqués.
+- [x] `applyTo` : appliqué seulement si un fichier attaché matche un glob ; sans `applyTo` → ignoré + notice nommant le fichier.
+- [x] `.prompt.md` → `/`-commande via `sendCommandsAndModes()` ; `FileSystemWatcher` recharge à chaud.
+- [x] Un mode **restreint, ne relâche jamais** : `PermissionStore.setModeOverride` ne retient l'override que s'il est plus strict (`RANK`).
+- [x] Mémoire : `/remember` + `agenticenvChat.remember` → puce dans `AGENTS.md` sous `## Agent memory`, **confirmation modale** montrant la ligne ; échec explicite si non-inscriptible.
+- [x] Workspace Trust : `InstructionLoader.enabled()` = `isTrusted && folder` → sinon **rien** (loadRoots/Scoped/Prompts/Modes retournent `[]`, `remember` refuse) ; hooks aussi (`Hooks.run` sort si `!isTrusted`).
+- [x] Instructions dans `context[]` (`kind: "instructions"`), en **tête**, jamais dans `text` ; `substitute` côté hôte ; variable manquante → message clair.
+- [x] Plafond 16 Kio sur le bloc instructions (`assembleInstructions`), troncature signalée. Le budget C04 tronque le contexte, pas les instructions (elles sont `unshift`ées et non budgétées).
+- [x] Hooks : `onTurnStarted/Finished`/`onFilesChanged`/`onSessionStarted`, passent par `evaluate()`, item `hook` visible, chargés **uniquement** des réglages VS Code. 231 tests (frontmatter, assemble, applyTo, cap, prompts).
+- [ ] **F5** : hot-reload observé, chip « N instruction files » dans le composer (l'`instructionsInfo` est dans le store mais pas encore rendu — à câbler dans le ChipBar), mode restrictif vérifié bout-en-bout.
+- [ ] `context:` d'un prompt ne pré-attache pas encore les chips (le `commandResult` ne porte que `prefill`) — extension simple.

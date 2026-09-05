@@ -1,18 +1,39 @@
-import type { McpServerView } from "../../../messages";
+import type { McpServerView, ModeView } from "../../../messages";
 
 export function McpPicker(props: {
   servers: McpServerView[];
   selected: string[];
+  modes: ModeView[];
+  selectedMode: string | null;
   workspaceFolder: string | null;
   disabled: boolean;
   starting: boolean;
   onToggle: (name: string) => void;
+  onSelectMode: (name: string | null) => void;
   onStart: () => void;
 }): JSX.Element {
   const selected = new Set(props.selected);
   return (
     <div className="agx-picker">
       <div className="agx-picker__title">New session</div>
+      {props.modes.length > 0 && (
+        <label className="agx-picker__mode">
+          Mode:{" "}
+          <select
+            value={props.selectedMode ?? ""}
+            disabled={props.disabled}
+            onChange={(e) => props.onSelectMode(e.target.value || null)}
+          >
+            <option value="">(default)</option>
+            {props.modes.map((m) => (
+              <option key={m.name} value={m.name}>
+                {m.name}
+                {m.permissions ? ` · ${m.permissions}` : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <div className="agx-picker__hint">
         {props.workspaceFolder
           ? `The agent will work in your open folder "${props.workspaceFolder}" (bind-mounted into the sandbox). It can read and modify files there.`

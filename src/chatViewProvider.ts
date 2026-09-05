@@ -14,6 +14,10 @@ import { DEFAULT_SANDBOX_ROOT, resetMapping, setMapping, toHostUri } from "./pat
 import { appendFeedback } from "./sessions/feedback";
 import { ConversationStore, STORE_VERSION, type StoredConversation } from "./sessions/store";
 import { toJson, toMarkdown } from "./sessions/export";
+import { InstructionLoader } from "./instructions/loader";
+import { assembleInstructions } from "./instructions/assemble";
+import { substitute } from "./instructions/prompts";
+import { Hooks } from "./instructions/hooks";
 import { CLIENT_ID, CLIENT_PROTOCOL, type Outbound } from "./protocol";
 import { destructiveMatches, evaluate } from "./permissions/policy";
 import { PermissionStore } from "./permissions/store";
@@ -70,9 +74,18 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private conversations: ConversationStore | undefined;
   private snapshot: Omit<StoredConversation, "version" | "createdAt" | "workspacePath"> | undefined;
   private turnStartMs = 0;
+  private readonly instructions = new InstructionLoader(() => {
+    void this.sendCommandsAndModes();
+    this.postToWebview({ type: "hostError", text: "Instruction files changed — applied on the next turn." });
+  });
+  private hooks: Hooks | undefined;
+  private filesChangedThisTurn = false;
 
   constructor(private readonly context: vscode.ExtensionContext) {
     this.permissions = new PermissionStore(context);
+    this.hooks = new Hooks(this.permissions, (r) =>
+      this.postToWebview({ type: "hookResult", command: r.command, ok: r.ok, output: r.output }),
+    );
     if (context.storageUri) {
       this.conversations = new ConversationStore(context.storageUri.fsPath);
       void this.conversations.purge().then((r) => {
@@ -132,6 +145,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       }
     });
 
+    this.instructions.watch(this.context);
+
     const editorSub = vscode.window.onDidChangeActiveTextEditor(() => {
       this.sendWorkspace();
       this.sendAutoContext();
@@ -181,6 +196,17 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   /** Commande `agenticenvChat.history`. */
   history(): void {
     void this.openHistory();
+  }
+
+  /** Commande `agenticenvChat.remember`. */
+  remember(): void {
+    void vscode.window.showInputBox({ prompt: "Note to add to AGENTS.md (agent memory)" }).then((text) => {
+      if (text) {
+        void this.instructions.remember(text).then((r) =>
+          this.postToWebview({ type: "hostError", text: r.message }),
+        );
+      }
+    });
   }
 
   /** Commande `agenticenvChat.exportConversation`. */
@@ -314,6 +340,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.currentTurnId = message.turn_id;
         this.lastTurnId = message.turn_id;
         this.turnStartMs = Date.now();
+        this.filesChangedThisTurn = false;
+        void this.hooks?.run("onTurnStarted", { filesChanged: false, cwd: this.projectPath() });
         this.setBadge("running");
         this.autoOpened.clear();
         this.turnDecorations.clear();
@@ -326,6 +354,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           this.currentTurnId = undefined;
         }
         void this.checkpoints.finishTurn(message.turn_id).then(() => this.sendWorkingSet());
+        void this.hooks?.run("onTurnFinished", {
+          filesChanged: this.filesChangedThisTurn,
+          cwd: this.projectPath(),
+        });
         this.setBadge("idle");
         this.maybeNotify("turn-done");
         void this.persistConversation();
@@ -334,6 +366,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
       case "files_changed":
         this.lastChangedPath = message.changes[message.changes.length - 1]?.path;
+        this.filesChangedThisTurn = true;
+        void this.hooks?.run("onFilesChanged", { filesChanged: true, cwd: this.projectPath() });
         void this.sendWorkingSet();
         void this.maybeAutoOpen(message.changes.map((c) => c.path));
         this.postToWebview({ type: "bridge", message });
@@ -350,6 +384,89 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       default:
         this.postToWebview({ type: "bridge", message });
     }
+  }
+
+  // --- instructions / prompts / modes (C10) --------------------
+
+  private async sendCommandsAndModes(): Promise<void> {
+    const [prompts, modes] = await Promise.all([
+      this.instructions.loadPrompts(),
+      this.instructions.loadModes(),
+    ]);
+    this.postToWebview({
+      type: "commands",
+      commands: prompts.map((p) => ({
+        name: p.name,
+        description: p.description,
+        source: "prompt" as const,
+        argsHint: p.argsHint,
+      })),
+    });
+    this.postToWebview({
+      type: "modes",
+      modes: modes.map((m) => ({ name: m.name, permissions: m.permissions, mcp: m.mcp, model: m.model })),
+    });
+  }
+
+  private modeInstructions: string | null = null;
+
+  /** Applique un `.mode.md` : restreint les permissions, retourne sa liste MCP si définie. */
+  private async applyMode(name: string | undefined): Promise<string[] | null> {
+    this.modeInstructions = null;
+    if (!name) {
+      this.permissions.setModeOverride(undefined);
+      return null;
+    }
+    const mode = (await this.instructions.loadModes()).find((m) => m.name === name);
+    if (!mode) {
+      return null;
+    }
+    this.permissions.setModeOverride(mode.permissions);
+    this.modeInstructions = mode.instructions || null;
+    this.sendPermissionMode();
+    return mode.mcp.length ? mode.mcp : null;
+  }
+
+  /** Résout une `/`-commande de prompt (C10 §3) : substitution + préremplissage. */
+  private async resolvePromptCommand(name: string, args: string): Promise<boolean> {
+    const prompt = (await this.instructions.loadPrompts()).find((p) => p.name === name);
+    if (!prompt) {
+      return false;
+    }
+    const editor = vscode.window.activeTextEditor;
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    const { text, missing } = substitute(prompt.body, {
+      arg: args,
+      selection: editor?.document.getText(editor.selection) ?? "",
+      file: editor ? vscode.workspace.asRelativePath(editor.document.uri) : "",
+      workspaceFolder: folder?.name ?? "",
+    });
+    if (missing.length) {
+      this.postToWebview({
+        type: "hostError",
+        text: `/${name}: missing ${missing.join(", ")}${prompt.argsHint ? ` (expects ${prompt.argsHint})` : ""}`,
+      });
+      return true;
+    }
+    this.postToWebview({ type: "commandResult", command: name, prefill: text });
+    return true;
+  }
+
+  private async buildInstructionsContext(): Promise<
+    { block: string; applied: string[]; ignored: { rel: string; reason: string }[]; truncated: boolean } | null
+  > {
+    const [roots, scoped] = await Promise.all([
+      this.instructions.loadRoots(),
+      this.instructions.loadScoped(),
+    ]);
+    if (roots.length === 0 && scoped.length === 0) {
+      return null;
+    }
+    const attached = vscode.window.activeTextEditor
+      ? [vscode.workspace.asRelativePath(vscode.window.activeTextEditor.document.uri)]
+      : [];
+    const r = assembleInstructions(roots, scoped, this.modeInstructions, attached);
+    return { block: r.text, applied: r.applied, ignored: r.ignored, truncated: r.truncated };
   }
 
   // --- sessions / history (C08) ---------------------------------
@@ -559,7 +676,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.sendAutoContext();
         this.sendPermissionMode();
         void this.sendStarters();
+        void this.sendCommandsAndModes();
         this.bridge?.enqueue({ type: "list_mcp_servers" });
+        break;
+      case "remember":
+        void this.instructions.remember(msg.text).then((r) =>
+          this.postToWebview({ type: "hostError", text: r.message }),
+        );
         break;
       case "startSession": {
         if (!vscode.workspace.isTrusted) {
@@ -576,10 +699,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           hostRoot: projectPath ? vscode.Uri.file(projectPath) : null,
         });
         this.checkpoints.setRoot(projectPath);
-        this.sendOrNotify(
-          { type: "start_session", mcp_servers: msg.mcpServers, project_path: projectPath },
-          "start a session",
-        );
+        void this.applyMode(msg.mode).then((mcp) => {
+          this.sendOrNotify(
+            { type: "start_session", mcp_servers: mcp ?? msg.mcpServers, project_path: projectPath },
+            "start a session",
+          );
+        });
         break;
       }
       case "userMessage":
@@ -696,15 +821,38 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
   /** Résout les `ContextRef` **à l'envoi** (C04) puis transmet au bridge. */
   private async sendUserMessage(text: string, refs: ContextRef[]): Promise<void> {
-    let context;
+    let context: { kind: string; label: string; body: string; truncated: boolean }[] = [];
     try {
       context = await resolveRefs(refs);
     } catch (err) {
       log.warn("context resolution failed, sending without context:", err);
-      context = undefined;
+    }
+    // Instructions du dépôt (C10 §7) : en **tête** du contexte, kind "instructions",
+    // jamais concaténées dans `text`. Elles ne sont pas tronquées avant le reste.
+    try {
+      const instr = await this.buildInstructionsContext();
+      if (instr) {
+        context.unshift({
+          kind: "instructions",
+          label: `instructions (${instr.applied.join(", ")})`,
+          body: instr.block,
+          truncated: instr.truncated,
+        });
+        this.postToWebview({
+          type: "instructionsInfo",
+          applied: instr.applied,
+          ignored: instr.ignored,
+          truncated: instr.truncated,
+        });
+        for (const ig of instr.ignored) {
+          this.postToWebview({ type: "hostError", text: `Instruction file ignored — ${ig.rel}: ${ig.reason}` });
+        }
+      }
+    } catch (err) {
+      log.debug("instructions assembly failed:", err);
     }
     this.sendOrNotify(
-      { type: "user_message", text, ...(context && context.length ? { context } : {}) },
+      { type: "user_message", text, ...(context.length ? { context } : {}) },
       "send the message",
     );
   }
@@ -758,8 +906,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         });
         return;
       default:
-        // Prompt réutilisable (C10) ou prompt MCP (C12) : non branché ici, on
-        // préremplit le nom pour ne rien perdre.
+        if (await this.resolvePromptCommand(command, args)) {
+          return;
+        }
+        // Prompt MCP (C12) : non branché ici, on préremplit le nom pour ne rien perdre.
         this.postToWebview({
           type: "commandResult",
           command,
