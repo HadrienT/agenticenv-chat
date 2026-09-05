@@ -156,10 +156,15 @@ sans re-rendre l'item. Utile sur une sortie de `ctest` de 3000 lignes.
 
 ## 9. Critères d'acceptation
 
-- [ ] Aucun JSON brut affiché pour les familles d'outils listées au §2.
-- [ ] Une édition affiche un diff, pas `old_str`/`new_str`.
-- [ ] Un outil MCP inconnu reste lisible et cliquable.
-- [ ] Action et observation sont un seul item.
-- [ ] Une erreur d'outil est visible sans avoir à déplier.
-- [ ] La liste des noms d'outils réels est relevée sur fixtures et documentée ici (`[À CONFIRMER]` levé).
-- [ ] Un tour de 40 appels d'outils reste lisible sans scroll infini.
+- [x] Familles `file_editor` / `terminal` / `grep` / `glob` : résumé pré-digéré, plus de JSON brut. Repli générique (JSON colorié, chaînes > 500 car. abrégées) pour le reste.
+- [x] `str_replace` → `render/Diff.tsx` (LCS pur) ; compteurs `+A −B` avec source signalée (`(est.)` si dérivés de `old_str`/`new_str`, sinon `old_content`/`new_content`).
+- [x] Outil MCP inconnu → repli générique, entête = nom nu, args en tooltip.
+- [x] Action + observation appariées par `tool_call_id` → **un seul** `ToolItem` ; observation orpheline rendue seule, jamais perdue (`reduceTurn.applyEvent`).
+- [x] Erreur d'outil : `status: "error"` (dérivé de `exit_code`/`error`) + corps **déplié par défaut**.
+- [x] Regroupement : 3+ outils consécutifs de la même famille → groupe replié ; libellé dérivé (`Searched the codebase`, `Edited files`…), jamais inventé ; groupe avec erreur déplié ; dernier outil d'un groupe en cours visible.
+- [x] « Used N references » (item 30) reconstruit côté client depuis les `view`, plages fusionnées.
+- [x] 115 tests (registry jamais `null`, résumés une-ligne, fusion, regroupement, diff).
+- [x] **Noms d'outils réels relevés dans `~/AgenticEnv/.venv/.../openhands/tools/`** : `file_editor`, `terminal`, `grep`, `glob`, `apply_patch`, `task_tracker`, `browser`, `finish` (dérivés du nom de classe via `_camel_to_snake`). `[À CONFIRMER]` levé pour les principaux.
+- [ ] **Différé** : filtre rapide sur sortie de commande longue (C05 §7), renderers `apply_patch` / `task_tracker` (ce dernier relève de C09) / `browser` — repli générique en attendant.
+- [ ] **Icônes** : glyphes texte (`✎ $ ⌕ ▸`) au lieu de codicons — la webview n'embarque pas la police codicon (asset + font-src). À reconsidérer en C14.
+- [ ] **F5** : tour de 40 outils, diff lisible, thèmes.

@@ -119,27 +119,27 @@ Légende de faisabilité :
 | 27 | Liens `fichier:ligne` cliquables → ouvrent l'éditeur à la bonne ligne | les deux | 🟢 — ✅ **C02** (détection `path:line`, ouverture déléguée à l'hôte via `paths.ts` ; non traduisible = non cliquable) |
 | 28 | Bloc de commande terminal avec bouton **Exécuter** (et édition avant exécution) | les deux | 🟢/🟡 — ✅ **C02** (rendu + bouton Run ; l'exécution réelle est C07) |
 | 29 | Troncature des très longs blocs avec « Afficher plus » | Copilot | 🟢 — ✅ **C02** (> 200 lignes / 20 Kio : tête+queue, « Show all » / « Open in editor ») |
-| 30 | Section « références utilisées (N) » repliable, listant fichier + plage de lignes | Copilot | 🟡 |
+| 30 | Section « références utilisées (N) » repliable, listant fichier + plage de lignes | Copilot | 🟡 — ✅ **C05** (« Used N references », plages fusionnées, reconstruit client depuis les `view` ; affiché à l'`idle`) |
 | 31 | Questions de suivi suggérées après la réponse (cliquables) | Copilot | 🟡/🔴 |
 | 32 | Bloc de raisonnement / « thinking » repliable, avec « Réfléchi pendant Xs » | les deux | 🟢/🔴 — ✅ **C02** (repliable, réglage `agenticenvChat.thread.expandThinking` ; « Thought for Ns » quand la durée sera dispo) |
 | 33 | Horodatage discret par message (au survol) | Claude Code | 🟢 — ✅ **C02** (relatif < 1 h, absolu ensuite, au survol) |
 | 34 | Pouces haut / bas + commentaire par message | Copilot | 🟢 — ✅ **C02** (👍/👎 → `storageUri/feedback.jsonl`, aucune télémétrie ; commentaire libre : plus tard) |
-| 35 | Rendu spécial des `<pre>` d'outil : au lieu du JSON brut, vue conviviale par outil (voir 2.3) | les deux | 🟢 |
+| 35 | Rendu spécial des `<pre>` d'outil : au lieu du JSON brut, vue conviviale par outil (voir 2.3) | les deux | 🟢 — ✅ **C05** (registre `tools/`, repli générique garanti) |
 
 ### 2.3 Affichage des appels d'outils (mode agent)
 
 | # | Subtilité | Qui | Faisab. |
 |---|---|---|---|
-| 36 | Rendu **par type d'outil**, pas du JSON générique : `Read` → « Lu `path` (L10-40) », `Edit` → mini-diff, `Bash` → commande + sortie, `Grep` → motif + nb de hits | Claude Code | 🟢 |
-| 37 | Lignes d'outil repliées par défaut, dépliables ; sortie longue scrollable dans son cadre | les deux | 🟢 |
+| 36 | Rendu **par type d'outil**, pas du JSON générique : `Read` → « Lu `path` (L10-40) », `Edit` → mini-diff, `Bash` → commande + sortie, `Grep` → motif + nb de hits | Claude Code | 🟢 — ✅ **C05** (`file_editor` view/create/str_replace → Read/Create/Edit+diff ; `terminal` → `$ cmd` + exit ; `grep`/`glob` → motif + hits) |
+| 37 | Lignes d'outil repliées par défaut, dépliables ; sortie longue scrollable dans son cadre | les deux | 🟢 — ✅ **C05** (replié par défaut, déplié d'office sur erreur ; sortie scrollable, `OutputBlock`) |
 | 38 | Libellé de progression en direct : « Lecture de X… », « Édition de Y… », « Exécution de Z… » | les deux | 🟡 — ✅ **C01** (ligne `progress`, jamais inventée ; `progress` côté bridge à faire) |
 | 39 | État par étape : en cours (spinner) / réussi (✓) / échoué (✗) / ignoré | les deux | 🟢 — ✅ **C01** (`tool_status` → ⟳/✓/✗ ; `tool_status` côté bridge à faire) |
-| 40 | Regroupement : « A cherché dans la base de code », « A utilisé 3 outils » avec compteur | Copilot | 🟢 |
+| 40 | Regroupement : « A cherché dans la base de code », « A utilisé 3 outils » avec compteur | Copilot | 🟢 — ✅ **C05** (3+ outils consécutifs même famille → groupe replié ; libellé dérivé, jamais inventé ; groupe avec erreur non replié) |
 | 41 | Diffs de fichiers **inline** dans le fil, coloration +/−, repliables par hunk | les deux | 🟡 |
 | 42 | Sortie terminal capturée et streamée sous le bloc de commande | les deux | 🟡 |
-| 43 | Survol d'une ligne d'outil → tooltip avec les args complets | Claude Code | 🟢 |
+| 43 | Survol d'une ligne d'outil → tooltip avec les args complets | Claude Code | 🟢 — ✅ **C05** (tooltip `title` sur l'entête = args JSON complets) |
 | 44 | Liens cliquables dans les résultats d'outil (chemins → éditeur) | les deux | 🟢 — ✅ **C02** (mêmes liens `path:line` dans les sorties d'outil) |
-| 45 | Bouton « Voir tout » quand la sortie est tronquée | les deux | 🟢 |
+| 45 | Bouton « Voir tout » quand la sortie est tronquée | les deux | 🟢 — ✅ **C05** (repris de C02 §8 ; filtre rapide de sortie de commande : différé) |
 
 ### 2.4 Application des éditions (Edit / Agent mode)
 

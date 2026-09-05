@@ -750,6 +750,171 @@ button {
   font-weight: bold;
 }
 
+/* --- tool item (C05) --------------------------------- */
+
+.agx-tool__head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.agx-tool__icon {
+  color: var(--agx-link);
+  flex-shrink: 0;
+}
+.agx-tool__summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.agx-tool__summary--btn {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  padding: 0;
+}
+.agx-tool__summary--btn:hover {
+  color: var(--agx-link);
+}
+.agx-tool--error {
+  border-left-color: var(--agx-error);
+}
+.agx-tool__body {
+  margin-top: 4px;
+}
+
+.agx-exit {
+  font-size: 11px;
+  margin: 2px 0;
+}
+.agx-exit--ok {
+  color: var(--agx-ok);
+}
+.agx-exit--bad {
+  color: var(--agx-error);
+}
+
+.agx-reflist {
+  margin: 2px 0;
+  padding-left: 16px;
+  font-size: 11px;
+  list-style: none;
+}
+.agx-reflist li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agx-reflist__more {
+  color: var(--agx-fg-muted);
+}
+.agx-reflist .agx-filelink {
+  background: transparent;
+  border: none;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+.agx-generic__label {
+  font-size: 10px;
+  color: var(--agx-fg-muted);
+  margin: 4px 0 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* --- diff (C02 L5 / C05) ---------------------------- */
+
+.agx-diff {
+  border: 1px solid var(--agx-border);
+  border-radius: 4px;
+  overflow: hidden;
+  font-size: 11px;
+}
+.agx-diff__stat {
+  padding: 2px 8px;
+  background: var(--agx-input-bg);
+}
+.agx-diff__add {
+  color: var(--agx-added);
+}
+.agx-diff__del {
+  color: var(--agx-deleted);
+}
+.agx-diff__est {
+  color: var(--agx-fg-muted);
+}
+.agx-diff__pre {
+  margin: 0;
+  overflow-x: auto;
+  background: var(--agx-code-bg);
+}
+.agx-diff__line {
+  display: flex;
+  white-space: pre;
+}
+.agx-diff__line--add {
+  background: var(--agx-diff-add-bg);
+}
+.agx-diff__line--del {
+  background: var(--agx-diff-del-bg);
+}
+.agx-diff__gutter {
+  width: 16px;
+  flex-shrink: 0;
+  text-align: center;
+  color: var(--agx-fg-muted);
+  user-select: none;
+}
+.agx-diff__text {
+  flex: 1;
+}
+
+/* --- tool group / used refs ------------------------- */
+
+.agx-toolgroup {
+  align-self: stretch;
+  border-left: 2px solid var(--agx-border);
+  padding-left: 8px;
+}
+.agx-toolgroup__head,
+.agx-usedrefs__head {
+  background: transparent;
+  border: none;
+  color: var(--agx-fg-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  padding: 2px 0;
+}
+.agx-toolgroup__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.agx-usedrefs {
+  align-self: stretch;
+  margin-top: 4px;
+}
+.agx-usedrefs__list {
+  margin: 2px 0;
+  padding-left: 16px;
+  font-size: 11px;
+  list-style: none;
+}
+.agx-usedrefs__list .agx-filelink {
+  background: transparent;
+  border: none;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
 /* --- misc --------------------------------------------- */
 
 .agx-visually-hidden {

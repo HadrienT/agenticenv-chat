@@ -7,7 +7,7 @@ import type {
   TurnFinished,
   TurnStarted,
 } from "../../protocol";
-import { eventToItems } from "./eventItems";
+import { eventToItems, observationHasError } from "./eventItems";
 import { appendItems, replaceAt, withNotice } from "./reduceHelpers";
 import { v1FallbackTurnEnd } from "./v1Fallback";
 import type { AppState, ChatItem } from "./types";
@@ -112,7 +112,39 @@ export function applyEventDelta(state: AppState, msg: EventDelta, at: number): A
  * lieu d'ajouter un doublon.
  */
 export function applyEvent(state: AppState, msg: EventMessage, at: number): AppState {
-  const items = eventToItems(msg.event, state.eventSeq, at);
+  const ev = msg.event;
+  const callId = typeof ev.tool_call_id === "string" ? ev.tool_call_id : undefined;
+
+  // Appariement action↔observation par `tool_call_id` (C05 §3) : on complète
+  // l'item outil existant au lieu d'ajouter une ligne muette.
+  if (ev.kind === "ObservationEvent" && callId) {
+    const idx = state.items.findIndex((i) => i.kind === "tool" && i.toolCallId === callId);
+    if (idx >= 0) {
+      const cur = state.items[idx] as Extract<ChatItem, { kind: "tool" }>;
+      const hasError = observationHasError(ev.observation);
+      return replaceAt(state, idx, {
+        ...cur,
+        observation: ev.observation,
+        observationError: hasError,
+        status: cur.status === "running" ? (hasError ? "error" : "ok") : cur.status,
+      });
+    }
+  }
+
+  if ((ev.kind === "AgentErrorEvent" || typeof ev.error === "string") && callId) {
+    const idx = state.items.findIndex((i) => i.kind === "tool" && i.toolCallId === callId);
+    if (idx >= 0) {
+      const cur = state.items[idx] as Extract<ChatItem, { kind: "tool" }>;
+      return replaceAt(state, idx, {
+        ...cur,
+        status: "error",
+        observation: { error: String(ev.error ?? "tool error") },
+        observationError: true,
+      });
+    }
+  }
+
+  const items = eventToItems(ev, state.eventSeq, at);
   const first = items[0];
   if (items.length === 1 && first.kind === "assistant" && first.sourceId) {
     const sourceId = first.sourceId;

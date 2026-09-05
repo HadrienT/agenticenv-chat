@@ -4,6 +4,9 @@ import type { ChatItem } from "../store/types";
 import { ErrorItem } from "./items/ErrorItem";
 import { MessageItem } from "./items/MessageItem";
 import { ToolItem } from "./items/ToolItem";
+import { ToolGroup } from "./ToolGroup";
+import { UsedReferences } from "./UsedReferences";
+import { groupRows } from "./threadGroups";
 import { ThreadContext, type ThreadServices } from "./threadContext";
 
 function renderItem(item: ChatItem): JSX.Element {
@@ -28,13 +31,14 @@ function renderItem(item: ChatItem): JSX.Element {
 }
 
 /**
- * Liste du fil, ancrée en bas. L'auto-scroll suit le bas **sauf** si l'utilisateur
- * a scrollé vers le haut ; un bouton « ↓ new content » apparaît alors (C01 §4).
- * Sans virtualisation en C02 (jusqu'à 200 items) ; C14 virtualise.
+ * Liste du fil, ancrée en bas. Auto-scroll qui lâche le bas si l'utilisateur
+ * remonte (bouton « ↓ new content », C01 §4). Outils consécutifs regroupés
+ * (C05 §5). Sans virtualisation en C05 ; C14 virtualise.
  */
 export function Thread(props: {
   items: ChatItem[];
   statusLine: string | null;
+  idle: boolean;
   services: ThreadServices;
 }): JSX.Element {
   const ref = useRef<HTMLDivElement>(null);
@@ -62,6 +66,8 @@ export function Thread(props: {
     }
   };
 
+  const rows = groupRows(props.items);
+
   return (
     <div className="agx-thread-wrap">
       <div
@@ -77,7 +83,19 @@ export function Thread(props: {
         }}
       >
         <ThreadContext.Provider value={props.services}>
-          {props.items.map(renderItem)}
+          {rows.map((row, i) =>
+            row.kind === "single" ? (
+              renderItem(row.item)
+            ) : (
+              <ToolGroup
+                key={`group-${row.items[0].id}-${i}`}
+                family={row.family}
+                items={row.items}
+                hasError={row.hasError}
+              />
+            ),
+          )}
+          {props.idle && <UsedReferences items={props.items} />}
         </ThreadContext.Provider>
         {props.statusLine && <div className="agx-thinking">{props.statusLine}</div>}
       </div>
