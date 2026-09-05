@@ -18,8 +18,8 @@ quand ses critères d'acceptation **automatisables** sont verts.
 | C03 | Composer (chips, /-commandes, #-refs) | `wp/C03-composer` | ✅ **fait** | drag&drop + image différés ; F5 (ancrage menu) |
 | C04 | Fournisseurs de contexte (hôte) | `wp/C04-context-providers` | ✅ **fait** | parties vscode non testées (F5/e2e) ; budget C13 |
 | C05 | Rendu des appels d'outils | `wp/C05-tool-rendering` | ✅ **fait** | filtre sortie + renderers browser/apply_patch différés |
-| C06 | Éditions, diffs, checkpoints | — | ⏳ à faire | |
-| C07 | Permissions, approbations | — | ⏳ à faire | |
+| C06 | Éditions, diffs, checkpoints | `wp/C06-edits-and-diffs` | ✅ **fait** | hors-git limité ; F5 ; extraire EditsController (C14) |
+| C07 | Permissions, approbations | `wp/C07-permissions` | 🚧 en cours | |
 | C08 | Sessions, historique | — | ⏳ à faire | |
 | C09 | Plan, todo, pilotage boucle agent | — | ⏳ à faire | |
 | C10 | Instructions, prompts, mémoire | — | ⏳ à faire | |
@@ -192,6 +192,34 @@ Branche `wp/C03-composer`. Items 1, 3–11, 14, 16, 18.
 
 **Différé** : glisser-déposer (item 7), collage d'image (item 8 — pas de vision).
 
-## C06 — Éditions, diffs, checkpoints 🚧
+## C06 — Éditions, diffs, checkpoints ✅
+
+Branche `wp/C06-edits-and-diffs`. Items 41, 46–53, 66, 102, 122.
+
+- `edits/checkpoints.ts` : **stratégie A côté hôte** — `git stash create` au
+  `turn_started` (commit dangling invisible), `git diff <sha>` = checkpoint →
+  maintenant, restauration par fichier / par tour, détection de conflit par hash,
+  purge 20 / 7 j. Hors-git : désactivé avec message clair.
+- `edits/git.ts` (exec git minimal), `edits/openDiff.ts`
+  (`TextDocumentContentProvider` `agenticenv-checkpoint:` + `vscode.diff`),
+  `edits/decorations.ts` (gouttière du tour), `edits/hunkRevert.ts`
+  (`WorkspaceEdit` annulable Ctrl+Z, refus si lignes décalées).
+- `render/parseDiff.ts` : parseur unified pur (hunks, renommage, binaire,
+  no-newline, multi-fichiers). `views/Diff.tsx` : replié > 40 lignes,
+  `revert hunk` par hunk.
+- `views/panels/WorkingSet.tsx` réécrit : « N files changed by this turn »,
+  badges M/A/D, compteurs +/− paresseux, diff par fichier, `Undo turn`,
+  `Open all` (≤ 10), stratégie affichée.
+- Protocole : `request_diff`/`file_diff`/`checkpoint`/`restore_checkpoint`
+  ajoutés à `CLIENT_AHEAD_OF_BRIDGE` (le chemin hôte-git ne les requiert pas).
+  Messages hôte↔webview `workingSet`/`fileDiff`/`revert*`/`undoTurn`.
+- Commandes `undoTurn`/`restoreCheckpoint`/`openTurnDiff`/`purgeCheckpoints` ;
+  réglages `edits.autoOpen`, `edits.decorations`.
+- 169 tests.
+
+**Reste** : hors-git (besoin du message bridge `checkpoint`) ; F5 ;
+`chatViewProvider.ts` ≈ 960 l. → extraire `EditsController` en C14.
+
+## C07 — Permissions, approbations 🚧
 
 En cours.

@@ -87,7 +87,17 @@ export interface UsageState {
 
 export interface WorkingSetFile {
   path: string;
-  status: GitChangeDTO["status"];
+  status: GitChangeDTO["status"] | "M" | "A" | "D";
+  added?: number;
+  removed?: number;
+  inProgress?: boolean;
+  conflict?: boolean;
+}
+
+export interface FileDiffState {
+  unified: string;
+  conflict: boolean;
+  error?: string;
 }
 
 export interface SessionInfo {
@@ -118,6 +128,9 @@ export interface AppState {
   health: ComponentHealth[];
   usage: UsageState | null;
   workingSet: WorkingSetFile[];
+  /** Diffs par fichier (checkpoint → maintenant), chargés à la demande (C06). */
+  fileDiffs: Record<string, FileDiffState>;
+  checkpointStrategy: string;
   notices: Notice[];
   composer: {
     draft: string;
@@ -138,20 +151,6 @@ export interface AppState {
   panels: Record<PanelId, boolean>;
 }
 
-const HISTORY_MAX = 50;
-
-/** Clé stable d'un `ContextRef` pour la déduplication et la mémoire de retrait. */
-export function refKey(ref: ContextChip["ref"]): string {
-  return JSON.stringify(ref);
-}
-
-export function pushHistory(history: string[], text: string): string[] {
-  const trimmed = typeof text === "string" ? text.trim() : "";
-  if (!trimmed) {
-    return history;
-  }
-  return [...history.filter((h) => h !== trimmed), trimmed].slice(-HISTORY_MAX);
-}
 
 export function initialState(): AppState {
   return {
@@ -177,6 +176,8 @@ export function initialState(): AppState {
     health: [],
     usage: null,
     workingSet: [],
+    fileDiffs: {},
+    checkpointStrategy: "no checkpoint yet",
     notices: [],
     composer: { draft: "", attachments: [], history: [] },
     autoContext: [],

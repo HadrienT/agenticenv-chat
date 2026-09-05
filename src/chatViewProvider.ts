@@ -13,6 +13,10 @@ import {
 import { DEFAULT_SANDBOX_ROOT, resetMapping, setMapping, toHostUri } from "./paths";
 import { appendFeedback } from "./sessions/feedback";
 import { CLIENT_ID, CLIENT_PROTOCOL, type Outbound } from "./protocol";
+import { CheckpointStore } from "./edits/checkpoints";
+import { TurnDecorations } from "./edits/decorations";
+import { CheckpointContentProvider, SCHEME, openCheckpointDiff } from "./edits/openDiff";
+import { revertHunk } from "./edits/hunkRevert";
 import { resolveRefs } from "./context";
 import { activeFileRef, searchFiles, selectionRef } from "./context/files";
 import { searchSymbols } from "./context/symbols";
@@ -43,10 +47,21 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private negotiated = false;
   private conversationId: string | undefined;
   private currentTurnId: string | undefined;
+  private lastTurnId: string | undefined;
   private llmSource: string | undefined;
   private lastSeq = 0;
+  private readonly checkpoints = new CheckpointStore();
+  private readonly turnDecorations = new TurnDecorations();
+  private readonly diffProvider = new CheckpointContentProvider();
 
-  constructor(private readonly context: vscode.ExtensionContext) {}
+  constructor(private readonly context: vscode.ExtensionContext) {
+    context.subscriptions.push(
+      vscode.workspace.registerTextDocumentContentProvider(SCHEME, this.diffProvider),
+      this.diffProvider,
+      this.turnDecorations,
+      vscode.window.onDidChangeVisibleTextEditors(() => this.turnDecorations.refresh()),
+    );
+  }
 
   resolveWebviewView(view: vscode.WebviewView): void {
     // resolveWebviewView peut être rappelée (déplacement du panneau) : on coupe le
@@ -123,6 +138,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     resetMapping();
     this.conversationId = undefined;
     this.currentTurnId = undefined;
+    this.lastTurnId = undefined;
+    this.turnDecorations.clear();
     this.llmSource = undefined;
     this.lastSeq = 0;
     void this.context.workspaceState.update(K_CONVERSATION, undefined);
@@ -230,6 +247,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
       case "turn_started":
         this.currentTurnId = message.turn_id;
+        this.lastTurnId = message.turn_id;
+        this.autoOpened.clear();
+        this.turnDecorations.clear();
+        void this.checkpoints.beginTurn(message.turn_id);
         this.postToWebview({ type: "bridge", message });
         return;
 
@@ -237,6 +258,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         if (this.currentTurnId === message.turn_id) {
           this.currentTurnId = undefined;
         }
+        void this.checkpoints.finishTurn(message.turn_id).then(() => this.sendWorkingSet());
+        this.postToWebview({ type: "bridge", message });
+        return;
+
+      case "files_changed":
+        this.lastChangedPath = message.changes[message.changes.length - 1]?.path;
+        void this.sendWorkingSet();
+        void this.maybeAutoOpen(message.changes.map((c) => c.path));
         this.postToWebview({ type: "bridge", message });
         return;
 
@@ -270,6 +299,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           sandboxRoot: DEFAULT_SANDBOX_ROOT,
           hostRoot: projectPath ? vscode.Uri.file(projectPath) : null,
         });
+        this.checkpoints.setRoot(projectPath);
         this.sendOrNotify(
           { type: "start_session", mcp_servers: msg.mcpServers, project_path: projectPath },
           "start a session",
@@ -310,6 +340,21 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         break;
       case "openDiff":
         void this.openDiff(msg.path);
+        break;
+      case "requestFileDiff":
+        void this.sendFileDiff(msg.path);
+        break;
+      case "openFileDiff":
+        void this.openTurnFileDiff(msg.path);
+        break;
+      case "revertFile":
+        void this.revertFile(msg.path);
+        break;
+      case "revertHunk":
+        void this.revertHunk(msg.path, msg.hunkHeader);
+        break;
+      case "undoTurn":
+        void this.undoTurn();
         break;
       case "openFile":
         void this.openFile(msg.path, msg.line);
@@ -680,6 +725,172 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       vscode.window.createTerminal("AgenticEnv Chat");
     term.show();
     term.sendText(command, false);
+  }
+
+  // --- working set & checkpoints (C06) ---------------------------
+
+  private turnForEdits(): string | undefined {
+    return this.currentTurnId ?? this.lastTurnId;
+  }
+
+  private async sendWorkingSet(): Promise<void> {
+    const turnId = this.turnForEdits();
+    if (!turnId) {
+      return;
+    }
+    const files = await this.checkpoints.changedFiles(turnId).catch(() => []);
+    this.postToWebview({
+      type: "workingSet",
+      strategy: this.checkpoints.strategyLabel(),
+      files: files.map((f) => ({
+        path: f.path,
+        status: f.status,
+        added: f.added,
+        removed: f.removed,
+        inProgress: this.currentTurnId !== undefined && f.path === this.lastChangedPath,
+      })),
+    });
+  }
+
+  private lastChangedPath: string | undefined;
+
+  private async sendFileDiff(relPath: string): Promise<void> {
+    const turnId = this.turnForEdits();
+    if (!turnId) {
+      this.postToWebview({ type: "fileDiff", path: relPath, unified: "", conflict: false, error: "no active turn" });
+      return;
+    }
+    const unified = (await this.checkpoints.diffFile(turnId, relPath).catch(() => null)) ?? "";
+    const conflict = await this.checkpoints.hasConflict(turnId, relPath).catch(() => false);
+    this.postToWebview({
+      type: "fileDiff",
+      path: relPath,
+      unified,
+      conflict,
+      error: unified ? undefined : "diff unavailable (checkpoints need a git repo)",
+    });
+    if (unified && this.root()) {
+      this.turnDecorations.setFromDiff(
+        vscode.Uri.joinPath(vscode.Uri.file(this.root() as string), relPath).fsPath,
+        unified,
+      );
+    }
+  }
+
+  private root(): string | null {
+    return this.projectPath();
+  }
+
+  private async openTurnFileDiff(relPath: string): Promise<void> {
+    const turnId = this.turnForEdits();
+    const root = this.root();
+    if (!turnId || !root) {
+      return;
+    }
+    await openCheckpointDiff(this.diffProvider, this.checkpoints, turnId, root, relPath).catch((err) =>
+      log.debug("openCheckpointDiff failed:", err),
+    );
+  }
+
+  private async revertFile(relPath: string): Promise<void> {
+    const turnId = this.turnForEdits();
+    if (!turnId) {
+      return;
+    }
+    const res = await this.checkpoints.restoreFile(turnId, relPath);
+    if (res === "conflict") {
+      this.postToWebview({
+        type: "hostError",
+        text: `${relPath} was changed after the turn — revert refused. Open the diff to resolve it.`,
+      });
+    } else if (res === "unavailable") {
+      this.postToWebview({ type: "hostError", text: "Revert needs a git checkpoint (open the folder as a git repo)." });
+    } else {
+      void this.sendWorkingSet();
+    }
+  }
+
+  private async revertHunk(relPath: string, hunkHeader: string): Promise<void> {
+    const turnId = this.turnForEdits();
+    const root = this.root();
+    if (!turnId || !root) {
+      return;
+    }
+    const unified = (await this.checkpoints.diffFile(turnId, relPath)) ?? "";
+    const uri = vscode.Uri.joinPath(vscode.Uri.file(root), relPath);
+    const res = await revertHunk(uri, unified, hunkHeader);
+    if (res === "shifted") {
+      this.postToWebview({
+        type: "hostError",
+        text: `${relPath} moved since the diff — hunk revert refused. Reload the diff and retry.`,
+      });
+    } else if (res === "ok") {
+      void this.sendFileDiff(relPath);
+      void this.sendWorkingSet();
+    }
+  }
+
+  async undoTurn(): Promise<void> {
+    const turnId = this.turnForEdits();
+    if (!turnId) {
+      this.postToWebview({ type: "hostError", text: "No turn to undo." });
+      return;
+    }
+    const dry = await this.checkpoints.restoreTurn(turnId);
+    if (dry.conflicts.length && dry.restored.length === 0) {
+      const ok = await vscode.window.showWarningMessage(
+        `${dry.conflicts.length} file(s) changed since the turn: ${dry.conflicts.join(", ")}. Restore anyway?`,
+        { modal: true },
+        "Restore anyway",
+      );
+      if (ok !== "Restore anyway") {
+        return;
+      }
+      await this.checkpoints.restoreTurn(turnId, true);
+    }
+    this.turnDecorations.clear();
+    void this.sendWorkingSet();
+    void vscode.window.showInformationMessage("Restored to the checkpoint before this turn.");
+  }
+
+  async openTurnDiff(): Promise<void> {
+    const turnId = this.turnForEdits();
+    if (!turnId) {
+      return;
+    }
+    for (const f of await this.checkpoints.changedFiles(turnId)) {
+      await this.openTurnFileDiff(f.path);
+    }
+  }
+
+  private autoOpened = new Set<string>();
+
+  private async maybeAutoOpen(relPaths: string[]): Promise<void> {
+    const mode = vscode.workspace
+      .getConfiguration("agenticenvChat")
+      .get<"never" | "first" | "all">("edits.autoOpen", "never");
+    const root = this.root();
+    if (mode === "never" || !root) {
+      return;
+    }
+    const fresh = relPaths.filter((p) => !this.autoOpened.has(p) && !/(^|\/)(\.git|conversations)\//.test(p));
+    const pick = mode === "first" ? fresh.slice(0, this.autoOpened.size === 0 ? 1 : 0) : fresh.slice(0, 10);
+    for (const p of pick) {
+      this.autoOpened.add(p);
+      await vscode.commands
+        .executeCommand("vscode.open", vscode.Uri.joinPath(vscode.Uri.file(root), p), { preview: true })
+        .then(undefined, (err) => log.debug("autoOpen failed:", err));
+    }
+    if (mode === "all" && fresh.length > 10) {
+      this.postToWebview({ type: "hostError", text: `${fresh.length} files changed — opened the first 10.` });
+    }
+  }
+
+  purgeCheckpoints(): void {
+    // Le store purge déjà (20 / 7 j) ; ici on force un cycle et on informe.
+    void vscode.window.showInformationMessage(
+      `Checkpoints: ${this.checkpoints.turnIds().length} kept (auto-purged at 20 / 7 days).`,
+    );
   }
 
   private async openDiff(agentPath: string): Promise<void> {

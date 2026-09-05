@@ -1,4 +1,4 @@
-import { Diff } from "../../render/Diff";
+import { Diff } from "../../views/Diff";
 import { CodeBlock } from "../../views/CodeBlock";
 import { num, str, type ToolRenderer } from "../types";
 

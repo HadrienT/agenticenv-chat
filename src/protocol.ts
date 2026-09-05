@@ -55,6 +55,18 @@ export interface Resume {
   last_seq: number;
 }
 
+/** [v2] Demande le diff checkpoint→maintenant d'un fichier. Réponse : `file_diff`. */
+export interface RequestDiff {
+  type: "request_diff";
+  path: string;
+}
+
+/** [v2] Restaure un checkpoint (tout le tour). */
+export interface RestoreCheckpoint {
+  type: "restore_checkpoint";
+  checkpoint_id: string;
+}
+
 export interface ListMcpServers {
   type: "list_mcp_servers";
 }
@@ -66,6 +78,8 @@ export type Inbound =
   | ConfirmAction
   | CancelTurn
   | Resume
+  | RequestDiff
+  | RestoreCheckpoint
   | ListMcpServers;
 
 // --- bridge -> client ---
@@ -132,6 +146,23 @@ export interface Progress extends Seq {
   label: string;
 }
 
+/** [v2] Diff unifié d'un fichier, calculé côté sandbox (checkpoint → maintenant). */
+export interface FileDiffMessage extends Seq {
+  type: "file_diff";
+  path: string;
+  unified: string;
+  truncated: boolean;
+}
+
+/** [v2] Checkpoint pris par le bridge avant un tour. */
+export interface CheckpointMessage extends Seq {
+  type: "checkpoint";
+  checkpoint_id: string;
+  turn_id: string;
+  created_at: string;
+  files: string[];
+}
+
 export interface GitChangeDTO {
   status: "ADDED" | "DELETED" | "UPDATED" | "MOVED";
   path: string;
@@ -183,6 +214,8 @@ export type Outbound =
   | EventDelta
   | ToolStatus
   | Progress
+  | FileDiffMessage
+  | CheckpointMessage
   | FilesChanged
   | Usage
   | AwaitingConfirmation
@@ -200,6 +233,8 @@ export const OUTBOUND_TYPES = [
   "event_delta",
   "tool_status",
   "progress",
+  "file_diff",
+  "checkpoint",
   "files_changed",
   "usage",
   "awaiting_confirmation",
@@ -215,6 +250,8 @@ export const INBOUND_TYPES = [
   "confirm_action",
   "cancel_turn",
   "resume",
+  "request_diff",
+  "restore_checkpoint",
   "list_mcp_servers",
 ] as const;
 
@@ -234,6 +271,8 @@ export const CLIENT_AHEAD_OF_BRIDGE = [
   "hello",
   "cancel_turn",
   "resume",
+  "request_diff",
+  "restore_checkpoint",
   "welcome",
   "resumed",
   "turn_started",
@@ -241,6 +280,8 @@ export const CLIENT_AHEAD_OF_BRIDGE = [
   "event_delta",
   "tool_status",
   "progress",
+  "file_diff",
+  "checkpoint",
 ] as const;
 
 /** Capabilities v2 qu'un bridge peut annoncer dans `welcome`. */

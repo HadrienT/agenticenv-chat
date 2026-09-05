@@ -105,6 +105,26 @@ export function applyHost(state: AppState, msg: HostToWebview, at: number): AppS
     case "clearThread":
       return { ...state, items: [], itemIndex: {}, eventSeq: 0, workingSet: [], progress: null };
 
+    case "workingSet":
+      return {
+        ...state,
+        workingSet: msg.files,
+        checkpointStrategy: msg.strategy,
+        // purge les diffs des fichiers qui ne sont plus dans le set
+        fileDiffs: Object.fromEntries(
+          Object.entries(state.fileDiffs).filter(([p]) => msg.files.some((f) => f.path === p)),
+        ),
+      };
+
+    case "fileDiff":
+      return {
+        ...state,
+        fileDiffs: {
+          ...state.fileDiffs,
+          [msg.path]: { unified: msg.unified, conflict: msg.conflict, error: msg.error },
+        },
+      };
+
     case "workspace":
       return {
         ...state,

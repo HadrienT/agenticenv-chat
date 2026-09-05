@@ -23,6 +23,10 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand("agenticenvChat.newSession", () => provider.newSession()),
     vscode.commands.registerCommand("agenticenvChat.reconnect", () => provider.reconnect()),
+    vscode.commands.registerCommand("agenticenvChat.undoTurn", () => provider.undoTurn()),
+    vscode.commands.registerCommand("agenticenvChat.openTurnDiff", () => provider.openTurnDiff()),
+    vscode.commands.registerCommand("agenticenvChat.purgeCheckpoints", () => provider.purgeCheckpoints()),
+    vscode.commands.registerCommand("agenticenvChat.restoreCheckpoint", () => provider.undoTurn()),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("agenticenvChat.logLevel")) {
         log.setLevel(

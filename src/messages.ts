@@ -74,6 +74,15 @@ export interface FileHit {
   rel: string;
 }
 
+export interface WorkingSetView {
+  path: string;
+  status: "M" | "A" | "D" | "ADDED" | "DELETED" | "UPDATED" | "MOVED";
+  added?: number;
+  removed?: number;
+  inProgress?: boolean;
+  conflict?: boolean;
+}
+
 export interface SlashCommand {
   name: string;
   description: string;
@@ -99,6 +108,8 @@ export type HostToWebview =
   | { type: "starters"; prompts: string[] }
   | { type: "commandResult"; command: string; prefill?: string; note?: string }
   | { type: "clearThread" }
+  | { type: "workingSet"; files: WorkingSetView[]; strategy: string }
+  | { type: "fileDiff"; path: string; unified: string; conflict: boolean; error?: string }
   | {
       type: "workspace";
       folder: string | null;
@@ -124,6 +135,8 @@ export const HOST_TO_WEBVIEW_TYPES = [
   "starters",
   "commandResult",
   "clearThread",
+  "workingSet",
+  "fileDiff",
   "workspace",
   "reset",
 ] as const;
@@ -142,6 +155,11 @@ export type WebviewToHost =
   | { type: "forceNewSession" }
   | { type: "confirm"; accept: boolean }
   | { type: "openDiff"; path: string }
+  | { type: "requestFileDiff"; path: string }
+  | { type: "openFileDiff"; path: string }
+  | { type: "revertFile"; path: string }
+  | { type: "revertHunk"; path: string; hunkHeader: string }
+  | { type: "undoTurn" }
   | { type: "openFile"; path: string; line?: number }
   | { type: "copy"; text: string }
   | { type: "insertAtCursor"; text: string }
@@ -163,6 +181,11 @@ export const WEBVIEW_TO_HOST_TYPES = [
   "forceNewSession",
   "confirm",
   "openDiff",
+  "requestFileDiff",
+  "openFileDiff",
+  "revertFile",
+  "revertHunk",
+  "undoTurn",
   "openFile",
   "copy",
   "insertAtCursor",

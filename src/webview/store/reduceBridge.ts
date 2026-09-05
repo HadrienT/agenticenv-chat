@@ -17,7 +17,9 @@ export function applyBridge(state: AppState, msg: Outbound, at: number): AppStat
   switch (msg.type) {
     case "welcome":
     case "resumed":
-      // Interceptés/traduits par l'hôte (→ message `protocol`). No-op ici.
+    case "file_diff":
+    case "checkpoint":
+      // Interceptés/traduits par l'hôte. No-op dans le réducteur webview.
       return state;
 
     case "session_started":

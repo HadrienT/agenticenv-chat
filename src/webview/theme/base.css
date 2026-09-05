@@ -237,7 +237,7 @@ button {
 .agx-files {
   border-top: 1px solid var(--agx-border);
   padding: 6px 8px;
-  max-height: 120px;
+  max-height: 40vh;
   overflow-y: auto;
 }
 .agx-files__head {
@@ -1010,6 +1010,70 @@ button {
 }
 .agx-diff__text {
   flex: 1;
+}
+.agx-diff__hunk {
+  border-top: 1px solid var(--agx-border);
+}
+.agx-diff__hunkbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 8px;
+  font-size: 10px;
+  color: var(--agx-fg-muted);
+}
+.agx-diff__hunkbar code {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- working set (C06) --- */
+.agx-files__toggle {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+.agx-files__spacer {
+  flex: 1;
+}
+.agx-files__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.agx-files__strategy {
+  font-size: 10px;
+  color: var(--agx-fg-muted);
+  padding: 0 8px 2px;
+}
+.agx-file-block {
+  border-top: 1px solid var(--agx-border);
+}
+.agx-file-row__name {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.agx-file-row__name:hover {
+  color: var(--agx-link);
+}
+.agx-file-row__stat {
+  font-size: 10px;
+  color: var(--agx-fg-muted);
+  flex-shrink: 0;
 }
 
 /* --- tool group / used refs ------------------------- */

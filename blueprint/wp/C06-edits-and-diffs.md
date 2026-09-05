@@ -152,11 +152,15 @@ gouttière, avec un `hoverMessage` « changed by the agent in this turn ».
 
 ## 9. Critères d'acceptation
 
-- [ ] Un tour écrit dans le dépôt, et « Undo turn » remet exactement l'état d'avant (vérifié par `git status` propre).
-- [ ] Le diff affiché est **checkpoint → maintenant**, pas HEAD → maintenant.
-- [ ] Un diff s'affiche dans le fil, replié au-delà de 40 lignes.
-- [ ] `revert hunk` fonctionne et reste annulable par `Ctrl+Z`.
-- [ ] Une modification concurrente de l'utilisateur ne peut pas être écrasée silencieusement.
-- [ ] Les checkpoints n'apparaissent pas dans `git log` ni `git branch`.
-- [ ] Le mode hors-git fonctionne (dossier sans dépôt).
-- [ ] La stratégie de checkpoint retenue est affichée à l'utilisateur.
+- [x] **Stratégie A exécutée côté hôte** (`[À CONFIRMER]` tranché) : le bind-mount fait que hôte et agent voient les mêmes fichiers, donc pas besoin du bridge. `git stash create` au `turn_started` capture les fichiers suivis dans un commit **dangling** (invisible dans `git log`/`git branch`) ; les non-suivis d'avant sont listés pour repérer les créations. Un bridge v2 pourra pousser `checkpoint {...}` plus tard sans changer le contrat client.
+- [x] Diff **checkpoint → maintenant** : `git diff <baseSha> -- <path>`, jamais HEAD.
+- [x] `Diff` dans le fil : hunks parsés (`parseUnifiedDiff`), replié > 40 lignes, `revert hunk`.
+- [x] `revert hunk` via `WorkspaceEdit` (annulable Ctrl+Z) ; si le fichier a bougé depuis le diff → `"shifted"`, refusé avec message.
+- [x] Conflit : hash du contenu à `turn_finished` ; `restoreFile`/`restoreTurn` refusent si le fichier a changé depuis, `undoTurn` propose une confirmation modale listant les conflits.
+- [x] Diff virtuel `agenticenv-checkpoint:` (lecture seule, `TextDocumentContentProvider`) + `vscode.diff`.
+- [x] Décorations de gouttière (`TurnDecorations`, overview ruler, `edits.decorations`).
+- [x] Commandes `undoTurn` / `restoreCheckpoint` / `openTurnDiff` / `purgeCheckpoints` ; réglages `edits.autoOpen`, `edits.decorations`. Purge 20 / 7 j.
+- [x] 169 tests (`parseDiff` : hunks/renommage/binaire/no-newline/multi-fichiers ; état working set / fileDiff ; `Diff` render).
+- [ ] **Hors-git** : pas de checkpoint par fichier (impossible sans connaître les fichiers avant le tour, ni bridge) — l'UI affiche « checkpoint: unavailable (not a git repo) » et `revert`/`undo` renvoient un message clair. Un vrai support hors-git demande le message bridge `checkpoint`.
+- [ ] **F5** : `git status` propre après undo, streaming des décorations, diff virtuel dans un vrai éditeur, fin de ligne CRLF préservée au revert.
+- [ ] `chatViewProvider.ts` a beaucoup grossi (≈ 960 l.) — extraire un `EditsController` en C14.
