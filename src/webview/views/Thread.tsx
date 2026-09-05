@@ -9,11 +9,11 @@ import { UsedReferences } from "./UsedReferences";
 import { groupRows } from "./threadGroups";
 import { ThreadContext, type ThreadServices } from "./threadContext";
 
-function renderItem(item: ChatItem): JSX.Element {
+function renderItem(item: ChatItem, afterCount: number): JSX.Element {
   switch (item.kind) {
     case "user":
     case "assistant":
-      return <MessageItem key={item.id} item={item} />;
+      return <MessageItem key={item.id} item={item} afterCount={afterCount} />;
     case "tool":
     case "observation":
       return <ToolItem key={item.id} item={item} />;
@@ -92,7 +92,7 @@ export function Thread(props: {
         <ThreadContext.Provider value={props.services}>
           {rows.map((row, i) =>
             row.kind === "single" ? (
-              renderItem(row.item)
+              renderItem(row.item, props.items.length - props.items.indexOf(row.item) - 1)
             ) : (
               <ToolGroup
                 key={`group-${row.items[0].id}-${i}`}

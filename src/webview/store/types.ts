@@ -161,6 +161,8 @@ export interface AppState {
   fileSearch: { requestId: string; results: FileHit[] } | null;
   commands: SlashCommand[];
   starters: string[];
+  /** Versions précédentes du fil après « edit & resend » / truncate (C08 §4). */
+  branches: { at: number; removed: ChatItem[] }[];
   panels: Record<PanelId, boolean>;
 }
 

@@ -153,11 +153,14 @@ supportable. Ne pas les traiter comme du confort.
 
 ## 10. Critères d'acceptation
 
-- [ ] Un reload complet de VS Code retrouve la conversation en cours et son état de tour.
-- [ ] L'historique liste les conversations du dossier courant, avec recherche plein texte.
-- [ ] Une conversation archivée s'ouvre en lecture seule et peut être reprise ou relancée.
-- [ ] Edit & resend fonctionne et la version précédente reste récupérable.
-- [ ] L'UI dit clairement que tronquer le fil n'annule pas les fichiers écrits.
-- [ ] L'export markdown est lisible hors de VS Code, chemins relatifs.
-- [ ] Une approbation en attente est notifiée quand le panneau est caché.
-- [ ] Aucune corruption d'index après interruption brutale (test automatisé).
+- [x] `setState` léger (webview) + archive complète `storageUri/conversations/<id>.json` via `persistSnapshot` (débouncé). Reload de fenêtre → hydratation depuis `setState` (C00 §4).
+- [x] `agenticenvChat.history` : recherche **plein texte** sur titres **et** messages, isolé par dossier ; entrée d'une version inconnue listée mais non ouvrable.
+- [x] Conversation archivée ré-ouverte en lecture seule (reconstruction d'events) + message « Resume needs a bridge that can reattach ».
+- [x] `editMessage` / `truncateFrom` / `regenerate` : items suivants → `state.branches` (récupérables « show previous version ») ; bloqué pendant `running` ; **n'annule pas** les fichiers (dit explicitement).
+- [x] `toMarkdown` : chemins relatifs au dépôt, outils en `<details>`, réimportable via `toJson`.
+- [x] `maybeNotify` : approbation en attente notifiée si panneau caché ; fin de tour si panneau caché **et** tour > 30 s ; `agenticenvChat.notifications`.
+- [x] Écriture **atomique** (`.tmp` + `rename`) ; index **reconstructible** (`writeIndex` relit les fichiers) ; purge 100 / 90 j annoncée. 221 tests (round-trip, atomique, index corrompu, purge, isolation, titre, export, édition).
+- [x] Badge `view.badge` (item 105).
+- [ ] **`openInEditor` (item 88) différé** : `WebviewPanel` + transfert d'état (le `setState` est par-webview) demande une conception dédiée.
+- [ ] **F5** : reload complet de fenêtre en plein tour, quick-pick history sur un vrai historique, notification panneau caché, round-trip disque réel.
+- [ ] Le `persistSnapshot` archive une copie de tout le fil à chaque tour — envisager un delta si le volume devient un souci (C13).

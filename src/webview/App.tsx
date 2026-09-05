@@ -19,6 +19,7 @@ import {
 import { initialState } from "./store/types";
 import { useHostMessages } from "./store/useHostMessages";
 import { usePersist } from "./store/usePersist";
+import { useSnapshot } from "./store/useSnapshot";
 import { loadPersisted } from "./vscodeApi";
 import { Composer } from "./views/composer/Composer";
 import { StarterPrompts } from "./views/composer/StarterPrompts";
@@ -27,6 +28,7 @@ import { ConnectionBanner } from "./views/ConnectionBanner";
 import { ContextGauge } from "./views/ContextGauge";
 import { Notices } from "./views/Notices";
 import { Thread } from "./views/Thread";
+import { ThreadBar } from "./views/ThreadBar";
 import type { ThreadServices } from "./views/threadContext";
 import { Health } from "./views/panels/Health";
 import { McpPicker } from "./views/panels/McpPicker";
@@ -66,12 +68,16 @@ export function App(): JSX.Element {
 
   useHostMessages(dispatch, onReady);
   usePersist(() => toPersisted(state), [state]);
+  useSnapshot(state, actions.snapshot);
 
+  const canEditThread =
+    state.phase.kind === "idle" || state.phase.kind === "picking" || state.phase.kind === "starting";
   const services = useMemo<ThreadServices>(
     () => ({
       sandboxRoot: state.workspace.sandboxRoot,
       editorAvailable: state.workspace.editorAvailable,
       expandThinking: state.workspace.expandThinking,
+      canEditThread,
       codeActions: {
         copy: actions.copy,
         insert: actions.insertAtCursor,
@@ -80,8 +86,11 @@ export function App(): JSX.Element {
       },
       onOpenFile: actions.openFile,
       onFeedback: actions.feedback,
+      onEditMessage: actions.editMessage,
+      onRegenerate: actions.regenerate,
+      onTruncate: actions.truncateFrom,
     }),
-    [actions, state.workspace],
+    [actions, state.workspace, canEditThread],
   );
 
   return (
@@ -105,6 +114,12 @@ export function App(): JSX.Element {
         />
       ) : (
         <>
+          <ThreadBar
+            branchCount={state.branches.length}
+            onHistory={actions.openHistory}
+            onExport={() => actions.exportConversation("markdown")}
+            onRestoreBranch={() => actions.restoreBranch(state.branches.length - 1)}
+          />
           <Thread
             items={state.items}
             statusLine={isTurnActive(state) ? turnStatusLine(state) : null}

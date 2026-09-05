@@ -9,7 +9,7 @@ import { initialState } from "./types";
  * `version` est incrémentée à **chaque** changement de forme. Une version
  * inconnue ⇒ l'état est **jeté** (jamais migré à la devinette) + notice (I7).
  */
-export const PERSIST_VERSION = 5;
+export const PERSIST_VERSION = 6;
 
 const MAX_PERSISTED_ITEMS = 200;
 
@@ -30,6 +30,7 @@ export interface PersistedState {
   composerDraft: string;
   attachments: ContextChip[];
   history: string[];
+  branches: { at: number; removed: ChatItem[] }[];
   panels: Record<PanelId, boolean>;
 }
 
@@ -42,6 +43,7 @@ export function toPersisted(state: AppState): PersistedState {
     composerDraft: state.composer.draft,
     attachments: state.composer.attachments,
     history: state.composer.history,
+    branches: state.branches.map((b) => ({ at: b.at, removed: b.removed.slice(-MAX_PERSISTED_ITEMS) })),
     panels: state.panels,
   };
 }
@@ -92,6 +94,11 @@ export function fromPersisted(raw: unknown): HydrateResult {
           ? raw.history.filter((h): h is string => typeof h === "string")
           : [],
       },
+      branches: Array.isArray(raw.branches)
+        ? (raw.branches as { at: number; removed: ChatItem[] }[]).filter(
+            (b) => isRecord(b) && Array.isArray(b.removed),
+          )
+        : [],
       panels: isRecord(raw.panels)
         ? { health: raw.panels.health === true, workingSet: raw.panels.workingSet !== false }
         : base.panels,

@@ -27,6 +27,8 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("agenticenvChat.openTurnDiff", () => provider.openTurnDiff()),
     vscode.commands.registerCommand("agenticenvChat.purgeCheckpoints", () => provider.purgeCheckpoints()),
     vscode.commands.registerCommand("agenticenvChat.restoreCheckpoint", () => provider.undoTurn()),
+    vscode.commands.registerCommand("agenticenvChat.history", () => provider.history()),
+    vscode.commands.registerCommand("agenticenvChat.exportConversation", () => provider.export()),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("agenticenvChat.logLevel")) {
         log.setLevel(

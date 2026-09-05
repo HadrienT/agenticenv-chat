@@ -180,6 +180,20 @@ export type WebviewToHost =
   | { type: "revertFile"; path: string }
   | { type: "revertHunk"; path: string; hunkHeader: string }
   | { type: "undoTurn" }
+  | { type: "editMessage"; itemId: string; text: string }
+  | { type: "regenerate"; itemId: string; text: string }
+  | { type: "truncateFrom"; itemId: string; count: number }
+  | { type: "openHistory" }
+  | { type: "exportConversation"; format: "markdown" | "json" }
+  | {
+      type: "persistSnapshot";
+      items: unknown[];
+      branches: unknown[];
+      title: string | null;
+      cost: number;
+      promptTokens: number;
+      completionTokens: number;
+    }
   | { type: "openFile"; path: string; line?: number }
   | { type: "copy"; text: string }
   | { type: "insertAtCursor"; text: string }
@@ -206,6 +220,12 @@ export const WEBVIEW_TO_HOST_TYPES = [
   "revertFile",
   "revertHunk",
   "undoTurn",
+  "editMessage",
+  "regenerate",
+  "truncateFrom",
+  "openHistory",
+  "exportConversation",
+  "persistSnapshot",
   "openFile",
   "copy",
   "insertAtCursor",

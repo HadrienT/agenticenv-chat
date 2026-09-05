@@ -36,6 +36,7 @@ export function initialState(): AppState {
     fileSearch: null,
     commands: [],
     starters: [],
+    branches: [],
     panels: { health: false, workingSet: true },
   };
 }

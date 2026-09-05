@@ -5,7 +5,7 @@ import { MessageItem } from "../../src/webview/views/items/MessageItem";
 describe("MessageItem", () => {
   it("bulle utilisateur", () => {
     const { container } = render(
-      <MessageItem item={{ kind: "user", id: "ev-0", text: "hello agent" }} />,
+      <MessageItem item={{ kind: "user", id: "ev-0", text: "hello agent" }} afterCount={0} />,
     );
     expect(screen.getByText("hello agent")).toBeInTheDocument();
     expect(container.querySelector(".agx-bubble--user")).not.toBeNull();
@@ -21,6 +21,7 @@ describe("MessageItem", () => {
           streaming: false,
           revision: 0,
         }}
+        afterCount={0}
       />,
     );
     expect(container.querySelector(".agx-msg--assistant")).not.toBeNull();

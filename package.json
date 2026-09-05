@@ -71,6 +71,15 @@
       {
         "command": "agenticenvChat.purgeCheckpoints",
         "title": "AgenticEnv Chat: Purge Checkpoints"
+      },
+      {
+        "command": "agenticenvChat.history",
+        "title": "AgenticEnv Chat: History…",
+        "icon": "$(history)"
+      },
+      {
+        "command": "agenticenvChat.exportConversation",
+        "title": "AgenticEnv Chat: Export Conversation…"
       }
     ],
     "menus": {
@@ -82,6 +91,11 @@
         },
         {
           "command": "agenticenvChat.reconnect",
+          "when": "view == agenticenvChat.view",
+          "group": "navigation"
+        },
+        {
+          "command": "agenticenvChat.history",
           "when": "view == agenticenvChat.view",
           "group": "navigation"
         }
@@ -127,6 +141,12 @@
           "type": "boolean",
           "default": true,
           "description": "Show a gutter mark on lines the agent changed in the current turn."
+        },
+        "agenticenvChat.notifications": {
+          "type": "string",
+          "enum": ["never", "awaiting", "always"],
+          "default": "awaiting",
+          "description": "When to notify: never; only when an approval is waiting; or also when a turn finishes (only if the panel is hidden and the turn ran > 30s)."
         },
         "agenticenvChat.permissions": {
           "type": "object",

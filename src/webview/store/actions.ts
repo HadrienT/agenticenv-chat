@@ -18,7 +18,10 @@ export type LocalAction =
   | { type: "intent/startSession" }
   | { type: "intent/sendMessage"; text: string }
   | { type: "intent/confirm"; accept: boolean; at: number }
-  | { type: "intent/cancelTurn" };
+  | { type: "intent/cancelTurn" }
+  | { type: "thread/truncateFrom"; itemId: string; at: number }
+  | { type: "thread/editMessage"; itemId: string; text: string; at: number }
+  | { type: "thread/restoreBranch"; index: number };
 
 export type Action =
   | { source: "host"; message: HostToWebview; at: number }
