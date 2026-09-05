@@ -43,6 +43,7 @@ export interface McpServerView {
 
 export type HostToWebview =
   | { type: "connection"; state: "connecting" | "open" | "closed"; protocol?: number | null; detail?: string }
+  | { type: "protocol"; version: number; capabilities: string[]; degraded: boolean }
   | { type: "bridge"; message: Outbound }
   | { type: "mcpServers"; servers: McpServerView[] }
   | { type: "health"; components: ComponentHealth[] }
@@ -52,6 +53,7 @@ export type HostToWebview =
 
 export const HOST_TO_WEBVIEW_TYPES = [
   "connection",
+  "protocol",
   "bridge",
   "mcpServers",
   "health",
@@ -66,6 +68,8 @@ export type WebviewToHost =
   | { type: "ready"; stateVersion: number }
   | { type: "startSession"; mcpServers: string[] }
   | { type: "userMessage"; text: string }
+  | { type: "cancelTurn" }
+  | { type: "forceNewSession" }
   | { type: "confirm"; accept: boolean }
   | { type: "openDiff"; path: string }
   | { type: "refreshHealth" }
@@ -75,6 +79,8 @@ export const WEBVIEW_TO_HOST_TYPES = [
   "ready",
   "startSession",
   "userMessage",
+  "cancelTurn",
+  "forceNewSession",
   "confirm",
   "openDiff",
   "refreshHealth",

@@ -2,11 +2,10 @@ import type { ComponentHealth, McpServerView } from "../../messages";
 import type { GitChangeDTO } from "../../protocol";
 
 /**
- * Machine à états de session (01-ARCHITECTURE §3).
- *
- * En C00 les transitions restent pilotées par l'heuristique v1 isolée dans
- * `legacyInferTurnEnd` (comportement constant). C01 branche
- * `turn_started`/`turn_finished` et rend les invariants I2/I3/I6 actifs.
+ * Machine à états de session (01-ARCHITECTURE §3). Depuis C01 les transitions
+ * `idle → running` et `running → idle` sont pilotées **uniquement** par
+ * `turn_started` / `turn_finished` (P3). Un bridge v1 (pas de frontière de tour)
+ * bascule dans un repli dégradé, cf. `v1Fallback.ts`.
  */
 export type SessionPhase =
   | { kind: "picking" }
@@ -20,7 +19,15 @@ export type ToolStatus = "running" | "ok" | "error";
 
 export type ChatItem =
   | { kind: "user"; id: string; text: string }
-  | { kind: "assistant"; id: string; text: string; streaming: boolean; revision: number }
+  | {
+      kind: "assistant";
+      id: string;
+      text: string;
+      streaming: boolean;
+      revision: number;
+      /** `SdkEvent.id` / `event_delta.event_id` — relie les deltas à l'événement final. */
+      sourceId?: string;
+    }
   | {
       kind: "tool";
       id: string;
@@ -28,9 +35,12 @@ export type ChatItem =
       thought: string;
       args: unknown;
       status: ToolStatus;
+      statusLabel?: string;
+      toolCallId?: string;
     }
   | { kind: "observation"; id: string; toolName: string; result: unknown }
-  | { kind: "error"; id: string; text: string };
+  | { kind: "error"; id: string; text: string }
+  | { kind: "turn-cancelled"; id: string };
 
 export type NoticeLevel = "info" | "warn" | "error";
 
@@ -47,6 +57,13 @@ export interface ConnectionState {
   state: "connecting" | "open" | "closed";
   protocol: number | null;
   detail?: string;
+}
+
+export interface ProtocolState {
+  version: number;
+  capabilities: string[];
+  /** `true` = bridge v1 (ou négociation échouée) : Stop et diffs indisponibles. */
+  degraded: boolean;
 }
 
 export interface UsageState {
@@ -67,12 +84,17 @@ export interface SessionInfo {
 
 export interface AppState {
   connection: ConnectionState;
+  protocol: ProtocolState;
   phase: SessionPhase;
   session: SessionInfo | null;
   items: ChatItem[];
-  /** id → position dans `items`, pour un patch en O(1) (indispensable à C01). */
+  /** id → position dans `items`, pour un patch en O(1). */
   itemIndex: Record<string, number>;
   eventSeq: number;
+  /** UI optimiste (item 112) : message envoyé, `turn_started` pas encore reçu. */
+  pendingSend: boolean;
+  /** Libellé de progression du tour en cours (« Reading black.cpp… »), ou `null`. */
+  progress: string | null;
   workspace: { folder: string | null; path: string | null };
   mcp: { servers: McpServerView[]; selected: string[] };
   health: ComponentHealth[];
@@ -86,11 +108,14 @@ export interface AppState {
 export function initialState(): AppState {
   return {
     connection: { state: "connecting", protocol: null },
+    protocol: { version: 2, capabilities: [], degraded: false },
     phase: { kind: "picking" },
     session: null,
     items: [],
     itemIndex: {},
     eventSeq: 0,
+    pendingSend: false,
+    progress: null,
     workspace: { folder: null, path: null },
     mcp: { servers: [], selected: [] },
     health: [],

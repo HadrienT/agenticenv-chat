@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useRef } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { isHostToWebview } from "../messages";
 import { host, local } from "./store/actions";
 import { createActions } from "./store/dispatch";
@@ -7,10 +7,12 @@ import { reduce } from "./store/reducer";
 import {
   canSendMessage,
   canStartSession,
+  composerButton,
   isPickingScreen,
   isStarting,
   isTurnActive,
   pendingConfirmation,
+  turnStatusLine,
 } from "./store/selectors";
 import { initialState } from "./store/types";
 import { loadPersisted, savePersisted } from "./vscodeApi";
@@ -23,10 +25,13 @@ import { ContextGauge } from "./views/ContextGauge";
 import { Health } from "./views/panels/Health";
 import { McpPicker } from "./views/panels/McpPicker";
 import { WorkingSet } from "./views/panels/WorkingSet";
+import type { EventDelta } from "../protocol";
 
 /**
  * `App` fait de la **composition seulement** : elle lit le store et place les
- * vues (01-ARCHITECTURE §2). Toute la logique métier vit dans `store/`.
+ * vues (01-ARCHITECTURE §2). La seule logique ici est le **bord impur** —
+ * écoute `postMessage`, coalescing des deltas sur `requestAnimationFrame`
+ * (04-CONVENTIONS §6), persistance.
  */
 export function App(): JSX.Element {
   const boot = useRef<{ stale: boolean } | null>(null);
@@ -38,11 +43,37 @@ export function App(): JSX.Element {
 
   const actions = useMemo(() => createActions(dispatch), []);
 
+  // --- coalescing des event_delta -----------------------------------------
+  const deltaBuf = useRef(new Map<string, EventDelta>());
+  const rafId = useRef(0);
+  const flushDeltas = useCallback(() => {
+    rafId.current = 0;
+    const buffered = [...deltaBuf.current.values()];
+    deltaBuf.current.clear();
+    for (const d of buffered) {
+      dispatch(host({ type: "bridge", message: d }));
+    }
+  }, []);
+
   useEffect(() => {
     const handler = (e: MessageEvent): void => {
-      if (isHostToWebview(e.data)) {
-        dispatch(host(e.data));
+      if (!isHostToWebview(e.data)) {
+        return;
       }
+      const msg = e.data;
+      if (msg.type === "bridge" && msg.message.type === "event_delta") {
+        const d = msg.message;
+        const prev = deltaBuf.current.get(d.event_id);
+        deltaBuf.current.set(
+          d.event_id,
+          prev ? { ...d, text: prev.text + d.text } : d,
+        );
+        if (!rafId.current) {
+          rafId.current = requestAnimationFrame(flushDeltas);
+        }
+        return;
+      }
+      dispatch(host(msg));
     };
     window.addEventListener("message", handler);
     actions.ready(PERSIST_VERSION);
@@ -59,8 +90,13 @@ export function App(): JSX.Element {
         }),
       );
     }
-    return () => window.removeEventListener("message", handler);
-  }, [actions]);
+    return () => {
+      window.removeEventListener("message", handler);
+      if (rafId.current) {
+        cancelAnimationFrame(rafId.current);
+      }
+    };
+  }, [actions, flushDeltas]);
 
   useEffect(() => {
     savePersisted(toPersisted(state));
@@ -68,7 +104,11 @@ export function App(): JSX.Element {
 
   return (
     <div className="agx-app">
-      <ConnectionBanner connection={state.connection} llmSource={state.session?.llmSource} />
+      <ConnectionBanner
+        connection={state.connection}
+        protocol={state.protocol}
+        llmSource={state.session?.llmSource}
+      />
       <Health
         components={state.health}
         onRefresh={actions.refreshHealth}
@@ -87,21 +127,25 @@ export function App(): JSX.Element {
         />
       ) : (
         <>
-          <Thread items={state.items} working={isTurnActive(state)} />
+          <Thread
+            items={state.items}
+            statusLine={isTurnActive(state) ? turnStatusLine(state) : null}
+          />
           {pendingConfirmation(state) && <ConfirmCard onAnswer={actions.confirm} />}
           <WorkingSet files={state.workingSet} onOpen={actions.openDiff} />
           {state.usage && <ContextGauge usage={state.usage} />}
           <Composer
             draft={state.composer.draft}
+            button={composerButton(state)}
             canSend={canSendMessage(state)}
-            placeholder={
-              state.connection.state === "open" ? "Message the agent…" : "Not connected"
-            }
+            connected={state.connection.state === "open"}
             onDraft={actions.setDraft}
             onSend={() => {
               actions.sendMessage(state.composer.draft.trim());
               actions.setDraft("");
             }}
+            onStop={actions.cancelTurn}
+            onForceNew={actions.forceNewSession}
           />
         </>
       )}

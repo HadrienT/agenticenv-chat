@@ -13,8 +13,8 @@ quand ses critères d'acceptation **automatisables** sont verts.
 | WP | Titre | Branche | État | Notes |
 |---|---|---|---|---|
 | C00 | Fondations | `wp/C00-foundations` | ✅ **fait** (commit `5353b2c`) | F5 + fixtures réelles à finir |
-| C01 | Protocole v2 : tours, deltas, annulation | `wp/C01-turn-protocol` | 🚧 en cours | moitié AgenticEnv non faisable ici |
-| C02 | Rendu du fil (markdown, code, liens) | — | ⏳ à faire | |
+| C01 | Protocole v2 : tours, deltas, annulation | `wp/C01-turn-protocol` | ✅ **client fait** | moitié AgenticEnv (bridge v2) + F5 à finir |
+| C02 | Rendu du fil (markdown, code, liens) | `wp/C02-thread-rendering` | 🚧 en cours | |
 | C03 | Composer (chips, /-commandes, #-refs) | — | ⏳ à faire | |
 | C04 | Fournisseurs de contexte (hôte) | — | ⏳ à faire | |
 | C05 | Rendu des appels d'outils | — | ⏳ à faire | |
@@ -44,6 +44,36 @@ commit et `blueprint/wp/C00-foundations.md` §9.
 - **À finir avant merge dans main** : F5 (5 écrans, thèmes, reload fenêtre) ;
   fixtures `test/fixtures/events/` capturées d'un vrai bridge.
 
-## C01 — Protocole v2 🚧
+## C01 — Protocole v2 ✅ (client)
+
+Branche `wp/C01-turn-protocol`. Items catalogue 19, 20, 38, 39, 110, 112.
+
+**Fait (client, testé contre le faux bridge)** :
+- `protocol.ts` v2 : `hello`/`welcome`, `turn_started`/`turn_finished`,
+  `event_delta`, `cancel_turn`, `tool_status`, `progress`, `seq`, `resume`/`resumed`.
+- Négociation `hello` avec repli v1 dégradé après 2 s (bannière).
+- Machine à états définitive : `idle ↔ running` **uniquement** sur `turn_*`
+  (invariants I1–I6 tous actifs). `pendingSend` pour l'optimisme (item 112).
+- Deltas concaténés + coalescés sur `requestAnimationFrame` ; `event` final
+  écrase ; delta en retard ignoré.
+- Bouton Stop (`cancel_turn` avec `turn_id` tenu par l'hôte) ; `cancelling` sans
+  timeout ; second clic → « Force new session ».
+- `tool_status` → ⟳/✓/✗ sur l'item outil ; `progress` → ligne d'état (jamais
+  inventée, P3).
+- File d'envoi `BridgeClient.enqueue()` : `hello`/`resume`/`list_mcp_servers`
+  bufferisés et rejoués à l'ouverture ; `user_message`/`start_session`/`confirm`/
+  `cancel_turn` restent stricts + notice.
+- `resume {conversation_id, last_seq}` à la reconnexion ; `seq` + `conversationId`
+  persistés en `workspaceState` (survivent au reload de fenêtre).
+- `PERSIST_VERSION` 1 → 2 (forme `ChatItem`/`AppState` changée).
+
+**Reste (hors de portée ici)** :
+- Moitié AgenticEnv : implémenter les messages v2 dans
+  `packages/openhands-bridge` puis vider `CLIENT_AHEAD_OF_BRIDGE` dans
+  `src/protocol.ts` (commits croisés). Le bridge local est encore v1 — le test de
+  dérive le confirme et tolère l'écart.
+- F5 : streaming sans flash, reload en plein tour, Stop réel contre un bridge v2.
+
+## C02 — Rendu du fil 🚧
 
 En cours.

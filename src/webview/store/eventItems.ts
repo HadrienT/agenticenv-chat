@@ -22,7 +22,9 @@ export function eventToItems(ev: SdkEvent, seq: number): ChatItem[] {
       return [];
     }
     if (role === "assistant") {
-      return [{ kind: "assistant", id, text, streaming: false, revision: 0 }];
+      return [
+        { kind: "assistant", id, text, streaming: false, revision: 0, sourceId: ev.id },
+      ];
     }
     return [{ kind: "user", id, text }];
   }
@@ -41,6 +43,7 @@ export function eventToItems(ev: SdkEvent, seq: number): ChatItem[] {
         thought: thought.trim(),
         args: ev.action,
         status: "running",
+        toolCallId: ev.tool_call_id,
       },
     ];
   }

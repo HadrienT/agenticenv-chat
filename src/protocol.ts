@@ -4,8 +4,22 @@
 //
 // Ce fichier ne contient QUE le fil bridge (snake_case, JSON sur WebSocket). Le
 // contrat interne hôte↔webview vit dans src/messages.ts.
+//
+// v2 (03-PROTOCOL §2) : négociation `hello`/`welcome`, frontières de tour
+// (`turn_started`/`turn_finished`), deltas (`event_delta`), annulation
+// (`cancel_turn`), `tool_status`, `progress`, `seq` monotone + `resume`.
+// Les messages v2 non encore branchés côté AgenticEnv sont marqués « [v2] ».
+
+export const CLIENT_ID = "agenticenv-chat/0.4.0";
+export const CLIENT_PROTOCOL = 2;
 
 // --- client -> bridge ---
+
+export interface Hello {
+  type: "hello";
+  protocol: number;
+  client: string;
+}
 
 export interface StartSession {
   type: "start_session";
@@ -17,31 +31,105 @@ export interface StartSession {
 export interface UserMessage {
   type: "user_message";
   text: string;
+  /** [v2] contenu de contexte résolu par l'hôte (C04). Remplace la concaténation dans `text`. */
+  context?: ResolvedContext[];
 }
 
 export interface ConfirmAction {
   type: "confirm_action";
   accept: boolean;
+  /** [v2] identifiant de l'action approuvée (C07). */
+  action_id?: string;
+  /** [v2] mémorisation de la décision (C07). */
+  remember?: "session" | "workspace";
+}
+
+export interface CancelTurn {
+  type: "cancel_turn";
+  turn_id: string;
+}
+
+export interface Resume {
+  type: "resume";
+  conversation_id: string;
+  last_seq: number;
 }
 
 export interface ListMcpServers {
   type: "list_mcp_servers";
 }
 
-export type Inbound = StartSession | UserMessage | ConfirmAction | ListMcpServers;
+export type Inbound =
+  | Hello
+  | StartSession
+  | UserMessage
+  | ConfirmAction
+  | CancelTurn
+  | Resume
+  | ListMcpServers;
 
 // --- bridge -> client ---
 
-export interface SessionStarted {
+/** Tout message v2 porte un `seq` monotone (connexion + conversation) pour `resume`. */
+export interface Seq {
+  seq?: number;
+}
+
+export interface Welcome extends Seq {
+  type: "welcome";
+  protocol: number;
+  capabilities: string[];
+}
+
+export interface Resumed extends Seq {
+  type: "resumed";
+}
+
+export interface SessionStarted extends Seq {
   type: "session_started";
   conversation_id: string;
   llm_source: "create_payload" | "switch_llm";
 }
 
 /** One openhands.sdk Event, already serialized (model_dump(mode="json")). */
-export interface EventMessage {
+export interface EventMessage extends Seq {
   type: "event";
   event: SdkEvent;
+}
+
+export interface TurnStarted extends Seq {
+  type: "turn_started";
+  turn_id: string;
+}
+
+export type TurnFinishedReason = "completed" | "cancelled" | "error" | "max_iterations";
+
+export interface TurnFinished extends Seq {
+  type: "turn_finished";
+  turn_id: string;
+  reason: TurnFinishedReason;
+}
+
+/** Fragment de texte à concaténer sur l'événement `event_id` du tour `turn_id`. */
+export interface EventDelta extends Seq {
+  type: "event_delta";
+  turn_id: string;
+  event_id: string;
+  text: string;
+}
+
+export interface ToolStatus extends Seq {
+  type: "tool_status";
+  tool_call_id: string;
+  state: "running" | "ok" | "error";
+  label?: string;
+}
+
+/** Libellé humain de progression (« Reading black.cpp… »). Jamais inventé côté client. */
+export interface Progress extends Seq {
+  type: "progress";
+  turn_id: string;
+  label: string;
 }
 
 export interface GitChangeDTO {
@@ -49,12 +137,12 @@ export interface GitChangeDTO {
   path: string;
 }
 
-export interface FilesChanged {
+export interface FilesChanged extends Seq {
   type: "files_changed";
   changes: GitChangeDTO[];
 }
 
-export interface Usage {
+export interface Usage extends Seq {
   type: "usage";
   accumulated_cost: number;
   prompt_tokens: number;
@@ -62,12 +150,12 @@ export interface Usage {
   context_window: number;
 }
 
-export interface AwaitingConfirmation {
+export interface AwaitingConfirmation extends Seq {
   type: "awaiting_confirmation";
   conversation_id: string;
 }
 
-export interface ErrorMessage {
+export interface ErrorMessage extends Seq {
   type: "error";
   code: string;
   message: string;
@@ -80,14 +168,21 @@ export interface McpServerEntry {
   tools_allowlist: string[];
 }
 
-export interface McpServers {
+export interface McpServers extends Seq {
   type: "mcp_servers";
   servers: McpServerEntry[];
 }
 
 export type Outbound =
+  | Welcome
+  | Resumed
   | SessionStarted
   | EventMessage
+  | TurnStarted
+  | TurnFinished
+  | EventDelta
+  | ToolStatus
+  | Progress
   | FilesChanged
   | Usage
   | AwaitingConfirmation
@@ -96,8 +191,15 @@ export type Outbound =
 
 /** Discriminants `type` de tous les messages bridge → client (pour le test de dérive). */
 export const OUTBOUND_TYPES = [
+  "welcome",
+  "resumed",
   "session_started",
   "event",
+  "turn_started",
+  "turn_finished",
+  "event_delta",
+  "tool_status",
+  "progress",
   "files_changed",
   "usage",
   "awaiting_confirmation",
@@ -107,11 +209,58 @@ export const OUTBOUND_TYPES = [
 
 /** Discriminants `type` de tous les messages client → bridge. */
 export const INBOUND_TYPES = [
+  "hello",
   "start_session",
   "user_message",
   "confirm_action",
+  "cancel_turn",
+  "resume",
   "list_mcp_servers",
 ] as const;
+
+/**
+ * Messages v2 supportés par le **client** mais pas encore par le bridge
+ * AgenticEnv (déploiement progressif — 03-PROTOCOL §2, « moitié AgenticEnv »).
+ *
+ * Ils sont **inertes** contre un bridge v1 : la négociation `hello`/`welcome`
+ * échoue, le client bascule en mode dégradé et ne les émet jamais. Le test de
+ * dérive (`test/discipline/protocol-drift.test.ts`) tolère ces entrées comme
+ * « client en avance » ; il continue de détecter toute autre divergence.
+ *
+ * À vider au fur et à mesure que `packages/openhands-bridge` rattrape (commits
+ * croisés, 04-CONVENTIONS §7).
+ */
+export const CLIENT_AHEAD_OF_BRIDGE = [
+  "hello",
+  "cancel_turn",
+  "resume",
+  "welcome",
+  "resumed",
+  "turn_started",
+  "turn_finished",
+  "event_delta",
+  "tool_status",
+  "progress",
+] as const;
+
+/** Capabilities v2 qu'un bridge peut annoncer dans `welcome`. */
+export type Capability =
+  | "turns"
+  | "deltas"
+  | "cancel"
+  | "diffs"
+  | "todo"
+  | "checkpoints"
+  | "models";
+
+// --- contexte résolu (hôte → bridge), défini ici car il transite sur le fil ---
+
+export interface ResolvedContext {
+  kind: string;
+  label: string;
+  body: string;
+  truncated: boolean;
+}
 
 // --- a loose shape for the SDK Event payloads we actually render ---
 // The bridge forwards `Event.model_dump(mode="json")` verbatim; we only read a
@@ -122,16 +271,17 @@ export interface SdkEvent {
   kind?: string;
   source?: string;
   timestamp?: string;
+  id?: string;
   // MessageEvent
   llm_message?: { role?: string; content?: { type?: string; text?: string }[] };
   activated_skills?: string[];
   // ActionEvent
   thought?: { text?: string }[] | string;
   tool_name?: string;
+  tool_call_id?: string;
   action?: Record<string, unknown>;
   // ObservationEvent
   observation?: Record<string, unknown>;
-  tool_call_id?: string;
   // AgentErrorEvent
   error?: string;
   [key: string]: unknown;

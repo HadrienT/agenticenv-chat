@@ -1,7 +1,5 @@
-import { legacyInferTurnEnd } from "./legacyTurn";
 import type { AppState, ChatItem, Notice } from "./types";
 import { initialState } from "./types";
-import type { Outbound } from "../../protocol";
 
 /** Le fil est append-only sauf `patchItem` sur un `id` existant (I8). */
 export function appendItems(state: AppState, newItems: ChatItem[]): AppState {
@@ -27,23 +25,11 @@ export function patchItem(state: AppState, id: string, patch: Partial<ChatItem>)
   return { ...state, items };
 }
 
-export function maybeLegacyEndTurn(state: AppState, msg: Outbound): AppState {
-  return legacyInferTurnEnd(msg) ? endActiveTurn(state) : state;
-}
-
-export function endActiveTurn(state: AppState): AppState {
-  const p = state.phase;
-  if (p.kind === "running" || p.kind === "awaiting" || p.kind === "cancelling") {
-    return { ...state, phase: { kind: "idle", conversationId: p.conversationId } };
-  }
-  return state;
-}
-
-/** Une erreur (bridge fatale, ou erreur hôte) rend la main : running→idle, starting→picking. */
-export function endTurnOnError(state: AppState): AppState {
-  return state.phase.kind === "starting"
-    ? { ...state, phase: { kind: "picking" } }
-    : endActiveTurn(state);
+/** Remplace l'item à `idx` (interne : les callers savent que l'index est valide). */
+export function replaceAt(state: AppState, idx: number, item: ChatItem): AppState {
+  const items = state.items.slice();
+  items[idx] = item;
+  return { ...state, items };
 }
 
 export function withNotice(state: AppState, notice: Notice): AppState {
@@ -55,6 +41,7 @@ export function resetState(state: AppState): AppState {
   return {
     ...fresh,
     connection: state.connection,
+    protocol: state.protocol,
     health: state.health,
     workspace: state.workspace,
     mcp: state.mcp,

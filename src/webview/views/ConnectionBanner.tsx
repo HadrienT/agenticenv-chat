@@ -1,4 +1,4 @@
-import type { ConnectionState } from "../store/types";
+import type { ConnectionState, ProtocolState } from "../store/types";
 
 const DOT: Record<ConnectionState["state"], string> = {
   connecting: "agx-dot--warn",
@@ -8,9 +8,10 @@ const DOT: Record<ConnectionState["state"], string> = {
 
 export function ConnectionBanner(props: {
   connection: ConnectionState;
+  protocol: ProtocolState;
   llmSource?: string;
 }): JSX.Element {
-  const { state, detail, protocol } = props.connection;
+  const { state, detail } = props.connection;
   const label =
     state === "open"
       ? "bridge connected"
@@ -21,8 +22,8 @@ export function ConnectionBanner(props: {
     <div className="agx-banner" role="status">
       <span className={`agx-dot ${DOT[state]}`} aria-hidden="true" />
       <span>{label}</span>
-      {protocol != null && protocol < 2 && (
-        <span className="agx-banner__meta">· protocol v{protocol}</span>
+      {state === "open" && props.protocol.degraded && (
+        <span className="agx-banner__meta">· protocol v{props.protocol.version} (degraded)</span>
       )}
       {props.llmSource && <span className="agx-banner__meta">· llm: {props.llmSource}</span>}
     </div>

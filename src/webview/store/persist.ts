@@ -8,11 +8,18 @@ import { initialState } from "./types";
  * `version` est incrémentée à **chaque** changement de forme. Une version
  * inconnue ⇒ l'état est **jeté** (jamais migré à la devinette) + notice (I7).
  */
-export const PERSIST_VERSION = 1;
+export const PERSIST_VERSION = 2;
 
 const MAX_PERSISTED_ITEMS = 200;
 
-const CHAT_ITEM_KINDS = new Set(["user", "assistant", "tool", "observation", "error"]);
+const CHAT_ITEM_KINDS = new Set([
+  "user",
+  "assistant",
+  "tool",
+  "observation",
+  "error",
+  "turn-cancelled",
+]);
 
 export interface PersistedState {
   version: number;
@@ -46,7 +53,12 @@ export function fromPersisted(raw: unknown): HydrateResult {
   }
 
   const base = initialState();
-  const items = Array.isArray(raw.items) ? raw.items.filter(isChatItem) : [];
+  const rawItems = Array.isArray(raw.items) ? raw.items.filter(isChatItem) : [];
+  // Après un reload, aucun tour n'est actif tant que `resume` n'a pas confirmé
+  // (C01 §6) : figer tout item assistant laissé en streaming.
+  const items = rawItems.map((it) =>
+    it.kind === "assistant" && it.streaming ? { ...it, streaming: false } : it,
+  );
   const itemIndex: Record<string, number> = {};
   items.forEach((it, i) => {
     itemIndex[it.id] = i;

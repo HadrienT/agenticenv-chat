@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { INBOUND_TYPES, OUTBOUND_TYPES } from "../../src/protocol";
+import { CLIENT_AHEAD_OF_BRIDGE, INBOUND_TYPES, OUTBOUND_TYPES } from "../../src/protocol";
 
 /**
  * Test de dérive du protocole (décision D4, 05-TESTING §4). `src/protocol.ts` est
@@ -41,8 +41,13 @@ describe.skipIf(!py)("discipline — dérive du protocole bridge", () => {
       literals.add(m[1]);
     }
     const mirrored = new Set<string>([...INBOUND_TYPES, ...OUTBOUND_TYPES]);
+    const ahead = new Set<string>(CLIENT_AHEAD_OF_BRIDGE);
+    // le bridge a un `type` que le miroir TS n'a pas → dérive dure
     const missingInTs = [...literals].filter((l) => !mirrored.has(l));
-    const staleInTs = [...mirrored].filter((l) => literals.size > 0 && !literals.has(l));
+    // le miroir TS a un `type` absent du bridge ET non déclaré « client en avance »
+    const staleInTs = [...mirrored].filter(
+      (l) => literals.size > 0 && !literals.has(l) && !ahead.has(l),
+    );
     expect({ missingInTs, staleInTs }).toEqual({ missingInTs: [], staleInTs: [] });
   });
 });
