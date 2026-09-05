@@ -46,4 +46,18 @@
   --agx-warn-border: var(--vscode-inputValidation-warningBorder, #b89500);
   --agx-error-bg: var(--vscode-inputValidation-errorBackground, #5a1d1d);
   --agx-error-border: var(--vscode-inputValidation-errorBorder, #be1100);
+
+  /* Coloration syntaxique : VS Code n'expose pas les couleurs de tokens du thème
+     aux webviews ; on approxime avec les variables sémantiques disponibles. */
+  --agx-syntax-keyword: var(--vscode-symbolIcon-keywordForeground, #c586c0);
+  --agx-syntax-string: var(--vscode-debugTokenExpression-string, #ce9178);
+  --agx-syntax-number: var(--vscode-debugTokenExpression-number, #b5cea8);
+  --agx-syntax-literal: var(--vscode-debugTokenExpression-boolean, #569cd6);
+  --agx-syntax-comment: var(--vscode-editorLineNumber-foreground, #6a9955);
+  --agx-syntax-function: var(--vscode-symbolIcon-functionForeground, #dcdcaa);
+  --agx-syntax-type: var(--vscode-symbolIcon-classForeground, #4ec9b0);
+  --agx-syntax-name: var(--vscode-debugTokenExpression-name, #9cdcfe);
+  --agx-syntax-attr: var(--vscode-symbolIcon-propertyForeground, #9cdcfe);
+  --agx-diff-add-bg: var(--vscode-diffEditor-insertedTextBackground, rgba(155, 185, 85, 0.2));
+  --agx-diff-del-bg: var(--vscode-diffEditor-removedTextBackground, rgba(255, 0, 0, 0.2));
 }

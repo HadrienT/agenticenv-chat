@@ -18,13 +18,14 @@ export type SessionPhase =
 export type ToolStatus = "running" | "ok" | "error";
 
 export type ChatItem =
-  | { kind: "user"; id: string; text: string }
+  | { kind: "user"; id: string; text: string; ts?: number }
   | {
       kind: "assistant";
       id: string;
       text: string;
       streaming: boolean;
       revision: number;
+      ts?: number;
       /** `SdkEvent.id` / `event_delta.event_id` — relie les deltas à l'événement final. */
       sourceId?: string;
     }
@@ -37,9 +38,10 @@ export type ChatItem =
       status: ToolStatus;
       statusLabel?: string;
       toolCallId?: string;
+      ts?: number;
     }
-  | { kind: "observation"; id: string; toolName: string; result: unknown }
-  | { kind: "error"; id: string; text: string }
+  | { kind: "observation"; id: string; toolName: string; result: unknown; ts?: number }
+  | { kind: "error"; id: string; text: string; ts?: number }
   | { kind: "turn-cancelled"; id: string };
 
 export type NoticeLevel = "info" | "warn" | "error";
@@ -95,7 +97,13 @@ export interface AppState {
   pendingSend: boolean;
   /** Libellé de progression du tour en cours (« Reading black.cpp… »), ou `null`. */
   progress: string | null;
-  workspace: { folder: string | null; path: string | null };
+  workspace: {
+    folder: string | null;
+    path: string | null;
+    sandboxRoot: string;
+    editorAvailable: boolean;
+    expandThinking: boolean;
+  };
   mcp: { servers: McpServerView[]; selected: string[] };
   health: ComponentHealth[];
   usage: UsageState | null;
@@ -116,7 +124,15 @@ export function initialState(): AppState {
     eventSeq: 0,
     pendingSend: false,
     progress: null,
-    workspace: { folder: null, path: null },
+    workspace: {
+      folder: null,
+      path: null,
+      // Vide jusqu'au message `workspace` de l'hôte : sans racine connue, aucune
+      // référence de fichier n'est rendue cliquable.
+      sandboxRoot: "",
+      editorAvailable: false,
+      expandThinking: false,
+    },
     mcp: { servers: [], selected: [] },
     health: [],
     usage: null,

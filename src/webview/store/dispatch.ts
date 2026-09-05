@@ -21,6 +21,12 @@ export interface Actions {
   togglePanel(id: PanelId): void;
   dismissNotice(id: string): void;
   openDiff(path: string): void;
+  openFile(path: string, line?: number): void;
+  copy(text: string): void;
+  insertAtCursor(text: string): void;
+  createFile(suggestedName: string, content: string): void;
+  runInTerminal(command: string): void;
+  feedback(itemId: string, value: "up" | "down"): void;
   refreshHealth(): void;
   healthAction(component: ComponentId, action: HealthActionId): void;
 }
@@ -51,6 +57,12 @@ export function createActions(dispatch: (action: Action) => void, now: () => num
     togglePanel: (id) => send({ type: "panel/toggle", id }),
     dismissNotice: (id) => send({ type: "notice/dismiss", id }),
     openDiff: (path) => post({ type: "openDiff", path }),
+    openFile: (path, line) => post({ type: "openFile", path, line }),
+    copy: (text) => post({ type: "copy", text }),
+    insertAtCursor: (text) => post({ type: "insertAtCursor", text }),
+    createFile: (suggestedName, content) => post({ type: "createFile", suggestedName, content }),
+    runInTerminal: (command) => post({ type: "runInTerminal", command }),
+    feedback: (itemId, value) => post({ type: "feedback", itemId, value }),
     refreshHealth: () => post({ type: "refreshHealth" }),
     healthAction: (component, action) => post({ type: "healthAction", component, action }),
   };

@@ -133,11 +133,13 @@ Un `ObservationEvent` peut contenir des milliers de lignes.
 
 ## 10. Critères d'acceptation
 
-- [ ] Une réponse markdown typique s'affiche comme dans Copilot Chat : titres, listes, tables, code coloré.
-- [ ] Le C++ est colorié correctement.
-- [ ] Copier / Insérer / Nouveau fichier fonctionnent sur un vrai éditeur.
-- [ ] Aucun vecteur XSS de la suite de tests ne passe.
-- [ ] Le rendu pendant le streaming ne clignote pas et ne casse pas sur un bloc non fermé.
-- [ ] Les chemins cités sont cliquables et ouvrent la bonne ligne.
-- [ ] Budget de bundle respecté ; Mermaid chargé seulement à l'usage.
-- [ ] Vérifié en trois thèmes et en sidebar 250 px.
+- [x] Réponse markdown : titres, listes, tables, blocs de code colorés (markdown-it + highlight.js sous-ensemble). Test `markdown.test.tsx`.
+- [x] Le C++ est colorié (`cpp` enregistré, alias `c++`/`h`/`hpp`). Test dédié.
+- [x] Copier (« Copied! » 1,5 s) / Insérer (grisé sans éditeur) / Nouveau fichier / Run — les intentions émettent le bon message hôte (`copy`/`insertAtCursor`/`createFile`/`runInTerminal`). Test `CodeBlock.test.tsx`. **Effet réel sur un éditeur : F5.**
+- [x] Les 5 vecteurs XSS (`<script>`, `<img onerror>`, `javascript:`, `<iframe data:>`, `<a href=javascript:>`) sont neutralisés — contrôle par rendu DOM réel.
+- [x] Streaming : `closeOpenFence` ferme un bloc non terminé ; `RichText` re-découpe à chaque révision ; test « 10 troncatures du même document ⇒ aucun crash, jamais de ``` orphelin ».
+- [x] Chemins `path:line` cliquables — détection pure côté webview, traduction + ouverture (`showTextDocument` + révélation de ligne) côté hôte via `paths.ts` ; un chemin non traduisible reste du texte.
+- [x] Budget de bundle : `dist/webview.js` **411 Ko** minifié (< 1,5 Mo).
+- [ ] **Mermaid (item 25) et KaTeX (item 26) différés** : Mermaid (~1 Mo) exige un `import()` dynamique, donc du code-splitting, incompatible avec le bundle **IIFE unique** (D2) et la **CSP nonce** sans `script-src` élargi (D6). KaTeX ajoute ~300 Ko + polices woff2 à inliner. Les deux blocs sont rendus en **code brut** en attendant, soit une décision d'architecture (passer la webview en ESM + relâcher `script-src`), soit un WP dédié. Documenté dans `PROGRESS.md`.
+- [ ] **F5** : trois thèmes (Dark+, Light+, Dark High Contrast), sidebar 250 px, ressenti du streaming, Copier/Insérer sur un vrai éditeur.
+- [ ] **Fixtures** : `test/fixtures/events/message-markdown.json` (capture réelle) à ajouter — les tests C02 utilisent des documents markdown synthétiques.

@@ -78,7 +78,7 @@ export function finishTurn(state: AppState, msg: TurnFinished): AppState {
 }
 
 /** `event_delta` : concatène sur l'item assistant `sourceId`, incrémente `revision`. */
-export function applyEventDelta(state: AppState, msg: EventDelta): AppState {
+export function applyEventDelta(state: AppState, msg: EventDelta, at: number): AppState {
   const idx = state.items.findIndex((i) => i.kind === "assistant" && i.sourceId === msg.event_id);
   if (idx >= 0) {
     const cur = state.items[idx] as Extract<ChatItem, { kind: "assistant" }>;
@@ -100,6 +100,7 @@ export function applyEventDelta(state: AppState, msg: EventDelta): AppState {
     text: msg.text,
     streaming: true,
     revision: 1,
+    ts: at,
     sourceId: msg.event_id,
   };
   return { ...appendItems(state, [item]), eventSeq: state.eventSeq + 1 };
@@ -110,8 +111,8 @@ export function applyEventDelta(state: AppState, msg: EventDelta): AppState {
  * corrompt pas le rendu). Si un jumeau en streaming existe, on le remplace au
  * lieu d'ajouter un doublon.
  */
-export function applyEvent(state: AppState, msg: EventMessage): AppState {
-  const items = eventToItems(msg.event, state.eventSeq);
+export function applyEvent(state: AppState, msg: EventMessage, at: number): AppState {
+  const items = eventToItems(msg.event, state.eventSeq, at);
   const first = items[0];
   if (items.length === 1 && first.kind === "assistant" && first.sourceId) {
     const sourceId = first.sourceId;
