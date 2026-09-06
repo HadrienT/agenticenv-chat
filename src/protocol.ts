@@ -74,6 +74,17 @@ export interface Compact {
   type: "compact";
 }
 
+/**
+ * [v2] Consigne injectée **pendant** un tour sans l'arrêter (C09 §4). N'est émis
+ * que si le bridge annonce la capability `interrupt` ; sinon le client met la
+ * consigne en file et l'envoie comme `user_message` au `turn_finished`.
+ */
+export interface Interrupt {
+  type: "interrupt";
+  turn_id: string;
+  text: string;
+}
+
 export interface ListMcpServers {
   type: "list_mcp_servers";
 }
@@ -88,6 +99,7 @@ export type Inbound =
   | RequestDiff
   | RestoreCheckpoint
   | Compact
+  | Interrupt
   | ListMcpServers;
 
 // --- bridge -> client ---
@@ -188,6 +200,24 @@ export interface HistoryCompacted extends Seq {
   summary: string;
 }
 
+export type TodoState = "pending" | "active" | "done" | "skipped";
+
+export interface TodoItemWire {
+  id: string;
+  text: string;
+  state: TodoState;
+}
+
+/**
+ * [v2] Plan/todo **produit par l'agent** (C09 §2, items 54/124). Toujours un état
+ * **complet** (03-PROTOCOL §3.3), jamais un patch. Le client n'infère aucune
+ * étape : sans ce message, aucun panneau n'apparaît.
+ */
+export interface TodoMessage extends Seq {
+  type: "todo";
+  items: TodoItemWire[];
+}
+
 /** [v2] Checkpoint pris par le bridge avant un tour. */
 export interface CheckpointMessage extends Seq {
   type: "checkpoint";
@@ -251,6 +281,7 @@ export type Outbound =
   | PendingActionMessage
   | ContextStats
   | HistoryCompacted
+  | TodoMessage
   | FileDiffMessage
   | CheckpointMessage
   | FilesChanged
@@ -273,6 +304,7 @@ export const OUTBOUND_TYPES = [
   "pending_action",
   "context_stats",
   "history_compacted",
+  "todo",
   "file_diff",
   "checkpoint",
   "files_changed",
@@ -293,6 +325,7 @@ export const INBOUND_TYPES = [
   "request_diff",
   "restore_checkpoint",
   "compact",
+  "interrupt",
   "list_mcp_servers",
 ] as const;
 
@@ -315,6 +348,7 @@ export const CLIENT_AHEAD_OF_BRIDGE = [
   "request_diff",
   "restore_checkpoint",
   "compact",
+  "interrupt",
   "welcome",
   "resumed",
   "turn_started",
@@ -325,6 +359,7 @@ export const CLIENT_AHEAD_OF_BRIDGE = [
   "pending_action",
   "context_stats",
   "history_compacted",
+  "todo",
   "file_diff",
   "checkpoint",
 ] as const;
@@ -338,6 +373,7 @@ export type Capability =
   | "todo"
   | "checkpoints"
   | "compact"
+  | "interrupt"
   | "models";
 
 // --- contexte résolu (hôte → bridge), défini ici car il transite sur le fil ---

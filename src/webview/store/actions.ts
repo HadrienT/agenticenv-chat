@@ -20,6 +20,9 @@ export type LocalAction =
   | { type: "intent/sendMessage"; text: string }
   | { type: "intent/confirm"; accept: boolean; at: number }
   | { type: "intent/cancelTurn" }
+  | { type: "intent/interrupt"; text: string; capable: boolean }
+  | { type: "intent/resolveMaxIterations"; itemId: string }
+  | { type: "plan/set"; enabled: boolean }
   | { type: "thread/truncateFrom"; itemId: string; at: number }
   | { type: "thread/editMessage"; itemId: string; text: string; at: number }
   | { type: "thread/restoreBranch"; index: number };

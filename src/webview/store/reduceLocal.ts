@@ -1,6 +1,6 @@
 import { assertNever } from "../../assertNever";
 import type { LocalAction } from "./actions";
-import { withNotice } from "./reduceHelpers";
+import { appendItems, patchItem, withNotice } from "./reduceHelpers";
 import type { AppState } from "./types";
 import { pushHistory } from "./composerHelpers";
 import { editMessage, restoreBranch, truncateFrom } from "./reduceThread";
@@ -117,6 +117,39 @@ export function applyLocal(state: AppState, action: LocalAction): AppState {
         progress: "stopping…",
       };
     }
+
+    case "intent/interrupt": {
+      // Le composer reste actif pendant `running` (C03 §6). Avec la capability
+      // `interrupt` la consigne est injectée dans le tour ; sinon elle est mise
+      // en file et partira au `turn_finished` — **jamais** silencieusement.
+      if (
+        !state.pendingSend &&
+        state.phase.kind !== "running" &&
+        state.phase.kind !== "awaiting" &&
+        state.phase.kind !== "cancelling"
+      ) {
+        return state;
+      }
+      const id = `note-${state.eventSeq}`;
+      const next = appendItems(state, [
+        { kind: "queued-note", id, text: action.text, sent: action.capable },
+      ]);
+      return {
+        ...next,
+        eventSeq: state.eventSeq + 1,
+        pendingInterrupts: action.capable
+          ? state.pendingInterrupts
+          : [...state.pendingInterrupts, action.text],
+        composer: { ...state.composer, draft: "" },
+      };
+    }
+
+    case "intent/resolveMaxIterations":
+      return patchItem(state, action.itemId, { resolved: true });
+
+    case "plan/set":
+      // Optimiste : l'hôte confirme via `planMode` + `permissionMode` (readOnly).
+      return { ...state, planMode: action.enabled };
 
     case "thread/truncateFrom":
       return truncateFrom(state, action.itemId, action.at);

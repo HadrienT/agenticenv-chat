@@ -9,7 +9,7 @@ import { initialState } from "./types";
  * `version` est incrémentée à **chaque** changement de forme. Une version
  * inconnue ⇒ l'état est **jeté** (jamais migré à la devinette) + notice (I7).
  */
-export const PERSIST_VERSION = 8;
+export const PERSIST_VERSION = 9;
 
 const MAX_PERSISTED_ITEMS = 200;
 
@@ -23,6 +23,8 @@ const CHAT_ITEM_KINDS = new Set([
   "permission",
   "hook",
   "compaction",
+  "max-iterations",
+  "queued-note",
 ]);
 
 export interface PersistedState {
@@ -34,6 +36,9 @@ export interface PersistedState {
   history: string[];
   branches: { at: number; removed: ChatItem[] }[];
   panels: Record<PanelId, boolean>;
+  /** Plan/todo produit par l'agent — archivé avec la conversation (C09 §2). */
+  todo: AppState["todo"];
+  planMode: boolean;
 }
 
 export function toPersisted(state: AppState): PersistedState {
@@ -47,6 +52,8 @@ export function toPersisted(state: AppState): PersistedState {
     history: state.composer.history,
     branches: state.branches.map((b) => ({ at: b.at, removed: b.removed.slice(-MAX_PERSISTED_ITEMS) })),
     panels: state.panels,
+    todo: state.todo,
+    planMode: state.planMode,
   };
 }
 
@@ -105,8 +112,14 @@ export function fromPersisted(raw: unknown): HydrateResult {
           )
         : [],
       panels: isRecord(raw.panels)
-        ? { health: raw.panels.health === true, workingSet: raw.panels.workingSet !== false }
+        ? {
+            health: raw.panels.health === true,
+            workingSet: raw.panels.workingSet !== false,
+            todo: raw.panels.todo !== false,
+          }
         : base.panels,
+      todo: Array.isArray(raw.todo) ? (raw.todo.filter(isTodoItem) as AppState["todo"]) : null,
+      planMode: raw.planMode === true,
     },
   };
 }
@@ -117,6 +130,15 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 
 function isChip(v: unknown): boolean {
   return isRecord(v) && isRecord(v.ref) && typeof v.label === "string";
+}
+
+function isTodoItem(v: unknown): boolean {
+  return (
+    isRecord(v) &&
+    typeof v.id === "string" &&
+    typeof v.text === "string" &&
+    (v.state === "pending" || v.state === "active" || v.state === "done" || v.state === "skipped")
+  );
 }
 
 function isChatItem(v: unknown): v is ChatItem {

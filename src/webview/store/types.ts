@@ -6,6 +6,7 @@ import type {
   ModeView,
   PendingActionView,
   SlashCommand,
+  TodoItemView,
 } from "../../messages";
 import type { GitChangeDTO } from "../../protocol";
 
@@ -64,7 +65,11 @@ export type ChatItem =
       ts?: number;
     }
   | { kind: "hook"; id: string; command: string; ok: boolean; output: string; ts?: number }
-  | { kind: "compaction"; id: string; turns: number; summary: string; ts?: number };
+  | { kind: "compaction"; id: string; turns: number; summary: string; ts?: number }
+  /** L'agent a atteint son cap d'itérations (C09 §5) — carte de continuation. */
+  | { kind: "max-iterations"; id: string; turnId: string; resolved?: boolean }
+  /** Consigne tapée pendant un tour, en file faute de capability `interrupt` (C09 §4). */
+  | { kind: "queued-note"; id: string; text: string; sent?: boolean };
 
 export type NoticeLevel = "info" | "warn" | "error";
 
@@ -75,7 +80,7 @@ export interface Notice {
   dismissible: boolean;
 }
 
-export type PanelId = "health" | "workingSet";
+export type PanelId = "health" | "workingSet" | "todo";
 
 export interface ConnectionState {
   state: "connecting" | "open" | "closed";
@@ -148,6 +153,12 @@ export interface AppState {
   usage: UsageState | null;
   /** `true` si l'historique a été compacté (bannière + item, C13 §2). */
   compacted: boolean;
+  /** Plan/todo **produit par l'agent** (C09 §2). `null` = jamais reçu ⇒ aucun panneau. */
+  todo: TodoItemView[] | null;
+  /** Mode plan (C09 §3) : force `permissions.mode = readOnly` côté client. */
+  planMode: boolean;
+  /** Consignes tapées pendant un tour, en file faute de capability `interrupt` (C09 §4). */
+  pendingInterrupts: string[];
   workingSet: WorkingSetFile[];
   /** Diffs par fichier (checkpoint → maintenant), chargés à la demande (C06). */
   fileDiffs: Record<string, FileDiffState>;

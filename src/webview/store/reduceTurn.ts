@@ -51,8 +51,14 @@ export function finishTurn(state: AppState, msg: TurnFinished): AppState {
       dismissible: true,
     });
   }
+  // C09 §4 : les consignes en file partent maintenant (l'hôte les envoie
+  // vraiment) — on les marque « envoyées » plutôt que « en attente ».
   const stopStreaming = state.items.map((it) =>
-    it.kind === "assistant" && it.streaming ? { ...it, streaming: false } : it,
+    it.kind === "assistant" && it.streaming
+      ? { ...it, streaming: false }
+      : it.kind === "queued-note" && !it.sent
+        ? { ...it, sent: true }
+        : it,
   );
   const next: AppState = {
     ...state,
@@ -60,6 +66,7 @@ export function finishTurn(state: AppState, msg: TurnFinished): AppState {
     phase: { kind: "idle", conversationId: p.conversationId },
     pendingSend: false,
     progress: null,
+    pendingInterrupts: [],
   };
   if (msg.reason === "cancelled") {
     // C01 §3 : un tour annulé reste dans le fil, marqué « cancelled », avec ce
@@ -67,12 +74,10 @@ export function finishTurn(state: AppState, msg: TurnFinished): AppState {
     return appendItems(next, [{ kind: "turn-cancelled", id: `turn-cancelled-${msg.turn_id}` }]);
   }
   if (msg.reason === "max_iterations") {
-    return withNotice(next, {
-      id: `turn-max-${msg.turn_id}`,
-      level: "warn",
-      text: "The agent hit its iteration limit and stopped. Send another message to continue.",
-      dismissible: true,
-    });
+    // C09 §5 : carte de continuation dans le fil (3 choix), pas une simple notice.
+    return appendItems(next, [
+      { kind: "max-iterations", id: `turn-max-${msg.turn_id}`, turnId: msg.turn_id },
+    ]);
   }
   return next;
 }

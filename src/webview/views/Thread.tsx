@@ -5,6 +5,8 @@ import { ErrorItem } from "./items/ErrorItem";
 import { MessageItem } from "./items/MessageItem";
 import { ToolItem } from "./items/ToolItem";
 import { CompactionItem } from "./items/CompactionItem";
+import { MaxIterationsItem } from "./items/MaxIterationsItem";
+import { QueuedNoteItem } from "./items/QueuedNoteItem";
 import { ToolGroup } from "./ToolGroup";
 import { UsedReferences } from "./UsedReferences";
 import { groupRows } from "./threadGroups";
@@ -44,6 +46,10 @@ function renderItem(item: ChatItem, afterCount: number): JSX.Element {
       );
     case "compaction":
       return <CompactionItem key={item.id} item={item} />;
+    case "max-iterations":
+      return <MaxIterationsItem key={item.id} item={item} />;
+    case "queued-note":
+      return <QueuedNoteItem key={item.id} item={item} />;
     default:
       return assertNever(item, "ChatItem");
   }

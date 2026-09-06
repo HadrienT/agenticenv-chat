@@ -1,7 +1,8 @@
 import { assertNever } from "../../assertNever";
 import type { HostToWebview } from "../../messages";
 import { applyBridge, endTurnOnError } from "./reduceBridge";
-import { appendItems, hash, resetState, withNotice } from "./reduceHelpers";
+import { hash, resetState, withNotice } from "./reduceHelpers";
+import { applyHookResult, applyMetrics, applyTodo } from "./reduceHostAux";
 import { applyPermission } from "./reducePermission";
 import type { AppState } from "./types";
 
@@ -113,7 +114,16 @@ export function applyHost(state: AppState, msg: HostToWebview, at: number): AppS
       });
 
     case "clearThread":
-      return { ...state, items: [], itemIndex: {}, eventSeq: 0, workingSet: [], progress: null };
+      return {
+        ...state,
+        items: [],
+        itemIndex: {},
+        eventSeq: 0,
+        workingSet: [],
+        progress: null,
+        todo: null,
+        pendingInterrupts: [],
+      };
 
     case "workingSet":
       return {
@@ -140,38 +150,17 @@ export function applyHost(state: AppState, msg: HostToWebview, at: number): AppS
     case "permissionOutcome":
       return applyPermission(state, msg, at);
 
-    case "metrics": {
-      // Jauge utile **avant** le premier tour (C13 §1) + débit tokens/s (§5).
-      const usage = state.usage ?? {
-        accumulatedCost: 0,
-        promptTokens: 0,
-        completionTokens: 0,
-        contextWindow: 0,
-        tokensPerSec: null,
-      };
-      return {
-        ...state,
-        usage: {
-          ...usage,
-          contextWindow: msg.contextWindow ?? usage.contextWindow,
-          tokensPerSec: msg.tokensPerSec !== undefined ? msg.tokensPerSec : usage.tokensPerSec,
-        },
-      };
-    }
+    case "metrics":
+      return applyMetrics(state, msg);
 
-    case "hookResult": {
-      const next = appendItems(state, [
-        {
-          kind: "hook",
-          id: `hook-${state.eventSeq}`,
-          command: msg.command,
-          ok: msg.ok,
-          output: msg.output,
-          ts: at,
-        },
-      ]);
-      return { ...next, eventSeq: state.eventSeq + 1 };
-    }
+    case "todo":
+      return applyTodo(state, msg);
+
+    case "planMode":
+      return { ...state, planMode: msg.enabled };
+
+    case "hookResult":
+      return applyHookResult(state, msg, at);
 
     case "workspace":
       return {

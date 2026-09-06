@@ -28,6 +28,10 @@ export interface Actions {
   removeAttachment(index: number): void;
   dismissAuto(refKey: string): void;
   cancelTurn(): void;
+  interrupt(text: string, capable: boolean): void;
+  resolveMaxIterations(itemId: string): void;
+  continueTurn(itemId: string, guidance?: string): void;
+  setPlanMode(enabled: boolean): void;
   forceNewSession(): void;
   confirm(opts: {
     accept: boolean;
@@ -96,6 +100,19 @@ export function createActions(dispatch: (action: Action) => void, now: () => num
     cancelTurn: () => {
       post({ type: "cancelTurn" });
       send({ type: "intent/cancelTurn" });
+    },
+    interrupt: (text, capable) => {
+      post({ type: "interrupt", text });
+      send({ type: "intent/interrupt", text, capable });
+    },
+    resolveMaxIterations: (itemId) => send({ type: "intent/resolveMaxIterations", itemId }),
+    continueTurn: (itemId, guidance) => {
+      post({ type: "continueTurn", guidance });
+      send({ type: "intent/resolveMaxIterations", itemId });
+    },
+    setPlanMode: (enabled) => {
+      post({ type: "setPlanMode", enabled });
+      send({ type: "plan/set", enabled });
     },
     forceNewSession: () => post({ type: "forceNewSession" }),
     confirm: (opts) => {

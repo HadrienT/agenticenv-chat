@@ -21,7 +21,7 @@ quand ses critères d'acceptation **automatisables** sont verts.
 | C06 | Éditions, diffs, checkpoints | `wp/C06-edits-and-diffs` | ✅ **fait** | hors-git limité ; F5 ; extraire EditsController (C14) |
 | C07 | Permissions, approbations | `wp/C07-permissions` | ✅ **fait** | `pending_action` bridge + F5 (persistance workspace) |
 | C08 | Sessions, historique | `wp/C08-sessions` | ✅ **fait** | `openInEditor` différé ; F5 |
-| C09 | Plan, todo, pilotage boucle agent | — | ⏳ à faire | |
+| C09 | Plan, todo, pilotage boucle agent | `wp/C09-agent-loop` | ✅ **client fait** | `todo`/`interrupt` = moitié AgenticEnv ; terminaux bg + suivi (31) différés ; F5 |
 | C10 | Instructions, prompts, mémoire | `wp/C10-instructions` | ✅ **fait** | chip instructions à rendre ; F5 |
 | C11 | Intégration éditeur & commandes | — | ⏳ à faire | |
 | C12 | MCP opérationnel & sélection modèle | — | ⏳ à faire | |
@@ -334,6 +334,57 @@ Branche `wp/C13-context-budget`. Items 65, 80, 108, 115, 120.
 dans `packages/openhands-bridge`) ; F5 (statusline en thème clair, jauge en
 plein tour, `/compact` réel).
 
-## C09 — Plan, todo, pilotage 🚧
+## C09 — Plan, todo, pilotage de la boucle agent ✅ (client)
 
-En cours.
+Branche `wp/C09-agent-loop`. Items 31, 54, 55, 56, 61, 62, 63, 67, 123, 124.
+
+> Ce WP est le plus dépendant d'AgenticEnv : un todo ou un mode plan sont des
+> comportements d'agent, pas des simulations client. Le client **affiche et
+> pilote** ; le harness **produit**. Rien qui afficherait un panneau vide faute
+> de support bridge.
+
+**Fait (client, testé contre le faux bridge)** :
+- `protocol.ts` : `todo {items:[{id,text,state}]}` (état **complet**, jamais un
+  patch — le client n'infère aucune étape), `interrupt {turn_id, text}`,
+  capability `interrupt`. Ajoutés à `CLIENT_AHEAD_OF_BRIDGE`.
+- `messages.ts` : `todo` / `planMode` (hôte→webview) ; `interrupt` /
+  `setPlanMode` / `continueTurn` (webview→hôte).
+- **Panneau Todo** (`views/panels/TodoPanel.tsx`, items 54/124) : n'apparaît
+  **qu'au premier `todo` reçu**, sinon absent. Étape active mise en évidence,
+  clic → scroll vers `.agx-todo__item--active`. Étape `skipped` visible, barrée.
+  Archivé au reload (`PERSIST_VERSION` 8→9).
+- **Mode plan** (`ComposerFoot` sélecteur Plan/Agent, items 55/123) : côté hôte
+  force `permissions.mode = readOnly` via `applyPermissionOverride()` — le plus
+  strict de (`.mode.md`, plan) gagne ; protection **réelle** en attendant un mode
+  sandbox, dit dans l'UI (`agx-planbanner`). `views/PlanApproval.tsx` : en fin de
+  tour plan, « Approve & run » / « Edit plan » / « Keep planning », rien d'imposé.
+- **Interruption** (item 61) : le composer reste actif pendant un tour ; `Send`
+  devient `Send note`. Avec la capability `interrupt` → `interrupt {turn_id,text}`
+  (« note added mid-turn »). Sans → mise en file hôte + item « queued — will be
+  sent when the turn ends », envoyée comme `user_message` au `turn_finished`.
+  **Jamais** de retard silencieux.
+- **Cap d'itérations** (item 67) : `turn_finished{reason:"max_iterations"}` →
+  carte `MaxIterationsItem` dans le fil (Continue / Continue with guidance… /
+  Stop here). « Continue » envoie `Continue.` — ne reformule jamais la demande.
+- 247 tests (`test/unit/agentLoop.test.ts`). Bundle 456 Ko webview / 120 Ko ext.
+- Nettoyage taille : `App.tsx` → `views/ChatScreen.tsx` ; `Composer.tsx` →
+  `ComposerFoot.tsx` + `composerKeys.ts` ; `reduceHost.ts` → `reduceHostAux.ts`.
+  Tokens manquants `--agx-muted` / `--agx-warning` ajoutés à `tokens.css`
+  (introduits sans définition en C13).
+
+**Différé / moitié AgenticEnv** :
+- Émission de `todo` et réception de `interrupt` côté `packages/openhands-bridge`
+  (issues à ouvrir, cf. §1 du WP).
+- **Questions de suivi** (item 31) : aucun message bridge défini dans
+  03-PROTOCOL §2.3 → pas démarré (P1 : pas de génération côté client).
+- **Terminaux d'arrière-plan** (item 62) : aucun message/capability bridge →
+  panneau non créé (pas d'émulation par polling).
+- **Changement de modèle en cours** (item 63) : sélecteur = C12 ; le garde
+  « refusé pendant `running` » y sera ajouté.
+- **Auto-correction** (item 56) : comportement d'agent, rien à coder côté client.
+- F5 : todo live, bascule plan → tentative d'écriture refusée, interruption
+  réelle contre un bridge v2.
+
+## Prochaine étape
+
+C12 (MCP opérationnel & sélection modèle) puis C11, C14.

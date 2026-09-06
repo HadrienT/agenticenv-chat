@@ -409,6 +409,117 @@ button {
   overflow: auto;
 }
 
+/* --- plan / todo (C09) -------------------------------------- */
+
+.agx-todo {
+  border-top: 1px solid var(--agx-border);
+  padding: 4px 8px;
+  font-size: 12px;
+}
+.agx-todo__head {
+  background: none;
+  border: none;
+  color: var(--agx-fg);
+  cursor: pointer;
+  padding: 2px 0;
+  font-weight: 600;
+}
+.agx-todo__list {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+}
+.agx-todo__item {
+  display: flex;
+  gap: 6px;
+  padding: 2px 0;
+  color: var(--agx-muted);
+}
+.agx-todo__item--active {
+  color: var(--agx-fg);
+  font-weight: 600;
+  cursor: pointer;
+}
+.agx-todo__item--done .agx-todo__glyph {
+  color: var(--agx-link);
+}
+.agx-todo__struck {
+  text-decoration: line-through;
+}
+.agx-todo__glyph {
+  width: 1em;
+  text-align: center;
+}
+
+.agx-planbanner {
+  padding: 4px 8px;
+  font-size: 11px;
+  background: var(--agx-input-bg);
+  border-top: 1px solid var(--agx-border);
+  color: var(--agx-muted);
+}
+
+.agx-planseg {
+  display: inline-flex;
+  border: 1px solid var(--agx-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.agx-planseg__opt {
+  background: none;
+  border: none;
+  color: var(--agx-muted);
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.agx-planseg__opt--on {
+  background: var(--agx-link);
+  color: var(--agx-btn-fg);
+}
+
+.agx-planapproval,
+.agx-maxiter {
+  border-top: 1px solid var(--agx-border);
+  padding: 8px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.agx-planapproval__row,
+.agx-maxiter__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.agx-planapproval__msg,
+.agx-maxiter__msg {
+  margin: 0;
+  color: var(--agx-muted);
+}
+.agx-maxiter__guidance {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agx-note {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0;
+  padding: 4px 8px;
+  border-left: 2px solid var(--agx-link);
+  background: var(--agx-input-bg);
+}
+.agx-note__tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--agx-muted);
+}
+
 /* --- composer ------------------------------------------------ */
 
 .agx-composer {

@@ -23,7 +23,9 @@ function sample(): AppState {
       attachments: [{ ref: { kind: "file", uri: "file:///x/a.cpp" }, label: "a.cpp", estBytes: 100 }],
       history: ["earlier prompt"],
     },
-    panels: { health: true, workingSet: false },
+    panels: { health: true, workingSet: false, todo: true },
+    todo: [{ id: "t1", text: "Read the failing test", state: "done" }],
+    planMode: true,
   };
 }
 
@@ -39,9 +41,12 @@ describe("persist — round-trip (03-PROTOCOL §4)", () => {
     expect(res.state.items).toEqual(sample().items);
     expect(res.state.composer.draft).toBe("unsent draft");
     expect(res.state.composer.attachments).toHaveLength(1);
-    expect(res.state.panels).toEqual({ health: true, workingSet: false });
+    expect(res.state.panels).toEqual({ health: true, workingSet: false, todo: true });
     expect(res.state.phase).toEqual({ kind: "idle", conversationId: "conv-7" });
     expect(res.state.itemIndex).toEqual({ "ev-0": 0, "ev-1": 1 });
+    // C09 : le plan produit par l'agent et le mode plan survivent au reload.
+    expect(res.state.todo).toEqual([{ id: "t1", text: "Read the failing test", state: "done" }]);
+    expect(res.state.planMode).toBe(true);
   });
 
   it("I7 — version inconnue ⇒ état vierge, jamais partiel", () => {

@@ -120,7 +120,7 @@ Légende de faisabilité :
 | 28 | Bloc de commande terminal avec bouton **Exécuter** (et édition avant exécution) | les deux | 🟢/🟡 — ✅ **C02 + C07** (Run passe par `evaluate()`, s'exécute **sur l'hôte** — tooltip explicite ; édition de commande dans la carte d'approbation) |
 | 29 | Troncature des très longs blocs avec « Afficher plus » | Copilot | 🟢 — ✅ **C02** (> 200 lignes / 20 Kio : tête+queue, « Show all » / « Open in editor ») |
 | 30 | Section « références utilisées (N) » repliable, listant fichier + plage de lignes | Copilot | 🟡 — ✅ **C05** (« Used N references », plages fusionnées, reconstruit client depuis les `view` ; affiché à l'`idle`) |
-| 31 | Questions de suivi suggérées après la réponse (cliquables) | Copilot | 🟡/🔴 |
+| 31 | Questions de suivi suggérées après la réponse (cliquables) | Copilot | 🟡/🔴 — **C09** : pas démarré. Aucun message bridge défini (03-PROTOCOL §2.3) et P1 interdit une génération côté extension. À ouvrir comme besoin AgenticEnv (l'agent produit, le client affiche des puces qui **préremplissent** sans envoyer). |
 | 32 | Bloc de raisonnement / « thinking » repliable, avec « Réfléchi pendant Xs » | les deux | 🟢/🔴 — ✅ **C02** (repliable, réglage `agenticenvChat.thread.expandThinking` ; « Thought for Ns » quand la durée sera dispo) |
 | 33 | Horodatage discret par message (au survol) | Claude Code | 🟢 — ✅ **C02** (relatif < 1 h, absolu ensuite, au survol) |
 | 34 | Pouces haut / bas + commentaire par message | Copilot | 🟢 — ✅ **C02** (👍/👎 → `storageUri/feedback.jsonl`, aucune télémétrie ; commentaire libre : plus tard) |
@@ -158,20 +158,20 @@ Légende de faisabilité :
 
 | # | Subtilité | Qui | Faisab. |
 |---|---|---|---|
-| 54 | Liste de tâches / plan (todo) affichée, cases cochées **en direct** au fil de l'exécution | Claude Code | 🟡/🔴 |
-| 55 | Mode Plan : lecture seule tant que le plan n'est pas approuvé (`ExitPlanMode`) | Claude Code | 🔴 |
-| 56 | Auto-correction : l'agent lit lint/typecheck/tests échoués et recommence | les deux | 🔴 |
+| 54 | Liste de tâches / plan (todo) affichée, cases cochées **en direct** au fil de l'exécution | Claude Code | 🟡/🔴 — ✅ **C09** (client) : message `todo` → `TodoPanel`, état **complet** (jamais un patch), étape active mise en évidence + scroll, `skipped` barrée, archivé au reload. L'agent doit **produire** le todo côté AgenticEnv. |
+| 55 | Mode Plan : lecture seule tant que le plan n'est pas approuvé (`ExitPlanMode`) | Claude Code | 🔴 — ✅ **C09** (client) : sélecteur Plan/Agent dans le composer ; le mode plan **force `readOnly`** côté hôte (protection réelle, dit dans l'UI) ; écran d'approbation en fin de tour (Approve & run / Edit plan / Keep planning). Un vrai mode lecture seule sandbox reste souhaitable. |
+| 56 | Auto-correction : l'agent lit lint/typecheck/tests échoués et recommence | les deux | 🔴 — s.o. côté client (comportement d'agent / microagents AgenticEnv). |
 | 57 | Approbation de commande : commande **exacte** montrée, éditable, avec « Toujours autoriser ça » | les deux | 🟡 — ✅ **C07** (`ConfirmCard` : commande exacte + cwd, `Edit…`, `Allow always…` → portée session/folder, jamais global ; focus sur Reject ; sans charge utile v1 → aveu honnête) |
 | 58 | Allowlist / denylist de commandes par regex, persistée par workspace | les deux | 🟢/🟡 — ✅ **C07** (`permissions.{allow,deny}` regex sur la commande normalisée ; `deny` gagne toujours ; « Allow always (workspace) » persiste en `workspaceState`, portée session oubliée) |
 | 59 | Modes d'auto-approbation (edits seuls / tout / rien) — « YOLO mode » | les deux | 🟡 — ✅ **C07** (`mode`: ask / autoEdit / autoAll / readOnly ; `autoAll` = bannière permanente non-dismissible) |
 | 60 | Protection des fichiers sensibles (`.env`, clés) — avertissement avant lecture/écriture | Copilot | 🟢/🟡 — ✅ **C07** (`denyPaths` + liste sensible C04 → jamais auto, `autoAll` compris ; évaluation côté hôte) |
-| 61 | Interrompre pour ajouter une consigne en cours de route, puis reprendre | les deux | 🟡 |
-| 62 | Terminaux d'arrière-plan / process longs (serveurs de dev) suivis séparément | les deux | 🔴 |
-| 63 | Changer de modèle en cours de session | Claude Code | 🟡 |
+| 61 | Interrompre pour ajouter une consigne en cours de route, puis reprendre | les deux | 🟡 — ✅ **C09** : composer actif pendant un tour, `Send` → `Send note`. Capability `interrupt` → `interrupt {turn_id,text}` (« mid-turn ») ; sinon mise en file, envoyée au `turn_finished`, **jamais** un retard silencieux (item visible « queued »). |
+| 62 | Terminaux d'arrière-plan / process longs (serveurs de dev) suivis séparément | les deux | 🔴 — **C09** : non démarré. Aucune capability bridge (`background`) — pas d'émulation par polling ; panneau créé seulement quand le support existe. |
+| 63 | Changer de modèle en cours de session | Claude Code | 🟡 — sélecteur = **C12** ; **C09** en fixe la règle : refusé pendant `running` (proposer Stop), changement **marqué dans le fil**. |
 | 64 | Sous-agents / délégation de tâche | Claude Code | 🔴 |
 | 65 | Compaction / résumé automatique du contexte quand il se remplit ; barre « X% restant » | Claude Code | 🟡/🔴 — ✅ **C13** (client) : `/compact` demande la compaction au **bridge** (le client ne résume jamais) ; `history_compacted` → marqueur **toujours visible** + résumé consultable ; jauge trois zones. Moitié AgenticEnv à faire. |
 | 66 | Checkpoint avant chaque édition + « Restaurer ce checkpoint » | les deux | 🟡/🔴 — ✅ **C06** (checkpoint **par tour** ; `undoTurn`/`restoreCheckpoint` ; conflit utilisateur → confirmation modale ; purge 20 / 7 j) |
-| 67 | Cap d'itérations / « l'agent continue ? » après N étapes | Copilot | 🟡 |
+| 67 | Cap d'itérations / « l'agent continue ? » après N étapes | Copilot | 🟡 — ✅ **C09** : `turn_finished{reason:"max_iterations"}` → carte dans le fil (Continue / Continue with guidance… / Stop here). « Continue » envoie `Continue.` sans reformuler la demande. Le cap est fixé côté AgenticEnv. |
 | 68 | Question à choix multiples structurée de l'agent (au-delà du Allow/Reject) | — | 🔴 (image custom) |
 
 ### 2.6 Contexte & indexation
@@ -252,8 +252,8 @@ Légende de faisabilité :
 | 120 | Statusline configurable (branche, modèle, contexte restant, coût) | 🟢 — ✅ **C13** : `StatusBarItem` à droite, visible seulement en session ; `agenticenvChat.statusBar.format` (`${model}`/`${context}`/`${cost}`/`${elapsed}`/`${mode}`) ; spinner + durée écoulée pendant un tour ; fond d'avertissement en attente d'approbation ; masquable |
 | 121 | Ressources / prompts MCP exposés comme `/`-commandes | 🟡 |
 | 122 | Rendu de diff en couleur dans le fil, style unified | 🟢 |
-| 123 | Mode « plan » approuvé explicitement avant toute écriture | 🔴 |
-| 124 | Todo tool avec cases à cocher qui se mettent à jour | 🟡 |
+| 123 | Mode « plan » approuvé explicitement avant toute écriture | 🔴 — ✅ **C09** (client) : mode plan = `readOnly` forcé, écran d'approbation en fin de tour ; « Edit plan » renvoie le plan édité comme message d'approbation. |
+| 124 | Todo tool avec cases à cocher qui se mettent à jour | 🟡 — ✅ **C09** (client) : `TodoPanel` sur message `todo`, glyphes ✓/⟳/○/⊘, remplacement d'état complet. L'agent produit le todo côté AgenticEnv. |
 
 ---
 

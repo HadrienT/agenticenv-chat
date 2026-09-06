@@ -81,6 +81,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   });
   private hooks: Hooks | undefined;
   private filesChangedThisTurn = false;
+  /** Capabilities annoncées par le bridge dans `welcome` (C09 : `interrupt`). */
+  private capabilities: string[] = [];
+  /** Mode plan (C09 §3) : force `readOnly` en attendant un vrai mode sandbox. */
+  private planMode = false;
+  /** Consignes mid-turn en file quand le bridge n'a pas la capability `interrupt`. */
+  private queuedInterrupts: string[] = [];
   private readonly statusBar = new StatusBar();
   private status = {
     session: false,
@@ -301,6 +307,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case "welcome":
         this.negotiated = true;
         this.clearNegotiationTimer();
+        this.capabilities = message.capabilities;
         this.postToWebview({
           type: "protocol",
           version: message.protocol,
@@ -383,6 +390,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.maybeNotify("turn-done");
         void this.persistConversation();
         this.postToWebview({ type: "bridge", message });
+        this.flushQueuedInterrupts();
         return;
 
       case "files_changed":
@@ -413,6 +421,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             message.context_window > 0 ? (message.prompt_tokens / message.context_window) * 100 : null,
         });
         this.postToWebview({ type: "bridge", message });
+        return;
+
+      case "todo":
+        // État complet produit par l'agent (C09 §2) — traduit wire → vue (formes
+        // identiques). Le client n'en fabrique aucune étape.
+        this.postToWebview({ type: "todo", items: message.items });
         return;
 
       case "error":
@@ -451,22 +465,73 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   private modeInstructions: string | null = null;
+  /** Restriction du `.mode.md` courant, réappliquée quand le mode plan bascule. */
+  private modePermissions: string | undefined;
 
   /** Applique un `.mode.md` : restreint les permissions, retourne sa liste MCP si définie. */
   private async applyMode(name: string | undefined): Promise<string[] | null> {
     this.modeInstructions = null;
     if (!name) {
-      this.permissions.setModeOverride(undefined);
+      this.modePermissions = undefined;
+      this.applyPermissionOverride();
       return null;
     }
     const mode = (await this.instructions.loadModes()).find((m) => m.name === name);
     if (!mode) {
       return null;
     }
-    this.permissions.setModeOverride(mode.permissions);
+    this.modePermissions = mode.permissions;
     this.modeInstructions = mode.instructions || null;
-    this.sendPermissionMode();
+    this.applyPermissionOverride();
     return mode.mcp.length ? mode.mcp : null;
+  }
+
+  /**
+   * L'override de permissions effectif = le plus strict de (`.mode.md`, mode
+   * plan). Le mode plan (C09 §3) force `readOnly` : protection réelle en
+   * attendant un mode lecture seule côté sandbox — un préfixe de prompt ne
+   * garantit rien face à un modèle local.
+   */
+  private applyPermissionOverride(): void {
+    this.permissions.setModeOverride(this.planMode ? "readOnly" : this.modePermissions);
+    this.sendPermissionMode();
+  }
+
+  private setPlanMode(enabled: boolean): void {
+    this.planMode = enabled;
+    this.applyPermissionOverride();
+    this.postToWebview({
+      type: "planMode",
+      enabled,
+      interruptCapable: this.capabilities.includes("interrupt"),
+    });
+  }
+
+  private onInterrupt(text: string): void {
+    const t = text.trim();
+    if (!t) {
+      return;
+    }
+    if (this.currentTurnId && this.capabilities.includes("interrupt")) {
+      this.sendOrNotify(
+        { type: "interrupt", turn_id: this.currentTurnId, text: t },
+        "add a note to the turn",
+      );
+      return;
+    }
+    // Pas de capability `interrupt` : la consigne part comme `user_message` au
+    // prochain `turn_finished` (C09 §4). Jamais silencieusement retardée — la
+    // webview l'affiche « en attente ».
+    this.queuedInterrupts.push(t);
+  }
+
+  private flushQueuedInterrupts(): void {
+    if (this.queuedInterrupts.length === 0) {
+      return;
+    }
+    const text = this.queuedInterrupts.join("\n\n");
+    this.queuedInterrupts = [];
+    this.sendOrNotify({ type: "user_message", text }, "send the queued note");
   }
 
   /** Résout une `/`-commande de prompt (C10 §3) : substitution + préremplissage. */
@@ -786,6 +851,20 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         } else {
           log.debug("cancelTurn with no active turn id");
         }
+        break;
+      case "interrupt":
+        this.onInterrupt(msg.text);
+        break;
+      case "setPlanMode":
+        this.setPlanMode(msg.enabled);
+        break;
+      case "continueTurn":
+        // C09 §5 : continuation après cap d'itérations — ne reformule jamais la
+        // demande initiale.
+        this.sendOrNotify(
+          { type: "user_message", text: msg.guidance?.trim() || "Continue." },
+          "continue the turn",
+        );
         break;
       case "forceNewSession":
         // Pas de message bridge pour relancer la sandbox : on repart d'une
