@@ -8,7 +8,6 @@ import type { ComponentHealth, HealthActionId } from "./messages";
 
 const DEFAULT_IMAGE = "ghcr.io/openhands/agent-server:1.21.0-python";
 const LLAMA_UNIT = "llama-server";
-const BRIDGE_UNIT = "llama-bridge.socket";
 
 function run(cmd: string, args: string[], timeoutMs = 4000): Promise<{ code: number; out: string }> {
   return new Promise((resolve) => {
@@ -72,7 +71,15 @@ export function actionCommand(
     case "llama-server":
       return action === "pull" ? undefined : `sudo systemctl ${action} ${LLAMA_UNIT}`;
     case "llama-bridge":
-      return action === "pull" ? undefined : `sudo systemctl ${action} ${BRIDGE_UNIT}`;
+      // `start` arme le `.socket` ; `stop`/`restart` visent le `.service` (le
+      // proxy qui tourne) — `restart llama-bridge.socket` échoue tant que le
+      // service détient le fd.
+      if (action === "pull") {
+        return undefined;
+      }
+      return action === "start"
+        ? "sudo systemctl start llama-bridge.socket"
+        : `sudo systemctl ${action} llama-bridge.service`;
     case "docker":
       return action === "start" ? "sudo systemctl start docker" : undefined;
     case "agent-server-image":
@@ -91,7 +98,7 @@ export async function checkHealth(ctx: HealthContext): Promise<ComponentHealth[]
   const [bridge, llama, bridgeUnit, docker, imageInspect, gpu] = await Promise.all([
     checkBridge(ctx.bridgeUrl, ctx.bridgeLive),
     checkLlamaServer(),
-    checkUnit(BRIDGE_UNIT),
+    checkLlamaBridge(),
     run("docker", ["version", "--format", "{{.Server.Version}}"]),
     run("docker", ["image", "inspect", image, "--format", "{{.Id}}"]),
     checkGpu(),
@@ -102,13 +109,7 @@ export async function checkHealth(ctx: HealthContext): Promise<ComponentHealth[]
   return [
     bridge,
     llama,
-    {
-      id: "llama-bridge",
-      label: "llama-bridge (proxy)",
-      status: bridgeUnit ? "up" : "down",
-      detail: bridgeUnit ? "systemd socket active" : `${BRIDGE_UNIT} inactive`,
-      actions: bridgeUnit ? ["restart", "stop"] : ["start"],
-    },
+    bridgeUnit,
     {
       id: "docker",
       label: "Docker",
@@ -194,6 +195,33 @@ async function checkLlamaServer(): Promise<ComponentHealth> {
 async function checkUnit(unit: string): Promise<boolean> {
   const r = await run("systemctl", ["is-active", unit]);
   return r.out.startsWith("active");
+}
+
+/**
+ * `llama-bridge` est **socket-activé** : au repos c'est `llama-bridge.socket`
+ * qui écoute ; dès qu'une connexion arrive, systemd démarre
+ * `llama-bridge.service` (le proxy `systemd-socket-proxyd`), qui **reprend** le
+ * fd — le `.socket` passe alors `inactive` alors que le proxy tourne. Vérifier
+ * uniquement le `.socket` donne donc un faux négatif : on regarde les deux.
+ */
+async function checkLlamaBridge(): Promise<ComponentHealth> {
+  const [socketActive, serviceActive] = await Promise.all([
+    checkUnit("llama-bridge.socket"),
+    checkUnit("llama-bridge.service"),
+  ]);
+  const up = socketActive || serviceActive;
+  const detail = serviceActive
+    ? "proxy running (socket handed off)"
+    : socketActive
+      ? "socket armed, idle"
+      : "socket & service inactive";
+  return {
+    id: "llama-bridge",
+    label: "llama-bridge (proxy)",
+    status: up ? "up" : "down",
+    detail,
+    actions: up ? ["restart", "stop"] : ["start"],
+  };
 }
 
 async function checkGpu(): Promise<ComponentHealth> {
