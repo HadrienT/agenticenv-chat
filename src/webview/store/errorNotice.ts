@@ -25,8 +25,8 @@ export function errorNotice(code: string, message: string, details?: Record<stri
       return {
         ...base,
         level: "warn",
-        text: "Another client owns this session.",
-        actions: [{ label: "Force new session", kind: "forceNewSession" }, RETRY],
+        text: "Another client owns this session. If it stays stuck, the bridge process needs a restart (a session teardown blocked — AgenticEnv#7).",
+        actions: [{ label: "Force new session", kind: "forceNewSession" }, COMPONENTS, RETRY],
       };
     // WP08d : états attendus, pas des erreurs — message clair, aucune action.
     case "NO_WORKING_COPY":
