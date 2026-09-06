@@ -84,8 +84,18 @@ export function App(): JSX.Element {
         protocol={state.protocol}
         llmSource={state.session?.llmSource}
       />
-      <Health components={state.health} onRefresh={actions.refreshHealth} onAction={actions.healthAction} />
-      <Notices notices={state.notices} onDismiss={actions.dismissNotice} />
+      <Health
+        components={state.health}
+        open={state.panels.health}
+        onToggle={() => actions.togglePanel("health")}
+        onRefresh={actions.refreshHealth}
+        onAction={actions.healthAction}
+      />
+      <Notices
+        notices={state.notices}
+        onDismiss={actions.dismissNotice}
+        onAction={actions.noticeAction}
+      />
       {isPickingScreen(state) ? (
         <McpPicker
           servers={state.mcp.servers}

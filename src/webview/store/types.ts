@@ -11,6 +11,7 @@ import type {
   TodoItemView,
 } from "../../messages";
 import type { GitChangeDTO } from "../../protocol";
+import type { Notice } from "./notice";
 
 /**
  * Machine à états de session (01-ARCHITECTURE §3). Depuis C01 les transitions
@@ -75,14 +76,7 @@ export type ChatItem =
   /** Changement de modèle en cours de session (C12 §2) — change l'interprétation de la suite. */
   | { kind: "model-switch"; id: string; model: string };
 
-export type NoticeLevel = "info" | "warn" | "error";
-
-export interface Notice {
-  id: string;
-  level: NoticeLevel;
-  text: string;
-  dismissible: boolean;
-}
+export type { Notice, NoticeAction, NoticeActionKind, NoticeLevel } from "./notice";
 
 export type PanelId = "health" | "workingSet" | "todo";
 

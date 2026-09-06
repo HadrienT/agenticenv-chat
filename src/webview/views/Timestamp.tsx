@@ -16,7 +16,8 @@ export function Timestamp(props: { ts?: number }): JSX.Element | null {
 }
 
 function relative(ts: number): string {
-  const delta = Date.now() - ts;
+  // Horloge système reculée (C14 §5) : jamais de durée négative affichée.
+  const delta = Math.max(0, Date.now() - ts);
   if (delta < 60_000) {
     return "just now";
   }

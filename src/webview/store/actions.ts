@@ -14,6 +14,7 @@ export type LocalAction =
   | { type: "mcp/toggle"; name: string }
   | { type: "mode/select"; name: string | null }
   | { type: "panel/toggle"; id: PanelId }
+  | { type: "panel/set"; id: PanelId; open: boolean }
   | { type: "notice/push"; notice: Notice }
   | { type: "notice/dismiss"; id: string }
   | { type: "intent/startSession" }

@@ -57,6 +57,9 @@ export function applyLocal(state: AppState, action: LocalAction): AppState {
     case "panel/toggle":
       return { ...state, panels: { ...state.panels, [action.id]: !state.panels[action.id] } };
 
+    case "panel/set":
+      return { ...state, panels: { ...state.panels, [action.id]: action.open } };
+
     case "notice/push":
       return withNotice(state, action.notice);
 

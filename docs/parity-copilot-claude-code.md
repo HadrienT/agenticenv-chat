@@ -233,11 +233,11 @@ Légende de faisabilité :
 |---|---|---|---|
 | 107 | Workspace Trust : pas d'exécution d'outil dans un dossier non fiable | les deux | 🟢 — ✅ **C07** (`capabilities.untrustedWorkspaces: limited` ; dossier non fiable → `readOnly` forcé, `start_session` refusé, instructions non chargées) |
 | 108 | Compteur de requêtes premium / quota restant | Copilot | 🟡 — s.o. pour un modèle local ; le coût cumulé de session (`usage.accumulated_cost`) et le débit tokens/s tiennent lieu d'indicateur (✅ **C13**, jauge + statusline) |
-| 109 | Messages d'erreur actionnables (bouton Réessayer, lien vers le réglage) | les deux | 🟢 |
+| 109 | Messages d'erreur actionnables (bouton Réessayer, lien vers le réglage) | les deux | 🟢 — ✅ **C14 §3** : `errorNotice` mappe chaque code de 03-PROTOCOL §5 → texte + actions (`Retry` / `Open Components` / `Open settings` / `Force new session` / `Copy command` / `Run in terminal`) ; répétitions regroupées « ×N » ; le panneau Components est le point de résolution. |
 | 110 | Reprise après perte de connexion sans perdre le fil (déjà : backoff ; manque : rejouer l'état) | les deux | 🟡 — ✅ **C01** (client : `resume {conversation_id, last_seq}`, `seq` tracké en `workspaceState` ; `resume`/`seq` côté bridge à faire) |
 | 111 | Exclusion de contenu par politique d'organisation | Copilot | 🔴 |
 | 112 | UI optimiste / masquage de latence (« Working… » tout de suite) | les deux | 🟢 — ✅ **C01** (`pendingSend` : composer verrouillé + « sending… » jusqu'au `turn_started`, sans mentir sur `running`) |
-| 113 | Layout responsive quand la sidebar est étroite | les deux | 🟢 |
+| 113 | Layout responsive quand la sidebar est étroite | les deux | 🟢 — ✅ **C14 §4** : `@media (max-width: 280px)` (chips/modèle en colonne, foot compacte), colonne de lecture centrée > 700 px, contenu large qui scrolle dans son conteneur (jamais le corps). *(F5 : 3 largeurs × 3 thèmes.)* |
 | 114 | Avertissement avant une action destructrice (rm, reset --hard, push --force) | Claude Code | 🟡 — ✅ **C07** (`destructiveMatches` : rm -rf, reset --hard, clean -fd, push --force, dd, mkfs, chmod -R 777, curl|sh, fork bomb ; message factuel, ne bloque pas) |
 | 115 | Indicateur de coût / tokens en continu (pas seulement après `usage`) | Claude Code | 🟡 — ✅ **C13** : `context_stats` poussé **pendant** le tour alimente la jauge en continu ; `metrics` la renseigne avant le 1er tour ; débit tokens/s dérivé (`completion_tokens` / durée du tour) ; coût cumulé dans la jauge **et** la statusline |
 

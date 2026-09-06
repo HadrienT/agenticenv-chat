@@ -1,5 +1,6 @@
 .vscode/**
 .github/**
+.claude/**
 src/**
 test/**
 blueprint/**
@@ -11,5 +12,8 @@ tsconfig.test.json
 vitest.config.ts
 .eslintrc.json
 .gitignore
+.prettierrc*
 *.vsix
 **/*.map
+**/*.test.*
+**/tsconfig.tsbuildinfo
