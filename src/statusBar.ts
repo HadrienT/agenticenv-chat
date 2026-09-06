@@ -86,6 +86,7 @@ export class StatusBar {
 }
 
 function fmtElapsed(ms: number): string {
-  const s = Math.floor(ms / 1000);
+  // Horloge reculée pendant un tour (C14 §5) : borne à 0, jamais négatif.
+  const s = Math.max(0, Math.floor(ms / 1000));
   return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m${String(s % 60).padStart(2, "0")}`;
 }

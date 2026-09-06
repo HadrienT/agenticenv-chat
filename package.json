@@ -10,6 +10,9 @@
     "type": "git",
     "url": "https://github.com/HadrienT/agenticenv-chat.git"
   },
+  "bugs": {
+    "url": "https://github.com/HadrienT/agenticenv-chat/issues"
+  },
   "engines": {
     "vscode": "^1.93.0"
   },
@@ -18,6 +21,18 @@
     "AI",
     "Other"
   ],
+  "keywords": [
+    "agent",
+    "openhands",
+    "local llm",
+    "chat",
+    "agenticenv"
+  ],
+  "qna": false,
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
   "activationEvents": [],
   "main": "./dist/extension.js",
   "capabilities": {

@@ -1,5 +1,6 @@
 import { assertNever } from "../../assertNever";
 import type { Outbound } from "../../protocol";
+import { errorNotice } from "./errorNotice";
 import { withNotice } from "./reduceHelpers";
 import {
   applyEvent,
@@ -112,12 +113,9 @@ export function applyBridge(state: AppState, msg: Outbound, at: number): AppStat
 
     case "error": {
       const fatal = msg.code !== "PROJECT_READONLY";
-      const withN = withNotice(state, {
-        id: `bridge-${msg.code}`,
-        level: fatal ? "error" : "warn",
-        text: `${msg.code}: ${msg.message}`,
-        dismissible: msg.code !== "PROJECT_READONLY",
-      });
+      // C14 §3 : notice **actionnable** (au moins une action, ou l'aveu qu'il n'y
+      // en a pas) ; les erreurs répétées sont regroupées par `withNotice`.
+      const withN = withNotice(state, errorNotice(msg.code, msg.message, msg.details));
       // En v2 une `error` fatale est suivie de `turn_finished{reason:"error"}` :
       // on laisse la machine à `turn_finished`. En v1 (dégradé) il faut rendre la
       // main ici, sinon le tour ne se termine jamais.

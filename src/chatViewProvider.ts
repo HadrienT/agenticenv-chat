@@ -978,6 +978,15 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           "continue the turn",
         );
         break;
+      case "reconnect":
+        this.bridge?.reconnect();
+        break;
+      case "openSettings":
+        void vscode.commands.executeCommand(
+          "workbench.action.openSettings",
+          "agenticenvChat",
+        );
+        break;
       case "forceNewSession":
         // Pas de message bridge pour relancer la sandbox : on repart d'une
         // nouvelle conversation et on reconnecte le socket.

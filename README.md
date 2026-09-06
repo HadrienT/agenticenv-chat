@@ -1,32 +1,66 @@
 # AgenticEnv Chat
 
-A VS Code chat panel for a **local OpenHands agent** running in the
-[AgenticEnv](https://github.com/HadrienT/AgenticEnv) workshop — a self-hosted
-alternative to GitHub Copilot Chat / Claude Code's panel, backed by a local
-`llama-server` and a Dockerised OpenHands `agent-server` sandbox.
+> **This extension requires [AgenticEnv](https://github.com/HadrienT/AgenticEnv).**
+> It is a client for the `openhands-bridge` WebSocket server and does nothing
+> without it — there is no hosted backend.
 
-It talks to the **`openhands-bridge`** WebSocket server (`packages/openhands-bridge`
-in the AgenticEnv repo), which owns the sandbox lifecycle and streams events.
+A VS Code chat panel for a **local OpenHands agent** running in the AgenticEnv
+workshop — a self-hosted alternative to GitHub Copilot Chat / Claude Code's
+panel, backed by a local `llama-server` and a Dockerised OpenHands `agent-server`
+sandbox. It talks to the **`openhands-bridge`** WebSocket server
+(`packages/openhands-bridge` in the AgenticEnv repo), which owns the sandbox
+lifecycle and streams events.
 
-## Features (Phase 1)
+## Features
 
-- Chat panel in the VS Code sidebar, streaming the agent's replies and tool calls.
-- List of files the agent changed in the sandbox workspace.
-- Context / token-usage gauge and accumulated cost.
-- MCP server picker shown before starting a session *(the list is real; actually
-  wiring MCP into the sandbox is Phase 2 — see AgenticEnv `blueprint/wp/WP08b` §7)*.
-- "Risky action" confirmation cards (Allow / Reject) — the agent pauses and waits.
-- **Components panel**: live status of everything the chat needs — the bridge,
-  `llama-server` (unit + `/v1/models` readiness), the `llama-bridge` proxy, Docker,
-  the pinned `agent-server` image, and GPU (with a contention warning). Inline
-  buttons run the start/stop/restart/pull command in an `AgenticEnv` terminal
-  (the `systemctl` ones will prompt for `sudo`).
+- **Chat panel** in the sidebar (or its own editor tab): streaming replies,
+  per-tool rendering, syntax-highlighted code with Copy / Insert / New file / Run
+  actions, markdown sanitised against an allowlist.
+- **Turn lifecycle**: real `turn_started`/`turn_finished` boundaries, Stop button,
+  incremental streaming, optimistic "sending…".
+- **Context**: `#`-references (files, selection, symbols, diagnostics, terminal,
+  git), `/`-commands, prompt history, an auto-attached active file/selection.
+- **Edits**: files-changed panel with per-file diffs, `revert hunk` / `Undo turn`,
+  gutter decorations, host-side git checkpoints (invisible dangling refs).
+- **Permissions**: informative approval cards (exact command + cwd + diff),
+  `Edit…` / `Allow always…`, a pure policy engine (`deny` always wins, chained
+  commands never auto-approved, sensitive files never auto-attached).
+- **Instructions**: `AGENTS.md` / `.agenticenv/{instructions,prompts,modes}`,
+  hot-reloaded, Workspace-Trust gated; `/remember`; client-side hooks (settings
+  only, never the repo).
+- **Sessions**: durable conversation archive, full-text history search, edit &
+  resend / truncate with branch history, export to Markdown/JSON.
+- **Context budget**: gauge visible before the first turn, `/compact`, compaction
+  marker, configurable status-bar item.
+- **Agent loop**: agent-produced todo panel, Ask / Agent / Plan mode selector
+  (Ask & Plan force read-only), mid-turn interruption, iteration-cap continuation.
+- **Model selector** (when the bridge exposes `models`).
+- **Editor hooks**: "Fix with agent" / "Explain this error" on diagnostics, a ✨
+  commit-message button in Source Control, a terminal-command generator,
+  keyboard shortcuts, screen-reader phase announcements.
+- **Components panel**: live status of the bridge, `llama-server`, the
+  `llama-bridge` proxy, Docker, the pinned `agent-server` image and the GPU, with
+  inline start/stop/restart/pull.
+
+Several features have a **bridge half that AgenticEnv must still ship** — they are
+gated on capability negotiation and inert until then. See "Bridge dependencies".
 
 ## Requirements
 
-- VS Code ≥ 1.90
+- VS Code ≥ 1.93
 - The AgenticEnv bridge running: `just run-bridge` (defaults to `ws://127.0.0.1:8300`).
 - Node.js ≥ 20 to build the extension.
+
+## Install
+
+Not published on the Marketplace: it needs a local bridge that has no public
+reproducible install yet, so it would be unusable for most people. Build a
+`.vsix` and install it:
+
+```bash
+npm install && npm run package     # produces agenticenv-chat-<version>.vsix
+code --install-extension agenticenv-chat-*.vsix
+```
 
 ## Develop
 
@@ -39,9 +73,23 @@ npm test               # vitest: unit, render, discipline, fake-bridge integrati
 # then press F5 in VS Code ("Run Extension")
 ```
 
-Set `agenticenvChat.bridgeUrl` if the bridge isn't on the default port. Set
-`agenticenvChat.logLevel` to `trace` to see every bridge frame in the
-"AgenticEnv Chat" output channel.
+## Settings
+
+| Key | Default | What it does |
+|---|---|---|
+| `agenticenvChat.bridgeUrl` | `ws://127.0.0.1:8300` | WebSocket URL of `openhands-bridge`. |
+| `agenticenvChat.agenticEnvPath` | `~/AgenticEnv` | AgenticEnv checkout, used by the Components panel. |
+| `agenticenvChat.logLevel` | `info` | Output-channel verbosity; `trace` shows every bridge frame. |
+| `agenticenvChat.thread.expandThinking` | `false` | Expand the agent's reasoning blocks by default. |
+| `agenticenvChat.edits.autoOpen` | `never` | Open files the agent edits: `never` / `first` / `all` (≤ 10). |
+| `agenticenvChat.edits.decorations` | `true` | Gutter mark on lines changed this turn. |
+| `agenticenvChat.hooks` | `{}` | Client-side hooks (settings only, never the repo). |
+| `agenticenvChat.notifications` | `awaiting` | When to notify: `never` / `awaiting` / `always`. |
+| `agenticenvChat.permissions` | `{ mode: "ask", … }` | Approval policy (`deny` always wins; the allowlist guards against accidents, not attackers). |
+| `agenticenvChat.editor.autoSendCodeActions` | `false` | Send code-action messages immediately instead of only prefilling. |
+| `agenticenvChat.scm.commitStyle` | `conventional` | Style passed when generating a commit message. |
+| `agenticenvChat.defaultContextWindow` | `32768` | Assumed context window for the gauge before the bridge reports one. |
+| `agenticenvChat.statusBar.hidden` / `.format` | `false` / template | The status-bar item.
 
 ## Layout
 
@@ -70,12 +118,18 @@ of bridge-side changes they need from AgenticEnv.
   declares which numbers it covers.
 - [`blueprint/00-PRIMER.md`](blueprint/00-PRIMER.md) — read this first.
 
-Near-term milestones:
+See [`blueprint/PROGRESS.md`](blueprint/PROGRESS.md) for what each work package
+shipped and what it deferred.
 
-- **C00 → C01**: real turn lifecycle (`turn_started`/`turn_finished`), Stop button,
-  incremental streaming — replaces today's heuristic turn tracking.
-- **C02 → C05**: markdown + syntax-highlighted code + per-tool rendering — the
-  biggest visual gap with Copilot Chat.
-- **Phase 2** (C12): MCP servers actually reachable from inside the sandbox.
-- **Phase 3**: structured multiple-choice questions from the agent (needs a custom
-  `agent-server` image), replacing the Allow/Reject-only confirmation.
+## Bridge dependencies (AgenticEnv)
+
+These are coded on the client and gated on capability negotiation; they stay
+inert until `packages/openhands-bridge` catches up (tracked in
+`src/protocol.ts` → `CLIENT_AHEAD_OF_BRIDGE`):
+
+- v2 negotiation, turn boundaries, `event_delta`, `cancel_turn`, `resume`, `seq`
+- `pending_action` payload, `request_diff` / `file_diff`, `checkpoint`
+- `context_stats`, `history_compacted`, `compact`
+- `todo`, `interrupt`
+- `models` / `set_model` / `list_models`; MCP reachable from the sandbox
+- a real read-only sandbox mode (Ask / Plan currently force `readOnly` client-side)

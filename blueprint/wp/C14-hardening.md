@@ -139,11 +139,33 @@ Passer chaque WP en revue et cocher :
 
 ## 9. Critères d'acceptation
 
-- [ ] Un fil de 2000 items reste fluide.
-- [ ] `Ctrl+F` cherche dans tout le fil, items repliés compris.
-- [ ] Chaque erreur connue propose une action concrète.
-- [ ] Aucun scroll horizontal à aucune largeur, dans aucun thème.
-- [ ] Tous les scénarios de robustesse du §5 passent en CI.
-- [ ] Le `.vsix` s'installe sur une machine vierge et affiche un message utile quand le bridge est absent.
-- [ ] `README` et `CHANGELOG` sont à jour et suffisent à démarrer.
-- [ ] La revue de clôture du §7 est faite et ses écarts sont écrits.
+- [~] Un fil de 2000 items reste fluide. — **différé** : le réducteur copie
+  `items` à chaque append (O(n²)) ; virtualisation à hauteur variable +
+  mémoïsation `(id, revision)` non démarrées (risque a11y/scroll, non vérifiable
+  sans GUI). Test de **cohérence** à 2000 items en place (`hardening.test.ts`).
+- [~] `Ctrl+F` cherche dans tout le fil, items repliés compris. — **différé** avec
+  la virtualisation ; tant que le fil n'est pas virtualisé, le `Ctrl+F` natif du
+  webview voit tous les items.
+- [x] Chaque erreur connue propose une action concrète. — `store/errorNotice.ts`
+  (pur, testé) : chaque code de 03-PROTOCOL §5 a ≥ 1 action, le défaut aussi
+  (`Retry`).
+- [x] Aucun scroll horizontal à aucune largeur. — `overflow-x: hidden` sur le
+  corps ; `pre`/`table`/diff en `overflow-x: auto` dans leur conteneur ; media
+  queries 280 px / 700 px. *(F5 : 3 thèmes.)*
+- [~] Tous les scénarios de robustesse du §5 passent en CI. — coupure /
+  renégociation / `resume` / `seq` déjà couverts (C01/C08) ; horloge reculée
+  (durées bornées à 0) et `turn_*` incohérents testés en C14 ; observation 50 Mo
+  et disque plein = comportement bridge / `ConversationStore` (C08), non rejoués
+  ici.
+- [~] Le `.vsix` s'installe sur une machine vierge et affiche un message utile
+  sans bridge. — `errorNotice("BRIDGE_UNREACHABLE")` le fait ; l'install `.vsix`
+  elle-même n'a pas pu être testée dans cet environnement.
+- [x] `README` et `CHANGELOG` à jour. — README réécrit (bandeau requis, réglages,
+  dépendances bridge, install `.vsix`) ; `CHANGELOG.md` créé, une entrée par WP.
+- [x] Revue de clôture §7 faite et écarts écrits. — voir `blueprint/PROGRESS.md`
+  § « Revue de clôture ».
+
+### Différé
+
+Virtualisation du fil + recherche interne (§1–2), E2E `@vscode/test-electron`,
+extraction de `EditsController` hors de `chatViewProvider.ts`.

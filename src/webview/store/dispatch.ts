@@ -6,6 +6,7 @@ import type {
   HealthActionId,
   SessionMode,
 } from "../../messages";
+import type { NoticeAction } from "./notice";
 import { post } from "../vscodeApi";
 import type { Action, LocalAction } from "./actions";
 import { local } from "./actions";
@@ -45,6 +46,7 @@ export interface Actions {
   toggleMcp(name: string): void;
   togglePanel(id: PanelId): void;
   dismissNotice(id: string): void;
+  noticeAction(action: NoticeAction): void;
   openDiff(path: string): void;
   requestFileDiff(path: string): void;
   openFileDiff(path: string): void;
@@ -126,6 +128,29 @@ export function createActions(dispatch: (action: Action) => void, now: () => num
     toggleMcp: (name) => send({ type: "mcp/toggle", name }),
     togglePanel: (id) => send({ type: "panel/toggle", id }),
     dismissNotice: (id) => send({ type: "notice/dismiss", id }),
+    noticeAction: (action) => {
+      switch (action.kind) {
+        case "retry":
+          post({ type: "reconnect" });
+          return;
+        case "openComponents":
+          post({ type: "refreshHealth" });
+          send({ type: "panel/set", id: "health", open: true });
+          return;
+        case "openSettings":
+          post({ type: "openSettings" });
+          return;
+        case "forceNewSession":
+          post({ type: "forceNewSession" });
+          return;
+        case "copy":
+          if (action.payload) post({ type: "copy", text: action.payload });
+          return;
+        case "runInTerminal":
+          if (action.payload) post({ type: "runInTerminal", command: action.payload });
+          return;
+      }
+    },
     openDiff: (path) => post({ type: "openDiff", path }),
     requestFileDiff: (path) => post({ type: "requestFileDiff", path }),
     openFileDiff: (path) => post({ type: "openFileDiff", path }),

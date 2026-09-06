@@ -26,7 +26,7 @@ quand ses critères d'acceptation **automatisables** sont verts.
 | C11 | Intégration éditeur & commandes | `wp/C11-editor-integration` | 🟡 **partiel** | code actions, SCM ✨, terminal, clés de contexte, raccourcis, a11y faits ; chat inline (89) + CodeLens (95) différés ; F5 |
 | C12 | MCP opérationnel & sélection modèle | `wp/C12-mcp-models` | 🟡 **partiel (client)** | sélecteurs modèle/mode faits ; MCP réellement branché = AgenticEnv (non démarré) |
 | C13 | Budget de contexte, compaction | `wp/C13-context-budget` | ✅ **client fait** | `context_stats`/`history_compacted`/`compact` = moitié AgenticEnv ; F5 |
-| C14 | Robustesse, a11y, packaging | — | ⏳ à faire | |
+| C14 | Robustesse, a11y, packaging | `wp/C14-hardening` | 🟡 **partiel** | erreurs actionnables, responsive, packaging, revue de clôture faits ; virtualisation + recherche interne différées |
 
 Ordre d'exécution suivi : C00 → C01 → C02 → C05 → C04 → C03 → C06 → C07 → C08 →
 C10 → C13 → C09 → C12 → C11 → C14 (chemin critique d'abord, cf. `blueprint/README.md`).
@@ -478,7 +478,68 @@ Branche `wp/C11-editor-integration`. Items 89, 94–97, 99, 103, 104.
 - F5 : parcours clavier complet, annonces lecteur d'écran, ✨ SCM en situation,
   Ctrl+I terminal, aucun conflit de raccourci dans une fenêtre vierge.
 
-## Prochaine étape
+## C14 — Robustesse, performance, packaging 🟡 (partiel)
 
-C14 (robustesse, a11y finale, packaging, publication) + extraction
-`EditsController` de `chatViewProvider.ts`.
+Branche `wp/C14-hardening`. Items 109, 113 + clôture des exigences transverses.
+
+**Fait** :
+- **Erreurs actionnables (§3, item 109)** : `store/errorNotice.ts` (pur) mappe
+  chaque code de 03-PROTOCOL §5 → texte + actions concrètes (`Retry`,
+  `Open Components`, `Open settings`, `Force new session`, `Copy command`,
+  `Run in terminal`). `withNotice` **regroupe** les répétitions (« ×4 »).
+  `Notices.tsx` rend les boutons ; routage dans `dispatch.noticeAction`
+  (nouvelles messages `reconnect` / `openSettings`). `Health` passe sous
+  contrôle du store (`panels.health`) pour que « Open Components » l'ouvre.
+- **Responsive (§4, item 113)** : `@media (max-width: 280px)` (chips + modèle en
+  colonne, foot compacte, statusline/jauge réduites), colonne de lecture centrée
+  > 700 px, contenu large (`pre`/`table`/diff) qui scrolle **dans son conteneur**,
+  jamais le corps.
+- **Robustesse (§5)** : durées bornées à 0 si l'horloge recule (`Timestamp`,
+  `statusBar`). Tests `test/unit/hardening.test.ts` : fil de 2000 items cohérent,
+  `turn_finished` inconnu ignoré, double `turn_started` → notice. (Les scénarios
+  faux-bridge coupure/`resume`/désordre `seq` sont déjà couverts par C01/C08.)
+- **Packaging (§6)** : `package.json` `keywords`/`bugs`/`galleryBanner`/`qna` ;
+  `.vscodeignore` (exclut `src`/`test`/`blueprint`/`docs`/maps/`*.test.*`) ;
+  `README.md` réécrit (bandeau « requires AgenticEnv », table des réglages, liste
+  des dépendances bridge, install par `.vsix` — **pas** de Marketplace tant que le
+  bridge n'a pas d'install publique) ; `CHANGELOG.md` (une entrée par WP).
+- **Revue de clôture (§7)** : voir ci-dessous.
+
+**Différé** :
+- **Virtualisation du fil (§1)** : le réducteur copie `items` à chaque append
+  (O(n²)). La virtualisation à hauteur variable + mémoïsation `(id, revision)` est
+  la bonne réponse mais casse facilement l'auto-scroll / `aria-live` / la
+  recherche si faite naïvement, et n'est pas vérifiable sans GUI ici. Non
+  démarrée ; à faire avec un banc de perf.
+- **Recherche interne au fil (§2)** : conséquence de la virtualisation. Tant que
+  le fil n'est pas virtualisé, le `Ctrl+F` natif du webview voit tous les items —
+  le besoin est moins urgent. Différée avec la virtualisation.
+- **E2E `@vscode/test-electron`** : demande un environnement VS Code complet.
+- **Extraction `EditsController`** de `chatViewProvider.ts` (~1200 l.) : dette
+  identifiée en C06/C08, non traitée.
+
+## Revue de clôture (C14 §7)
+
+- **Critères d'acceptation C00–C13** : cochés dans chaque `blueprint/wp/*.md` §
+  acceptation, avec l'écart écrit quand la moitié AgenticEnv manque (C01, C06,
+  C07, C09, C12, C13) ou quand une fonctionnalité est différée (C02 Mermaid/KaTeX,
+  C08 openInEditor, C11 inline chat, C14 virtualisation).
+- **`[À CONFIRMER]`** : `terminal` (shell integration ≥ 1.93) et `git`
+  (`getAPI(1)`) tranchés en C04 ; `inline chat` (C11 §1) explicitement reporté ;
+  aucun autre en suspens.
+- **`docs/parity-copilot-claude-code.md`** : chaque item touché par un WP porte
+  son état réel (fait / partiel + limite / hors périmètre).
+- **Dépendances bridge** : listées dans le README (« Bridge dependencies ») et
+  dans `src/protocol.ts` → `CLIENT_AHEAD_OF_BRIDGE` ; le dépôt AgenticEnv n'étant
+  pas accessible depuis cet environnement, les issues correspondantes restent à
+  ouvrir (référencées WP par WP).
+- **Aucune UI ne promet une capacité inexistante** : sélecteurs modèle / todo /
+  panneaux gated sur la négociation de capability ; le texte d'avertissement du
+  picker MCP est **conservé** tant que MCP n'est pas réellement branché.
+
+## État final
+
+C00–C13 : faits côté client (C01/C06/C07/C09/C12/C13 ont une moitié AgenticEnv
+en attente). C14 : durci et packagé, virtualisation + recherche interne + E2E
+différées. Prochaine dette : virtualisation du fil, extraction `EditsController`,
+et les commits croisés AgenticEnv pour vider `CLIENT_AHEAD_OF_BRIDGE`.

@@ -33,7 +33,10 @@ export function replaceAt(state: AppState, idx: number, item: ChatItem): AppStat
 }
 
 export function withNotice(state: AppState, notice: Notice): AppState {
-  return { ...state, notices: [...state.notices.filter((n) => n.id !== notice.id), notice] };
+  // Erreur répétée : on regroupe (« ×4 ») au lieu d'empiler (C14 §3).
+  const existing = state.notices.find((n) => n.id === notice.id);
+  const merged = existing ? { ...notice, count: (existing.count ?? 1) + 1 } : notice;
+  return { ...state, notices: [...state.notices.filter((n) => n.id !== notice.id), merged] };
 }
 
 export function resetState(state: AppState): AppState {

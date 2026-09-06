@@ -219,6 +219,7 @@ export type WebviewToHost =
   | { type: "remember"; text: string }
   | { type: "dismissAuto"; refKey: string }
   | { type: "cancelTurn" }
+  | { type: "reconnect" }
   | { type: "interrupt"; text: string }
   | { type: "setSessionMode"; mode: SessionMode }
   | { type: "setModel"; modelId: string }
@@ -253,7 +254,8 @@ export type WebviewToHost =
   | { type: "runInTerminal"; command: string }
   | { type: "feedback"; itemId: string; value: "up" | "down" }
   | { type: "refreshHealth" }
-  | { type: "healthAction"; component: ComponentId; action: HealthActionId };
+  | { type: "healthAction"; component: ComponentId; action: HealthActionId }
+  | { type: "openSettings" };
 
 export const WEBVIEW_TO_HOST_TYPES = [
   "ready",
@@ -265,6 +267,7 @@ export const WEBVIEW_TO_HOST_TYPES = [
   "remember",
   "dismissAuto",
   "cancelTurn",
+  "reconnect",
   "interrupt",
   "setSessionMode",
   "setModel",
@@ -292,6 +295,7 @@ export const WEBVIEW_TO_HOST_TYPES = [
   "feedback",
   "refreshHealth",
   "healthAction",
+  "openSettings",
 ] as const;
 
 /**

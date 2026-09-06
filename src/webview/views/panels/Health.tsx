@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { ComponentHealth, ComponentId, HealthActionId, HealthStatus } from "../../../messages";
 
 const DOT: Record<HealthStatus, string> = {
@@ -33,10 +32,12 @@ function worst(components: ComponentHealth[]): HealthStatus {
  */
 export function Health(props: {
   components: ComponentHealth[];
+  open: boolean;
+  onToggle: () => void;
   onAction: (component: ComponentId, action: HealthActionId) => void;
   onRefresh: () => void;
 }): JSX.Element | null {
-  const [open, setOpen] = useState(false);
+  const open = props.open;
   if (props.components.length === 0) {
     return null;
   }
@@ -50,7 +51,7 @@ export function Health(props: {
       <button
         className="agx-health__header"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={props.onToggle}
       >
         <span aria-hidden="true">{open ? "▾" : "▸"}</span>
         <span className={`agx-dot ${DOT[overall]}`} aria-hidden="true" />
