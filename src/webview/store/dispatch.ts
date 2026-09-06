@@ -53,6 +53,9 @@ export interface Actions {
   revertFile(path: string): void;
   revertHunk(path: string, hunkHeader: string): void;
   undoTurn(): void;
+  applyChanges(path?: string): void;
+  discardChanges(path?: string): void;
+  requestBundleDiff(): void;
   truncateFrom(itemId: string, count: number): void;
   editMessage(itemId: string, text: string): void;
   regenerate(itemId: string, text: string): void;
@@ -157,6 +160,9 @@ export function createActions(dispatch: (action: Action) => void, now: () => num
     revertFile: (path) => post({ type: "revertFile", path }),
     revertHunk: (path, hunkHeader) => post({ type: "revertHunk", path, hunkHeader }),
     undoTurn: () => post({ type: "undoTurn" }),
+    applyChanges: (path) => post({ type: "applyChanges", paths: path ? [path] : null }),
+    discardChanges: (path) => post({ type: "discardChanges", paths: path ? [path] : null }),
+    requestBundleDiff: () => post({ type: "requestBundleDiff" }),
     truncateFrom: (itemId, count) => {
       post({ type: "truncateFrom", itemId, count });
       send({ type: "thread/truncateFrom", itemId, at: now() });

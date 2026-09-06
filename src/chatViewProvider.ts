@@ -21,7 +21,7 @@ import { assembleInstructions } from "./instructions/assemble";
 import { substitute } from "./instructions/prompts";
 import { Hooks } from "./instructions/hooks";
 import { StatusBar } from "./statusBar";
-import { CLIENT_ID, CLIENT_PROTOCOL, type Outbound } from "./protocol";
+import { CLIENT_ID, CLIENT_PROTOCOL, type GitChangeDTO, type Outbound } from "./protocol";
 import { destructiveMatches, evaluate } from "./permissions/policy";
 import { PermissionStore } from "./permissions/store";
 import {
@@ -30,7 +30,7 @@ import {
   toEvalAction,
   type LastAction,
 } from "./permissions/synthesize";
-import { CheckpointStore } from "./edits/checkpoints";
+import { CheckpointStore, isFiltered } from "./edits/checkpoints";
 import { TurnDecorations } from "./edits/decorations";
 import { CheckpointContentProvider, SCHEME, openCheckpointDiff } from "./edits/openDiff";
 import { revertHunk } from "./edits/hunkRevert";
@@ -89,6 +89,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private sessionMode: SessionMode = "agent";
   /** Consignes mid-turn en file quand le bridge n'a pas la capability `interrupt`. */
   private queuedInterrupts: string[] = [];
+  /** WP08d : dernier `checkpoint` poussé par le bridge (ancre du « Undo turn »). */
+  private lastCheckpoint: { checkpointId: string; turnId: string; files: string[] } | undefined;
+  /** WP08d : dernier `files_changed` du bridge (working set = état cumulé de la copie). */
+  private lastBridgeChanges: GitChangeDTO[] = [];
+  /** WP08d : mode confirmé par le bridge dans `session_started` (`read_only` ⇒ pas d'`apply`). */
+  private sandboxMode: "agent" | "read_only" = "agent";
   /** Capture du texte final d'un tour lancé par un point d'accroche éditeur (C11 §3/§4). */
   private capture: { buf: string; resolve: (text: string | null) => void } | undefined;
   private readonly statusBar = new StatusBar();
@@ -286,17 +292,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     // `list_mcp_servers` est valide en v1 comme en v2 : toujours envoyé, pour que
     // l'écran de sélection ait sa liste même si la reprise échoue.
     this.bridge?.enqueue({ type: "list_mcp_servers" });
-    if (this.conversationId) {
-      // [v2] Resynchronisation après coupure : le bridge rejoue seq > last_seq
-      // (C01 §6). Rejeté par un bridge v1 → `fallbackToV1` efface la session.
-      this.bridge?.enqueue({
-        type: "resume",
-        conversation_id: this.conversationId,
-        last_seq: this.lastSeq,
-      });
-    }
-    // `list_models` est un message v2 : il n'est émis qu'après un `welcome` qui
-    // annonce la capability `models` (sinon un bridge v1 le rejette — C12).
+    // `resume` / `list_models` sont des messages v2 gatés sur capability : émis
+    // seulement dans `case "welcome"` une fois qu'on sait ce que le bridge
+    // supporte (sinon un bridge sans ces capacités les rejette — C12/WP08d).
     this.negotiationTimer = setTimeout(() => this.onNegotiationTimeout(), NEGOTIATION_MS);
   }
 
@@ -363,6 +361,25 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         if (message.capabilities.includes("models")) {
           this.bridge?.enqueue({ type: "list_models" });
         }
+        if (this.conversationId) {
+          if (message.capabilities.includes("resume")) {
+            this.bridge?.enqueue({
+              type: "resume",
+              conversation_id: this.conversationId,
+              last_seq: this.lastSeq,
+            });
+          } else {
+            // Le bridge ne sait pas reprendre : la conversation persistée est
+            // morte. On l'efface et on ramène la webview au picker plutôt que
+            // d'afficher un composer qui écrit dans le vide.
+            log.info("bridge has no `resume` capability — dropping the stored conversation");
+            this.conversationId = undefined;
+            this.lastSeq = 0;
+            void this.context.workspaceState.update(K_CONVERSATION, undefined);
+            void this.context.workspaceState.update(K_LAST_SEQ, undefined);
+            this.postToWebview({ type: "reset" });
+          }
+        }
         return;
 
       case "resumed":
@@ -403,6 +420,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case "session_started":
         this.conversationId = message.conversation_id;
         this.llmSource = message.llm_source;
+        this.sandboxMode = message.mode ?? "agent";
+        this.lastCheckpoint = undefined;
+        this.lastBridgeChanges = [];
         this.pushStatus({ session: true, phase: "idle", model: message.llm_source });
         this.postToWebview({ type: "metrics", contextWindow: this.defaultContextWindow() });
         this.permissions.resetSession();
@@ -449,7 +469,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.setBadge("running");
         this.autoOpened.clear();
         this.turnDecorations.clear();
-        void this.checkpoints.beginTurn(message.turn_id);
+        // WP08d : le bridge pousse un `checkpoint` avant `turn_started` ; ne pas
+        // prendre une 2e baseline côté hôte (double checkpoint).
+        if (!this.bridgeOwnsEdits()) {
+          void this.checkpoints.beginTurn(message.turn_id);
+        }
         this.postToWebview({ type: "bridge", message });
         return;
 
@@ -457,7 +481,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         if (this.currentTurnId === message.turn_id) {
           this.currentTurnId = undefined;
         }
-        void this.checkpoints.finishTurn(message.turn_id).then(() => this.sendWorkingSet());
+        // WP08d : le bridge enverra `files_changed` après le tour — pas besoin du
+        // checkpoint hôte. En repli seulement.
+        if (this.bridgeOwnsEdits()) {
+          void this.sendWorkingSet();
+        } else {
+          void this.checkpoints.finishTurn(message.turn_id).then(() => this.sendWorkingSet());
+        }
         void this.hooks?.run("onTurnFinished", {
           filesChanged: this.filesChangedThisTurn,
           cwd: this.projectPath(),
@@ -477,10 +507,50 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case "files_changed":
         this.lastChangedPath = message.changes[message.changes.length - 1]?.path;
         this.filesChangedThisTurn = true;
+        this.lastBridgeChanges = message.changes;
         void this.hooks?.run("onFilesChanged", { filesChanged: true, cwd: this.projectPath() });
-        void this.sendWorkingSet();
+        void this.sendWorkingSet(this.bridgeOwnsEdits() ? message.changes : undefined);
         void this.maybeAutoOpen(message.changes.map((c) => c.path));
         this.postToWebview({ type: "bridge", message });
+        return;
+
+      case "checkpoint":
+        // WP08d : ancre du « Undo turn ». Pris par le bridge avant le tour.
+        this.lastCheckpoint = {
+          checkpointId: message.checkpoint_id,
+          turnId: message.turn_id,
+          files: message.files,
+        };
+        this.setContextKey("hasCheckpoint", true);
+        return;
+
+      case "file_diff":
+        this.postToWebview({
+          type: "fileDiff",
+          path: message.path,
+          unified: message.unified,
+          conflict: false,
+          error: message.unified
+            ? message.truncated
+              ? "diff truncated (large file)"
+              : undefined
+            : "no changes",
+        });
+        this.applyDiffDecorations(message.path, message.unified);
+        return;
+
+      case "bundle_diff":
+        void this.showBundleDiff(message.unified, message.truncated);
+        return;
+
+      case "checkpoint_restored":
+        void vscode.window.showInformationMessage("Restored to the checkpoint before this turn.");
+        this.turnDecorations.clear();
+        // le bridge enchaîne avec `files_changed` — le working set se rafraîchit là.
+        return;
+
+      case "changes_applied":
+        void this.onChangesApplied(message.applied, message.skipped);
         return;
 
       case "usage": {
@@ -584,9 +654,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
   /**
    * L'override de permissions effectif = le plus strict de (`.mode.md`, mode de
-   * session). `ask` et `plan` (C12 §3 / C09 §3) forcent `readOnly` : protection
-   * réelle en attendant un mode lecture seule côté sandbox — un préfixe de
-   * prompt ne garantit rien face à un modèle local.
+   * session). `ask` et `plan` (C12 §3 / C09 §3) forcent `readOnly`. Depuis WP08d
+   * le bridge a un vrai mode `read_only` côté sandbox (pas d'`apply_changes`) ;
+   * l'override côté permissions reste une défense en profondeur.
    */
   private applyPermissionOverride(): void {
     const modeReadOnly = this.sessionMode === "ask" || this.sessionMode === "plan";
@@ -790,6 +860,16 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.pushStatus({ mode: pol.mode });
   }
 
+  /**
+   * WP08d : le bridge tient une copie jetable du projet et est source de vérité
+   * pour le working set / les diffs / checkpoints / `apply`. Le `CheckpointStore`
+   * hôte reste le repli quand la capability n'est pas là (bridge v1, pas de
+   * `project_path`).
+   */
+  private bridgeOwnsEdits(): boolean {
+    return this.capabilities.includes("diffs") || this.capabilities.includes("checkpoints");
+  }
+
   private async handlePendingAction(
     bridgeMsg: Extract<Outbound, { type: "pending_action" }> | null,
   ): Promise<void> {
@@ -974,7 +1054,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.checkpoints.setRoot(projectPath);
         void this.applyMode(msg.mode).then((mcp) => {
           this.sendOrNotify(
-            { type: "start_session", mcp_servers: mcp ?? msg.mcpServers, project_path: projectPath },
+            {
+              type: "start_session",
+              mcp_servers: mcp ?? msg.mcpServers,
+              project_path: projectPath,
+              // WP08d : `read_only` (modes Ask / Plan) interdit `apply_changes`
+              // côté bridge. L'agent peut quand même expérimenter dans la copie.
+              mode: this.sessionMode === "agent" ? "agent" : "read_only",
+            },
             "start a session",
           );
         });
@@ -1062,6 +1149,15 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         break;
       case "undoTurn":
         void this.undoTurn();
+        break;
+      case "applyChanges":
+        void this.applyChanges(msg.paths);
+        break;
+      case "discardChanges":
+        this.sendOrNotify({ type: "discard_changes", paths: msg.paths ?? null }, "discard changes");
+        break;
+      case "requestBundleDiff":
+        this.sendOrNotify({ type: "request_bundle_diff" }, "load the diff");
         break;
       case "editMessage":
       case "regenerate":
@@ -1509,7 +1605,27 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     return this.currentTurnId ?? this.lastTurnId;
   }
 
-  private async sendWorkingSet(): Promise<void> {
+  private async sendWorkingSet(bridgeChanges?: GitChangeDTO[]): Promise<void> {
+    if (this.bridgeOwnsEdits()) {
+      // WP08d : le working set est l'état **cumulé** de la copie sandbox (git
+      // status vs son HEAD), pas « ce tour ». Le libellé le dit.
+      const changes = (bridgeChanges ?? this.lastBridgeChanges).filter((c) => !isFiltered(c.path));
+      this.postToWebview({
+        type: "workingSet",
+        viaBridge: true,
+        canApply: this.sandboxMode === "agent",
+        strategy:
+          this.sandboxMode === "read_only"
+            ? "sandbox working copy · read-only (apply disabled)"
+            : "sandbox working copy — Apply writes back to your repo",
+        files: changes.map((c) => ({
+          path: c.path,
+          status: c.status,
+          inProgress: this.currentTurnId !== undefined && c.path === this.lastChangedPath,
+        })),
+      });
+      return;
+    }
     const turnId = this.turnForEdits();
     if (!turnId) {
       return;
@@ -1517,6 +1633,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     const files = await this.checkpoints.changedFiles(turnId).catch(() => []);
     this.postToWebview({
       type: "workingSet",
+      viaBridge: false,
+      canApply: false,
       strategy: this.checkpoints.strategyLabel(),
       files: files.map((f) => ({
         path: f.path,
@@ -1528,9 +1646,86 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     });
   }
 
+  private applyDiffDecorations(relPath: string, unified: string): void {
+    const root = this.root();
+    if (unified && root) {
+      this.turnDecorations.setFromDiff(
+        vscode.Uri.joinPath(vscode.Uri.file(root), relPath).fsPath,
+        unified,
+      );
+    }
+  }
+
+  private async showBundleDiff(unified: string, truncated: boolean): Promise<void> {
+    if (!unified.trim()) {
+      void vscode.window.showInformationMessage("No changes in the sandbox working copy.");
+      return;
+    }
+    const doc = await vscode.workspace.openTextDocument({
+      language: "diff",
+      content: truncated ? `${unified}\n\n… diff truncated (large change set)` : unified,
+    });
+    await vscode.window.showTextDocument(doc, { preview: true });
+  }
+
+  /** WP08d : écrire les éditions de la copie sandbox dans le vrai dépôt. Confirmation modale. */
+  private async applyChanges(paths: string[] | null | undefined): Promise<void> {
+    if (this.sandboxMode === "read_only") {
+      this.postToWebview({
+        type: "hostError",
+        text: "This session is read-only (Ask / Plan mode) — switch to Agent mode to apply changes.",
+      });
+      return;
+    }
+    const n = paths?.length;
+    const what = n ? `${n} file${n === 1 ? "" : "s"}` : "all changed files";
+    const ok = await vscode.window.showWarningMessage(
+      `Write ${what} from the agent's sandbox copy into your repository?`,
+      { modal: true },
+      "Apply",
+    );
+    if (ok === "Apply") {
+      this.sendOrNotify({ type: "apply_changes", paths: paths ?? null }, "apply the changes");
+    }
+  }
+
+  private async onChangesApplied(
+    applied: { path: string; status: string }[],
+    skipped: { path: string; reason: string }[],
+  ): Promise<void> {
+    this.postToWebview({ type: "changesApplied", applied, skipped });
+    if (applied.length) {
+      void vscode.window.showInformationMessage(
+        `Applied ${applied.length} file${applied.length === 1 ? "" : "s"} to your repo.`,
+      );
+    }
+    if (!skipped.length) {
+      return;
+    }
+    const conflicts = skipped.filter((s) => /changed since/.test(s.reason)).map((s) => s.path);
+    if (conflicts.length) {
+      const pick = await vscode.window.showWarningMessage(
+        `${conflicts.length} file(s) changed on disk since the session started and were not overwritten: ${conflicts.join(", ")}.`,
+        { modal: true },
+        "Apply anyway (overwrite)",
+      );
+      if (pick === "Apply anyway (overwrite)") {
+        this.sendOrNotify(
+          { type: "apply_changes", paths: conflicts, force: true },
+          "apply the changes",
+        );
+      }
+    }
+  }
+
   private lastChangedPath: string | undefined;
 
   private async sendFileDiff(relPath: string): Promise<void> {
+    if (this.bridgeOwnsEdits()) {
+      // WP08d : le diff est calculé côté sandbox (baseline de session → maintenant).
+      this.sendOrNotify({ type: "request_diff", path: relPath }, "load the diff");
+      return;
+    }
     const turnId = this.turnForEdits();
     if (!turnId) {
       this.postToWebview({ type: "fileDiff", path: relPath, unified: "", conflict: false, error: "no active turn" });
@@ -1558,6 +1753,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   private async openTurnFileDiff(relPath: string): Promise<void> {
+    if (this.bridgeOwnsEdits()) {
+      // WP08d : le contenu « avant » vit dans la copie sandbox — on ouvre le
+      // diff unifié du fichier plutôt qu'un `vscode.diff` à deux volets.
+      this.sendOrNotify({ type: "request_diff", path: relPath }, "load the diff");
+      return;
+    }
     const turnId = this.turnForEdits();
     const root = this.root();
     if (!turnId || !root) {
@@ -1569,6 +1770,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   private async revertFile(relPath: string): Promise<void> {
+    if (this.bridgeOwnsEdits()) {
+      // WP08d : « revert » = remettre le fichier à la baseline **dans la copie**
+      // (le vrai dépôt n'a rien reçu). Pas destructif pour l'utilisateur.
+      this.sendOrNotify({ type: "discard_changes", paths: [relPath] }, "discard the change");
+      return;
+    }
     const turnId = this.turnForEdits();
     if (!turnId) {
       return;
@@ -1587,6 +1794,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   private async revertHunk(relPath: string, hunkHeader: string): Promise<void> {
+    if (this.bridgeOwnsEdits()) {
+      this.postToWebview({
+        type: "hostError",
+        text: "Hunk-level revert isn't available with the sandbox working copy — use Discard on the whole file.",
+      });
+      return;
+    }
     const turnId = this.turnForEdits();
     const root = this.root();
     if (!turnId || !root) {
@@ -1607,6 +1821,24 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   async undoTurn(): Promise<void> {
+    if (this.bridgeOwnsEdits()) {
+      if (!this.lastCheckpoint) {
+        this.postToWebview({ type: "hostError", text: "No checkpoint to restore (the working copy isn't a git repo)." });
+        return;
+      }
+      const ok = await vscode.window.showWarningMessage(
+        "Restore the sandbox working copy to before the last turn? The agent's edits since then are discarded.",
+        { modal: true },
+        "Restore",
+      );
+      if (ok === "Restore") {
+        this.sendOrNotify(
+          { type: "restore_checkpoint", checkpoint_id: this.lastCheckpoint.checkpointId },
+          "restore the checkpoint",
+        );
+      }
+      return;
+    }
     const turnId = this.turnForEdits();
     if (!turnId) {
       this.postToWebview({ type: "hostError", text: "No turn to undo." });

@@ -2,7 +2,13 @@ import { assertNever } from "../../assertNever";
 import type { HostToWebview } from "../../messages";
 import { applyBridge, endTurnOnError } from "./reduceBridge";
 import { hash, resetState, withNotice } from "./reduceHelpers";
-import { applyHookResult, applyMetrics, applyModels, applyTodo } from "./reduceHostAux";
+import {
+  applyChangesApplied,
+  applyHookResult,
+  applyMetrics,
+  applyModels,
+  applyTodo,
+} from "./reduceHostAux";
 import { applyPermission } from "./reducePermission";
 import type { AppState } from "./types";
 
@@ -130,6 +136,8 @@ export function applyHost(state: AppState, msg: HostToWebview, at: number): AppS
         ...state,
         workingSet: msg.files,
         checkpointStrategy: msg.strategy,
+        editsViaBridge: msg.viaBridge,
+        canApplyChanges: msg.canApply,
         // purge les diffs des fichiers qui ne sont plus dans le set
         fileDiffs: Object.fromEntries(
           Object.entries(state.fileDiffs).filter(([p]) => msg.files.some((f) => f.path === p)),
@@ -144,6 +152,9 @@ export function applyHost(state: AppState, msg: HostToWebview, at: number): AppS
           [msg.path]: { unified: msg.unified, conflict: msg.conflict, error: msg.error },
         },
       };
+
+    case "changesApplied":
+      return applyChangesApplied(state, msg);
 
     case "pendingAction":
     case "permissionMode":

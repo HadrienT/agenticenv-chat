@@ -163,6 +163,9 @@ export interface AppState {
   /** Diffs par fichier (checkpoint → maintenant), chargés à la demande (C06). */
   fileDiffs: Record<string, FileDiffState>;
   checkpointStrategy: string;
+  /** WP08d : working set piloté par le bridge (copie sandbox cumulée) ; `apply` possible. */
+  editsViaBridge: boolean;
+  canApplyChanges: boolean;
   permissions: {
     mode: "ask" | "autoEdit" | "autoAll" | "readOnly";
     trusted: boolean;

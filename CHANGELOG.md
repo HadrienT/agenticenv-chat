@@ -9,6 +9,25 @@ v1 bridge (listed in `src/protocol.ts` → `CLIENT_AHEAD_OF_BRIDGE`).
 
 ## [Unreleased]
 
+### C15 / WP08d — sandbox working copy + `apply_changes`
+The bridge now runs the agent on a **disposable copy** of the project
+(`/workspace/source` read-only → `cp -a` → `/workspace/project`); the real repo
+is untouched until you apply. Client wiring:
+- `start_session` carries `mode` (`read_only` under Ask / Plan — `apply` disabled);
+  `session_started.mode` drives the panel.
+- With `diffs`/`checkpoints`/`apply` announced, the **bridge** is source of truth
+  for the working set, per-file diffs (`request_diff` → `file_diff`), checkpoints
+  (`checkpoint` before each turn, `restore_checkpoint` for Undo turn) and the
+  whole-copy diff (`request_bundle_diff` → `bundle_diff`). The host
+  `CheckpointStore` stays as the fallback (v1 / no project path).
+- Files panel: "N files in the sandbox working copy" (cumulative, not per-turn),
+  **Apply all to repo** / per-file `apply` + `discard`, **View all changes**.
+- `apply_changes` writes back as the user (correct file ownership) with a modal
+  confirmation; `changes_applied` reports `skipped` files with their reason; a
+  host-file conflict offers "Apply anyway (overwrite)" (`force: true`).
+- `resume` is now gated on a `resume` capability — a bridge without it drops the
+  stored conversation and returns to the picker instead of a dead composer.
+
 ### Fixes
 - **v1 bridge — protocol mismatch is now silent.** A v1 bridge rejects each v2
   message (`hello`, `resume`, `list_models`, …) with `VALIDATION_ERROR`

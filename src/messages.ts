@@ -97,6 +97,12 @@ export interface WorkingSetView {
   conflict?: boolean;
 }
 
+/** Résultat d'`apply_changes` (WP08d) : ce qui a été écrit, ce qui a été sauté et pourquoi. */
+export interface ChangesAppliedView {
+  applied: { path: string; status: string }[];
+  skipped: { path: string; reason: string }[];
+}
+
 export interface SlashCommand {
   name: string;
   description: string;
@@ -156,8 +162,17 @@ export type HostToWebview =
   | { type: "starters"; prompts: string[] }
   | { type: "commandResult"; command: string; prefill?: string; note?: string }
   | { type: "clearThread" }
-  | { type: "workingSet"; files: WorkingSetView[]; strategy: string }
+  | {
+      type: "workingSet";
+      files: WorkingSetView[];
+      strategy: string;
+      /** WP08d : le working set vient du bridge (copie sandbox cumulée, pas « ce tour »). */
+      viaBridge: boolean;
+      /** WP08d : `apply_changes` autorisé (mode Agent, copie git). */
+      canApply: boolean;
+    }
   | { type: "fileDiff"; path: string; unified: string; conflict: boolean; error?: string }
+  | { type: "changesApplied"; applied: ChangesAppliedView["applied"]; skipped: ChangesAppliedView["skipped"] }
   | { type: "pendingAction"; action: PendingActionView | null }
   | { type: "permissionMode"; mode: "ask" | "autoEdit" | "autoAll" | "readOnly"; trusted: boolean }
   | { type: "permissionOutcome"; verdict: "allowed" | "denied"; rule: string; summary: string }
@@ -195,6 +210,7 @@ export const HOST_TO_WEBVIEW_TYPES = [
   "clearThread",
   "workingSet",
   "fileDiff",
+  "changesApplied",
   "pendingAction",
   "permissionMode",
   "permissionOutcome",
@@ -232,6 +248,9 @@ export type WebviewToHost =
   | { type: "revertFile"; path: string }
   | { type: "revertHunk"; path: string; hunkHeader: string }
   | { type: "undoTurn" }
+  | { type: "applyChanges"; paths?: string[] | null }
+  | { type: "discardChanges"; paths?: string[] | null }
+  | { type: "requestBundleDiff" }
   | { type: "editMessage"; itemId: string; text: string }
   | { type: "regenerate"; itemId: string; text: string }
   | { type: "truncateFrom"; itemId: string; count: number }
@@ -280,6 +299,9 @@ export const WEBVIEW_TO_HOST_TYPES = [
   "revertFile",
   "revertHunk",
   "undoTurn",
+  "applyChanges",
+  "discardChanges",
+  "requestBundleDiff",
   "editMessage",
   "regenerate",
   "truncateFrom",
