@@ -9,6 +9,18 @@ v1 bridge (listed in `src/protocol.ts` → `CLIENT_AHEAD_OF_BRIDGE`).
 
 ## [Unreleased]
 
+### Fixes
+- **v1 bridge**: `list_models` is no longer emitted before capability
+  negotiation — a v1 bridge rejected it with `VALIDATION_ERROR` (surfaced as a
+  panel notice). It is now sent only after a `welcome` announcing `models`.
+- A validation/parse `error` received before `welcome` is recognised as "this is
+  a v1 bridge" (`src/negotiation.ts`), triggering an immediate **silent** switch
+  to degraded mode instead of the 2 s timeout and a visible error.
+- The Components "bridge" row now reflects the live WebSocket connection
+  (`BridgeClient.state`) instead of a raw TCP probe that made the `websockets`
+  server log an ERROR on every health poll.
+- `@vscode/vsce` added to devDependencies so `npm run package` works out of the box.
+
 ### C14 — hardening (in progress)
 - Actionable error notices: every known bridge error code (`BRIDGE_UNREACHABLE`,
   `SESSION_BUSY`, `PROJECT_READONLY`, `MODEL_UNAVAILABLE`, `DOCKER_DOWN`,
