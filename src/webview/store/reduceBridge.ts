@@ -19,7 +19,10 @@ export function applyBridge(state: AppState, msg: Outbound, at: number): AppStat
     case "welcome":
     case "resumed":
     case "file_diff":
+    case "bundle_diff":
     case "checkpoint":
+    case "checkpoint_restored":
+    case "changes_applied":
     case "pending_action":
     case "todo":
     case "models":
