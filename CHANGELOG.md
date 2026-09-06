@@ -10,15 +10,24 @@ v1 bridge (listed in `src/protocol.ts` → `CLIENT_AHEAD_OF_BRIDGE`).
 ## [Unreleased]
 
 ### Fixes
-- **v1 bridge**: `list_models` is no longer emitted before capability
-  negotiation — a v1 bridge rejected it with `VALIDATION_ERROR` (surfaced as a
-  panel notice). It is now sent only after a `welcome` announcing `models`.
-- A validation/parse `error` received before `welcome` is recognised as "this is
-  a v1 bridge" (`src/negotiation.ts`), triggering an immediate **silent** switch
-  to degraded mode instead of the 2 s timeout and a visible error.
-- The Components "bridge" row now reflects the live WebSocket connection
+- **v1 bridge — protocol mismatch is now silent.** A v1 bridge rejects each v2
+  message (`hello`, `resume`, `list_models`, …) with `VALIDATION_ERROR`
+  `union_tag_invalid`. These are now recognised (`src/negotiation.ts`) and
+  swallowed regardless of negotiation state — the first one switches to degraded
+  mode immediately (no 2 s wait, no notice), the rest are just logged.
+  `list_models` is only sent after a `welcome` announcing `models`;
+  `list_mcp_servers` (v1-safe) is always sent.
+- **Unresumable sessions are dropped.** A stored conversation that can't be
+  resumed (v1 has no `resume`, or `UNKNOWN_CONVERSATION`) is cleared and the
+  webview returns to the session-picker — a visible composer now always means a
+  live session. The composer is also locked while the bridge is disconnected.
+- The Components "bridge" row reflects the live WebSocket connection
   (`BridgeClient.state`) instead of a raw TCP probe that made the `websockets`
   server log an ERROR on every health poll.
+- **`llama-bridge` health**: it is socket-activated — once a connection hands the
+  socket to `llama-bridge.service`, `.socket` goes `inactive` while the proxy
+  runs. The check now looks at both units; the panel's stop/restart target
+  `.service` (`restart llama-bridge.socket` fails while the service holds the fd).
 - `@vscode/vsce` added to devDependencies so `npm run package` works out of the box.
 
 ### C14 — hardening (in progress)
