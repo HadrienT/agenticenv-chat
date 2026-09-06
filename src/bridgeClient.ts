@@ -25,11 +25,17 @@ export class BridgeClient {
   private backoffMs = 1000;
   private readonly maxBackoffMs = 15000;
   private pending: Inbound[] = [];
+  private lastState: BridgeState = "closed";
 
   constructor(
     private url: string,
     private readonly handlers: BridgeHandlers,
   ) {}
+
+  /** État courant de la connexion — source de vérité pour la ligne « bridge » du panneau Components. */
+  get state(): BridgeState {
+    return this.lastState;
+  }
 
   setUrl(url: string): void {
     if (url === this.url) {
@@ -94,17 +100,22 @@ export class BridgeClient {
     }
   }
 
+  private emitState(state: BridgeState, detail?: string): void {
+    this.lastState = state;
+    this.handlers.onState(state, detail);
+  }
+
   private connect(): void {
     if (!this.enabled) {
       return;
     }
-    this.handlers.onState("connecting");
+    this.emitState("connecting");
     let ws: WebSocket;
     try {
       ws = new WebSocket(this.url);
     } catch (err) {
       log.warn("bridge connect failed:", err);
-      this.handlers.onState("closed", String(err));
+      this.emitState("closed", String(err));
       this.scheduleReconnect();
       return;
     }
@@ -112,7 +123,7 @@ export class BridgeClient {
 
     ws.on("open", () => {
       this.backoffMs = 1000;
-      this.handlers.onState("open");
+      this.emitState("open");
       // L'hôte envoie son préambule (hello/resume) pendant `onState("open")` ;
       // on vide la file juste après, donc après le hello.
       this.flushPending();
@@ -132,12 +143,12 @@ export class BridgeClient {
     });
 
     ws.on("error", (err) => {
-      this.handlers.onState("closed", err.message);
+      this.emitState("closed", err.message);
     });
 
     ws.on("close", () => {
       this.ws = undefined;
-      this.handlers.onState("closed");
+      this.emitState("closed");
       this.scheduleReconnect();
     });
   }

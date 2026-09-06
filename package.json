@@ -223,7 +223,11 @@
         },
         "agenticenvChat.edits.autoOpen": {
           "type": "string",
-          "enum": ["never", "first", "all"],
+          "enum": [
+            "never",
+            "first",
+            "all"
+          ],
           "default": "never",
           "description": "Open files the agent edits: never, only the first, or all (capped at 10)."
         },
@@ -244,7 +248,10 @@
         },
         "agenticenvChat.scm.commitStyle": {
           "type": "string",
-          "enum": ["conventional", "plain"],
+          "enum": [
+            "conventional",
+            "plain"
+          ],
           "default": "conventional",
           "description": "Style passed as an instruction when generating a commit message from the Source Control input box."
         },
@@ -265,19 +272,51 @@
         },
         "agenticenvChat.notifications": {
           "type": "string",
-          "enum": ["never", "awaiting", "always"],
+          "enum": [
+            "never",
+            "awaiting",
+            "always"
+          ],
           "default": "awaiting",
           "description": "When to notify: never; only when an approval is waiting; or also when a turn finishes (only if the panel is hidden and the turn ran > 30s)."
         },
         "agenticenvChat.permissions": {
           "type": "object",
-          "default": { "mode": "ask", "allow": [], "deny": [], "denyPaths": [] },
+          "default": {
+            "mode": "ask",
+            "allow": [],
+            "deny": [],
+            "denyPaths": []
+          },
           "description": "Approval policy. mode: ask | autoEdit | autoAll | readOnly. allow/deny are regex matched on the normalised command; deny always wins. denyPaths are globs that always require confirmation. NOTE: the allowlist guards against accidents, not against an attacker — the real confinement is the Docker sandbox.",
           "properties": {
-            "mode": { "type": "string", "enum": ["ask", "autoEdit", "autoAll", "readOnly"] },
-            "allow": { "type": "array", "items": { "type": "string" } },
-            "deny": { "type": "array", "items": { "type": "string" } },
-            "denyPaths": { "type": "array", "items": { "type": "string" } }
+            "mode": {
+              "type": "string",
+              "enum": [
+                "ask",
+                "autoEdit",
+                "autoAll",
+                "readOnly"
+              ]
+            },
+            "allow": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "deny": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "denyPaths": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
           }
         }
       }
@@ -314,6 +353,7 @@
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "@vitest/coverage-v8": "^2.1.9",
+    "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.23.0",
     "eslint": "^8.57.0",
     "jsdom": "^25.0.1",

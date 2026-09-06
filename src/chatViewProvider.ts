@@ -11,6 +11,7 @@ import {
   type SessionMode,
   type WebviewToHost,
 } from "./messages";
+import { isV1HandshakeRejection } from "./negotiation";
 import { DEFAULT_SANDBOX_ROOT, resetMapping, setMapping, toHostUri } from "./paths";
 import { appendFeedback } from "./sessions/feedback";
 import { ConversationStore, STORE_VERSION, type StoredConversation } from "./sessions/store";
@@ -292,16 +293,33 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     } else {
       this.bridge?.enqueue({ type: "list_mcp_servers" });
     }
-    this.bridge?.enqueue({ type: "list_models" });
+    // `list_models` est un message v2 : il n'est émis qu'après un `welcome` qui
+    // annonce la capability `models` (sinon un bridge v1 le rejette — C12).
     this.negotiationTimer = setTimeout(() => this.onNegotiationTimeout(), NEGOTIATION_MS);
   }
 
   private onNegotiationTimeout(): void {
-    this.negotiationTimer = undefined;
+    if (this.negotiated) {
+      this.negotiationTimer = undefined;
+      return;
+    }
+    this.fallbackToV1("bridge did not answer `hello`");
+  }
+
+  /**
+   * Bascule en mode v1 dégradé (03-PROTOCOL §2.1) : soit le `welcome` n'est
+   * jamais arrivé, soit le bridge v1 a rejeté nos messages v2 par un
+   * `VALIDATION_ERROR`. Dans les deux cas on n'émet plus rien de v2 et on ne
+   * transforme pas ça en notice d'erreur visible.
+   */
+  private fallbackToV1(reason: string): void {
+    this.clearNegotiationTimer();
     if (this.negotiated) {
       return;
     }
-    log.warn("bridge did not answer `hello` — falling back to protocol v1 (degraded)");
+    this.negotiated = true;
+    this.capabilities = [];
+    log.warn(`${reason} — falling back to protocol v1 (degraded)`);
     this.postToWebview({ type: "protocol", version: 1, capabilities: [], degraded: true });
   }
 
@@ -329,6 +347,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           capabilities: message.capabilities,
           degraded: message.protocol < 2,
         });
+        // Messages v2 gatés sur capability, émis seulement une fois `welcome` reçu.
+        if (message.capabilities.includes("models")) {
+          this.bridge?.enqueue({ type: "list_models" });
+        }
         return;
 
       case "resumed":
@@ -477,6 +499,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         return;
 
       case "error":
+        // Un bridge v1 rejette nos messages de négociation v2 (`hello`, …) par un
+        // `VALIDATION_ERROR` : c'est le signal « pas de v2 », pas une erreur à
+        // montrer. On bascule en dégradé en silence (03-PROTOCOL §2.1).
+        if (!this.negotiated && isV1HandshakeRejection(message)) {
+          this.fallbackToV1("bridge rejected the v2 handshake");
+          return;
+        }
         if (message.code === "UNKNOWN_CONVERSATION") {
           this.conversationId = undefined;
           void this.context.workspaceState.update(K_CONVERSATION, undefined);
@@ -1349,6 +1378,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     return {
       bridgeUrl: cfg.get<string>("bridgeUrl", "ws://127.0.0.1:8300"),
       agenticEnvPath: cfg.get<string>("agenticEnvPath", "~/AgenticEnv"),
+      bridgeLive: this.bridge?.state,
     };
   }
 
