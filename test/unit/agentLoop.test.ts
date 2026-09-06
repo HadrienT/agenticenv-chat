@@ -80,10 +80,10 @@ describe("C09 — plan / todo / pilotage boucle agent", () => {
     expect(item.resolved).toBe(true);
   });
 
-  it("`plan/set` bascule le mode plan", () => {
-    let s = reduce(running(), local({ type: "plan/set", enabled: true }));
-    expect(s.planMode).toBe(true);
-    s = reduce(s, local({ type: "plan/set", enabled: false }));
-    expect(s.planMode).toBe(false);
+  it("`session/setMode` bascule le mode de session", () => {
+    let s = reduce(running(), local({ type: "session/setMode", mode: "plan" }));
+    expect(s.sessionMode).toBe("plan");
+    s = reduce(s, local({ type: "session/setMode", mode: "agent" }));
+    expect(s.sessionMode).toBe("agent");
   });
 });

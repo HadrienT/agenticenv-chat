@@ -120,6 +120,23 @@ export interface TodoItemView {
   state: "pending" | "active" | "done" | "skipped";
 }
 
+/** Modèle chargeable + état `llama-server` (C12 §2). */
+export interface ModelView {
+  id: string;
+  label: string;
+  contextWindow: number;
+  current: boolean;
+  state?: "ready" | "loading" | "error";
+  error?: string;
+}
+
+/**
+ * Mode de session (C12 §3) : **trois modes réels**, pas quatre dont un ment.
+ * `ask` et `plan` forcent `permissions.mode = readOnly` côté hôte ; `plan`
+ * ajoute l'écran d'approbation de C09 §3.
+ */
+export type SessionMode = "agent" | "ask" | "plan";
+
 // --- hôte → webview ---
 
 export type HostToWebview =
@@ -147,7 +164,8 @@ export type HostToWebview =
   | { type: "hookResult"; command: string; ok: boolean; output: string }
   | { type: "metrics"; contextWindow?: number; tokensPerSec?: number | null }
   | { type: "todo"; items: TodoItemView[] }
-  | { type: "planMode"; enabled: boolean; interruptCapable: boolean }
+  | { type: "sessionMode"; mode: SessionMode; interruptCapable: boolean }
+  | { type: "models"; models: ModelView[] }
   | {
       type: "workspace";
       folder: string | null;
@@ -183,7 +201,8 @@ export const HOST_TO_WEBVIEW_TYPES = [
   "hookResult",
   "metrics",
   "todo",
-  "planMode",
+  "sessionMode",
+  "models",
   "workspace",
   "reset",
 ] as const;
@@ -201,7 +220,8 @@ export type WebviewToHost =
   | { type: "dismissAuto"; refKey: string }
   | { type: "cancelTurn" }
   | { type: "interrupt"; text: string }
-  | { type: "setPlanMode"; enabled: boolean }
+  | { type: "setSessionMode"; mode: SessionMode }
+  | { type: "setModel"; modelId: string }
   | { type: "continueTurn"; guidance?: string }
   | { type: "forceNewSession" }
   | { type: "confirm"; accept: boolean; actionId?: string; remember?: "session" | "workspace"; editedCommand?: string }
@@ -246,7 +266,8 @@ export const WEBVIEW_TO_HOST_TYPES = [
   "dismissAuto",
   "cancelTurn",
   "interrupt",
-  "setPlanMode",
+  "setSessionMode",
+  "setModel",
   "continueTurn",
   "forceNewSession",
   "confirm",

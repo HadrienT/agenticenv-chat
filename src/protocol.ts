@@ -89,6 +89,21 @@ export interface ListMcpServers {
   type: "list_mcp_servers";
 }
 
+/** [v2] Liste les modèles chargeables (C12 §2). Réponse : `models`. */
+export interface ListModels {
+  type: "list_models";
+}
+
+/**
+ * [v2] Change le modèle actif (C12 §2). Le rechargement `llama-server` peut
+ * durer des minutes et échouer en VRAM — l'état passe par le panneau Components,
+ * pas par un spinner opaque.
+ */
+export interface SetModel {
+  type: "set_model";
+  model_id: string;
+}
+
 export type Inbound =
   | Hello
   | StartSession
@@ -100,6 +115,8 @@ export type Inbound =
   | RestoreCheckpoint
   | Compact
   | Interrupt
+  | ListModels
+  | SetModel
   | ListMcpServers;
 
 // --- bridge -> client ---
@@ -268,6 +285,22 @@ export interface McpServers extends Seq {
   servers: McpServerEntry[];
 }
 
+export interface ModelEntry {
+  id: string;
+  label: string;
+  context_window: number;
+  current: boolean;
+  /** État de chargement `llama-server` (C12 §2) ; `error` porte le message brut. */
+  state?: "ready" | "loading" | "error";
+  error?: string;
+}
+
+/** [v2] Modèles chargeables + modèle courant (C12 §2). */
+export interface Models extends Seq {
+  type: "models";
+  models: ModelEntry[];
+}
+
 export type Outbound =
   | Welcome
   | Resumed
@@ -288,7 +321,8 @@ export type Outbound =
   | Usage
   | AwaitingConfirmation
   | ErrorMessage
-  | McpServers;
+  | McpServers
+  | Models;
 
 /** Discriminants `type` de tous les messages bridge → client (pour le test de dérive). */
 export const OUTBOUND_TYPES = [
@@ -312,6 +346,7 @@ export const OUTBOUND_TYPES = [
   "awaiting_confirmation",
   "error",
   "mcp_servers",
+  "models",
 ] as const;
 
 /** Discriminants `type` de tous les messages client → bridge. */
@@ -326,6 +361,8 @@ export const INBOUND_TYPES = [
   "restore_checkpoint",
   "compact",
   "interrupt",
+  "list_models",
+  "set_model",
   "list_mcp_servers",
 ] as const;
 
@@ -362,6 +399,9 @@ export const CLIENT_AHEAD_OF_BRIDGE = [
   "todo",
   "file_diff",
   "checkpoint",
+  "list_models",
+  "set_model",
+  "models",
 ] as const;
 
 /** Capabilities v2 qu'un bridge peut annoncer dans `welcome`. */

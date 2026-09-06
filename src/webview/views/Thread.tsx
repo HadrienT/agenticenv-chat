@@ -50,6 +50,12 @@ function renderItem(item: ChatItem, afterCount: number): JSX.Element {
       return <MaxIterationsItem key={item.id} item={item} />;
     case "queued-note":
       return <QueuedNoteItem key={item.id} item={item} />;
+    case "model-switch":
+      return (
+        <div key={item.id} className="agx-thinking">
+          — switched to {item.model} —
+        </div>
+      );
     default:
       return assertNever(item, "ChatItem");
   }

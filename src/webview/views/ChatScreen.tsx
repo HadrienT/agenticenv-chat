@@ -15,6 +15,7 @@ import { Composer } from "./composer/Composer";
 import { StarterPrompts } from "./composer/StarterPrompts";
 import { ConfirmCard } from "./ConfirmCard";
 import { ContextGauge } from "./ContextGauge";
+import { ModelPicker } from "./ModelPicker";
 import { PlanApproval } from "./PlanApproval";
 import { Thread } from "./Thread";
 import { ThreadBar } from "./ThreadBar";
@@ -34,6 +35,12 @@ export function ChatScreen(props: {
   const { state, actions, services } = props;
   const interruptCapable = state.protocol.capabilities.includes("interrupt");
   const turnActive = isTurnActive(state);
+  const modeNote =
+    state.sessionMode === "ask"
+      ? "Ask mode — the agent reads and answers; writing and running are blocked."
+      : state.sessionMode === "plan"
+        ? "Plan mode — the agent explores and proposes; writing and running are blocked."
+        : null;
 
   const jumpToActiveTodo = (): void => {
     document
@@ -55,11 +62,7 @@ export function ChatScreen(props: {
         onToggle={() => actions.togglePanel("todo")}
         onJumpToActive={jumpToActiveTodo}
       />
-      {state.planMode && (
-        <div className="agx-planbanner">
-          Plan mode — the agent explores and proposes; writing and running are blocked.
-        </div>
-      )}
+      {modeNote && <div className="agx-planbanner">{modeNote}</div>}
       <Thread
         items={state.items}
         statusLine={turnActive ? turnStatusLine(state) : null}
@@ -102,6 +105,11 @@ export function ChatScreen(props: {
       {state.items.length === 0 && state.phase.kind === "idle" && (
         <StarterPrompts prompts={state.starters} onPick={actions.setDraft} />
       )}
+      <ModelPicker
+        models={state.models}
+        disabled={turnActive}
+        onSelect={actions.setModel}
+      />
       <Composer
         draft={state.composer.draft}
         chips={effectiveAttachments(state)}
@@ -113,8 +121,8 @@ export function ChatScreen(props: {
         placeholder={composerPlaceholder(state)}
         canSend={canSendMessage(state)}
         turnActive={turnActive}
-        planMode={state.planMode}
-        planToggleAvailable={state.phase.kind === "idle"}
+        sessionMode={state.sessionMode}
+        modeSelectorAvailable={state.phase.kind === "idle" || state.phase.kind === "picking"}
         onDraft={actions.setDraft}
         onSend={() => {
           actions.sendMessage(
@@ -126,7 +134,7 @@ export function ChatScreen(props: {
         onInterrupt={(text) => actions.interrupt(text, interruptCapable)}
         onStop={actions.cancelTurn}
         onForceNew={actions.forceNewSession}
-        onTogglePlan={actions.setPlanMode}
+        onSetMode={actions.setSessionMode}
         onSearchFiles={actions.searchFiles}
         onAddChip={actions.addAttachment}
         onRemoveChip={(index, auto, key) =>

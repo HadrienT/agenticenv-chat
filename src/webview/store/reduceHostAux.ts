@@ -43,6 +43,40 @@ export function applyTodo(
   };
 }
 
+/**
+ * `models` (C12 §2) : liste + modèle courant. La `contextWindow` du modèle
+ * courant alimente la jauge C13 **avant** le premier `usage`.
+ */
+export function applyModels(
+  state: AppState,
+  msg: Extract<HostToWebview, { type: "models" }>,
+): AppState {
+  const current = msg.models.find((m) => m.current);
+  const prevId = state.models?.find((m) => m.current)?.id;
+  let next: AppState = { ...state, models: msg.models };
+
+  // Un changement de modèle est inscrit dans le fil (C12 §2) — il change
+  // l'interprétation de tout ce qui suit.
+  if (current && prevId && current.id !== prevId && current.state !== "loading") {
+    next = appendItems(next, [
+      { kind: "model-switch", id: `model-${state.eventSeq}`, model: current.label },
+    ]);
+    next = { ...next, eventSeq: state.eventSeq + 1 };
+  }
+
+  if (current && current.contextWindow > 0) {
+    const usage = next.usage ?? {
+      accumulatedCost: 0,
+      promptTokens: 0,
+      completionTokens: 0,
+      contextWindow: 0,
+      tokensPerSec: null,
+    };
+    next = { ...next, usage: { ...usage, contextWindow: current.contextWindow } };
+  }
+  return next;
+}
+
 /** `hookResult` (C10) : ajoute un item « hook » au fil. */
 export function applyHookResult(
   state: AppState,

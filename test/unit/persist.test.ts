@@ -25,7 +25,7 @@ function sample(): AppState {
     },
     panels: { health: true, workingSet: false, todo: true },
     todo: [{ id: "t1", text: "Read the failing test", state: "done" }],
-    planMode: true,
+    sessionMode: "plan",
   };
 }
 
@@ -46,7 +46,7 @@ describe("persist — round-trip (03-PROTOCOL §4)", () => {
     expect(res.state.itemIndex).toEqual({ "ev-0": 0, "ev-1": 1 });
     // C09 : le plan produit par l'agent et le mode plan survivent au reload.
     expect(res.state.todo).toEqual([{ id: "t1", text: "Read the failing test", state: "done" }]);
-    expect(res.state.planMode).toBe(true);
+    expect(res.state.sessionMode).toBe("plan");
   });
 
   it("I7 — version inconnue ⇒ état vierge, jamais partiel", () => {

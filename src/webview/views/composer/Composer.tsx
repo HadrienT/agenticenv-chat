@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ContextChip, FileHit, SlashCommand } from "../../../messages";
+import type { ContextChip, FileHit, SessionMode, SlashCommand } from "../../../messages";
 import type { BudgetStatus, ComposerButton } from "../../store/selectors";
 import { ChipBar } from "./ChipBar";
 import { ComposerFoot } from "./ComposerFoot";
@@ -24,14 +24,14 @@ export interface ComposerProps {
   canSend: boolean;
   /** Un tour est en cours : `Send` devient `Send note` (interruption, C09 §4). */
   turnActive: boolean;
-  planMode: boolean;
-  planToggleAvailable: boolean;
+  sessionMode: SessionMode;
+  modeSelectorAvailable: boolean;
   onDraft: (v: string) => void;
   onSend: () => void;
   onInterrupt: (text: string) => void;
   onStop: () => void;
   onForceNew: () => void;
-  onTogglePlan: (enabled: boolean) => void;
+  onSetMode: (mode: SessionMode) => void;
   onSearchFiles: (query: string, requestId: string) => void;
   onAddChip: (chip: ContextChip) => void;
   onRemoveChip: (index: number, auto: boolean, refKey: string) => void;
@@ -175,13 +175,13 @@ export function Composer(props: ComposerProps): JSX.Element {
         canSend={props.canSend}
         hasDraft={props.draft.trim().length > 0}
         turnActive={props.turnActive}
-        planMode={props.planMode}
-        planToggleAvailable={props.planToggleAvailable}
+        sessionMode={props.sessionMode}
+        modeSelectorAvailable={props.modeSelectorAvailable}
         onPickContext={props.onPickContext}
         onSubmit={submit}
         onStop={props.onStop}
         onForceNew={props.onForceNew}
-        onTogglePlan={props.onTogglePlan}
+        onSetMode={props.onSetMode}
       />
     </div>
   );

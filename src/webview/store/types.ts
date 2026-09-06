@@ -3,8 +3,10 @@ import type {
   ContextChip,
   FileHit,
   McpServerView,
+  ModelView,
   ModeView,
   PendingActionView,
+  SessionMode,
   SlashCommand,
   TodoItemView,
 } from "../../messages";
@@ -69,7 +71,9 @@ export type ChatItem =
   /** L'agent a atteint son cap d'itérations (C09 §5) — carte de continuation. */
   | { kind: "max-iterations"; id: string; turnId: string; resolved?: boolean }
   /** Consigne tapée pendant un tour, en file faute de capability `interrupt` (C09 §4). */
-  | { kind: "queued-note"; id: string; text: string; sent?: boolean };
+  | { kind: "queued-note"; id: string; text: string; sent?: boolean }
+  /** Changement de modèle en cours de session (C12 §2) — change l'interprétation de la suite. */
+  | { kind: "model-switch"; id: string; model: string };
 
 export type NoticeLevel = "info" | "warn" | "error";
 
@@ -155,8 +159,10 @@ export interface AppState {
   compacted: boolean;
   /** Plan/todo **produit par l'agent** (C09 §2). `null` = jamais reçu ⇒ aucun panneau. */
   todo: TodoItemView[] | null;
-  /** Mode plan (C09 §3) : force `permissions.mode = readOnly` côté client. */
-  planMode: boolean;
+  /** Mode de session (C12 §3) : `ask`/`plan` forcent `readOnly` ; `plan` a l'écran d'approbation C09 §3. */
+  sessionMode: SessionMode;
+  /** Modèles chargeables (C12 §2). `null` = le bridge n'expose pas `models` ⇒ aucun sélecteur. */
+  models: ModelView[] | null;
   /** Consignes tapées pendant un tour, en file faute de capability `interrupt` (C09 §4). */
   pendingInterrupts: string[];
   workingSet: WorkingSetFile[];
