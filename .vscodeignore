@@ -1,6 +1,7 @@
 .vscode/**
 .github/**
 .claude/**
+CLAUDE.md
 src/**
 test/**
 blueprint/**
