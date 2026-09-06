@@ -3,37 +3,18 @@ import { local } from "./store/actions";
 import { createActions } from "./store/dispatch";
 import { PERSIST_VERSION, fromPersisted, toPersisted } from "./store/persist";
 import { reduce } from "./store/reducer";
-import {
-  budgetStatus,
-  canSendMessage,
-  canStartSession,
-  composerButton,
-  composerPlaceholder,
-  effectiveAttachments,
-  isPickingScreen,
-  isStarting,
-  isTurnActive,
-  pendingConfirmation,
-  turnStatusLine,
-} from "./store/selectors";
+import { canStartSession, isPickingScreen, isStarting } from "./store/selectors";
 import { initialState } from "./store/types";
 import { useHostMessages } from "./store/useHostMessages";
 import { usePersist } from "./store/usePersist";
 import { useSnapshot } from "./store/useSnapshot";
 import { loadPersisted } from "./vscodeApi";
-import { routeLocalCommand } from "./views/composer/commandRoute";
-import { Composer } from "./views/composer/Composer";
-import { StarterPrompts } from "./views/composer/StarterPrompts";
-import { ConfirmCard } from "./views/ConfirmCard";
+import { ChatScreen } from "./views/ChatScreen";
 import { ConnectionBanner } from "./views/ConnectionBanner";
-import { ContextGauge } from "./views/ContextGauge";
 import { Notices } from "./views/Notices";
-import { Thread } from "./views/Thread";
-import { ThreadBar } from "./views/ThreadBar";
 import type { ThreadServices } from "./views/threadContext";
 import { Health } from "./views/panels/Health";
 import { McpPicker } from "./views/panels/McpPicker";
-import { WorkingSet } from "./views/panels/WorkingSet";
 
 /**
  * `App` fait de la **composition seulement** : elle lit le store et place les
@@ -90,6 +71,8 @@ export function App(): JSX.Element {
       onEditMessage: actions.editMessage,
       onRegenerate: actions.regenerate,
       onTruncate: actions.truncateFrom,
+      onContinueAfterCap: actions.continueTurn,
+      onStopAfterCap: actions.resolveMaxIterations,
     }),
     [actions, state.workspace, canEditThread],
   );
@@ -117,83 +100,7 @@ export function App(): JSX.Element {
           onStart={() => actions.startSession(state.mcp.selected, state.selectedMode)}
         />
       ) : (
-        <>
-          <ThreadBar
-            branchCount={state.branches.length}
-            onHistory={actions.openHistory}
-            onExport={() => actions.exportConversation("markdown")}
-            onRestoreBranch={() => actions.restoreBranch(state.branches.length - 1)}
-          />
-          <Thread
-            items={state.items}
-            statusLine={isTurnActive(state) ? turnStatusLine(state) : null}
-            idle={state.phase.kind === "idle"}
-            services={services}
-          />
-          {pendingConfirmation(state) && (
-            <ConfirmCard
-              pending={state.phase.kind === "awaiting" ? state.phase.pending : null}
-              onAnswer={(d) =>
-                actions.confirm({
-                  ...d,
-                  actionId: state.phase.kind === "awaiting" ? state.phase.pending?.actionId : undefined,
-                })
-              }
-            />
-          )}
-          <WorkingSet
-            files={state.workingSet}
-            fileDiffs={state.fileDiffs}
-            strategy={state.checkpointStrategy}
-            onRequestDiff={actions.requestFileDiff}
-            onOpenFileDiff={actions.openFileDiff}
-            onRevertFile={actions.revertFile}
-            onRevertHunk={actions.revertHunk}
-            onUndoTurn={actions.undoTurn}
-            onOpenAll={() => state.workingSet.slice(0, 10).forEach((f) => actions.openFile(f.path))}
-          />
-          {state.usage && (
-            <ContextGauge
-              usage={state.usage}
-              attachedBytes={budgetStatus(state).bytes}
-              canCompact={state.protocol.capabilities.includes("compact")}
-              compacted={state.compacted}
-              onCompact={actions.compact}
-              onNewSession={actions.forceNewSession}
-            />
-          )}
-          {state.items.length === 0 && state.phase.kind === "idle" && (
-            <StarterPrompts prompts={state.starters} onPick={actions.setDraft} />
-          )}
-          <Composer
-            draft={state.composer.draft}
-            chips={effectiveAttachments(state)}
-            history={state.composer.history}
-            commands={state.commands}
-            fileSearch={state.fileSearch}
-            budget={budgetStatus(state)}
-            button={composerButton(state)}
-            placeholder={composerPlaceholder(state)}
-            canSend={canSendMessage(state)}
-            onDraft={actions.setDraft}
-            onSend={() => {
-              actions.sendMessage(
-                state.composer.draft.trim(),
-                effectiveAttachments(state).map((a) => a.chip.ref),
-              );
-              actions.setDraft("");
-            }}
-            onStop={actions.cancelTurn}
-            onForceNew={actions.forceNewSession}
-            onSearchFiles={actions.searchFiles}
-            onAddChip={actions.addAttachment}
-            onRemoveChip={(index, auto, key) =>
-              auto ? actions.dismissAuto(key) : actions.removeAttachment(index)
-            }
-            onPickContext={() => actions.pickContext("menu")}
-            onCommand={(cmd, args) => routeLocalCommand(actions, cmd, args)}
-          />
-        </>
+        <ChatScreen state={state} actions={actions} services={services} />
       )}
     </div>
   );

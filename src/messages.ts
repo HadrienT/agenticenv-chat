@@ -113,6 +113,13 @@ export interface ModeView {
   model?: string;
 }
 
+/** Étape de plan/todo **produite par l'agent** (C09 §2). Le client n'en fabrique aucune. */
+export interface TodoItemView {
+  id: string;
+  text: string;
+  state: "pending" | "active" | "done" | "skipped";
+}
+
 // --- hôte → webview ---
 
 export type HostToWebview =
@@ -139,6 +146,8 @@ export type HostToWebview =
   | { type: "permissionOutcome"; verdict: "allowed" | "denied"; rule: string; summary: string }
   | { type: "hookResult"; command: string; ok: boolean; output: string }
   | { type: "metrics"; contextWindow?: number; tokensPerSec?: number | null }
+  | { type: "todo"; items: TodoItemView[] }
+  | { type: "planMode"; enabled: boolean; interruptCapable: boolean }
   | {
       type: "workspace";
       folder: string | null;
@@ -173,6 +182,8 @@ export const HOST_TO_WEBVIEW_TYPES = [
   "permissionOutcome",
   "hookResult",
   "metrics",
+  "todo",
+  "planMode",
   "workspace",
   "reset",
 ] as const;
@@ -189,6 +200,9 @@ export type WebviewToHost =
   | { type: "remember"; text: string }
   | { type: "dismissAuto"; refKey: string }
   | { type: "cancelTurn" }
+  | { type: "interrupt"; text: string }
+  | { type: "setPlanMode"; enabled: boolean }
+  | { type: "continueTurn"; guidance?: string }
   | { type: "forceNewSession" }
   | { type: "confirm"; accept: boolean; actionId?: string; remember?: "session" | "workspace"; editedCommand?: string }
   | { type: "openDiff"; path: string }
@@ -231,6 +245,9 @@ export const WEBVIEW_TO_HOST_TYPES = [
   "remember",
   "dismissAuto",
   "cancelTurn",
+  "interrupt",
+  "setPlanMode",
+  "continueTurn",
   "forceNewSession",
   "confirm",
   "openDiff",

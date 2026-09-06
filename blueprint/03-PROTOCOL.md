@@ -47,7 +47,7 @@ Premier message du client à l'ouverture :
 { "type": "hello", "protocol": 2, "client": "agenticenv-chat/0.4.0" }
 ```
 
-Réponse : `{ "type": "welcome", "protocol": 2, "capabilities": ["turns", "deltas", "cancel", "diffs", "todo", "checkpoints", "models"] }`
+Réponse : `{ "type": "welcome", "protocol": 2, "capabilities": ["turns", "deltas", "cancel", "diffs", "todo", "checkpoints", "compact", "interrupt", "models"] }`
 
 | Règle |
 |---|

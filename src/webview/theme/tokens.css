@@ -9,6 +9,7 @@
 :root {
   --agx-fg: var(--vscode-foreground, #cccccc);
   --agx-fg-muted: var(--vscode-descriptionForeground, #9d9d9d);
+  --agx-muted: var(--vscode-descriptionForeground, #9d9d9d);
   --agx-bg: var(--vscode-sideBar-background, #252526);
   --agx-border: var(--vscode-panel-border, #454545);
 
@@ -30,6 +31,7 @@
 
   --agx-ok: var(--vscode-charts-green, #89d185);
   --agx-warn: var(--vscode-charts-yellow, #d7ba7d);
+  --agx-warning: var(--vscode-charts-yellow, #d7ba7d);
   --agx-error: var(--vscode-charts-red, #f14c4c);
   --agx-info: var(--vscode-charts-blue, #3794ff);
   --agx-unknown: var(--vscode-descriptionForeground, #8a8a8a);

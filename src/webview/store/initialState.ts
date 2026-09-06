@@ -28,6 +28,9 @@ export function initialState(): AppState {
     health: [],
     usage: null,
     compacted: false,
+    todo: null,
+    planMode: false,
+    pendingInterrupts: [],
     workingSet: [],
     fileDiffs: {},
     checkpointStrategy: "no checkpoint yet",
@@ -41,6 +44,6 @@ export function initialState(): AppState {
     commands: [],
     starters: [],
     branches: [],
-    panels: { health: false, workingSet: true },
+    panels: { health: false, workingSet: true, todo: true },
   };
 }

@@ -152,10 +152,35 @@ Puces cliquables sous la réponse, **uniquement si le bridge en fournit**.
 
 ## 10. Critères d'acceptation
 
-- [ ] Un plan produit par l'agent s'affiche et se met à jour en direct.
-- [ ] Aucun élément de plan n'est inféré côté client.
-- [ ] Le mode plan empêche réellement l'écriture (vérifié par une tentative).
-- [ ] Une consigne tapée pendant un tour n'est jamais perdue ni envoyée silencieusement plus tard sans le dire.
-- [ ] Un arrêt sur cap d'itérations propose une continuation claire.
-- [ ] Aucune fonctionnalité de ce WP n'affiche un panneau vide faute de support bridge.
-- [ ] Les besoins bridge de §1 sont ouverts comme issues côté AgenticEnv, référencées ici.
+- [x] Un plan produit par l'agent s'affiche et se met à jour en direct. — message `todo`
+  routé par `applyTodo`, `TodoPanel` s'ouvre au premier reçu ; testé (remplacement d'état).
+- [x] Aucun élément de plan n'est inféré côté client. — `todo` est la **seule** source ;
+  `state.todo` reste `null` tant qu'aucun message n'est reçu (testé).
+- [x] Le mode plan empêche réellement l'écriture. — `setPlanMode(true)` →
+  `permissions.setModeOverride("readOnly")` (RANK le plus strict gagne). Une action
+  d'écriture passe par `evaluate()` en `readOnly` → refusée (matrice C07). *(F5 : le
+  vérifier de bout en bout contre un bridge v2.)*
+- [x] Une consigne tapée pendant un tour n'est jamais perdue ni retardée en silence. —
+  avec `interrupt` : `interrupt {turn_id,text}` + item « mid-turn ». Sans : file hôte
+  `queuedInterrupts`, item « queued — will be sent when the turn ends », envoi au
+  `turn_finished` (`flushQueuedInterrupts`). Testé (les deux chemins + purge).
+- [x] Un arrêt sur cap d'itérations propose une continuation claire. — `MaxIterationsItem`
+  (Continue / Continue with guidance… / Stop here) ; « Continue » → `user_message`
+  `"Continue."` (ne reformule pas). Testé.
+- [x] Aucun panneau vide faute de support bridge. — `TodoPanel` rend `null` si
+  `todo` est `null`/vide ; terminaux d'arrière-plan (§6) et questions de suivi (§8) non
+  démarrés faute de message/capability ; le sélecteur de modèle est en C12.
+- [~] Besoins bridge ouverts comme issues AgenticEnv. — listés ci-dessous ; le dépôt
+  AgenticEnv n'est pas accessible depuis cet environnement pour créer les tickets.
+
+### Besoins bridge (à ouvrir côté AgenticEnv)
+
+| Message / capability | Pour |
+|---|---|
+| `todo {items}` émis par l'agent (outil/microagent) | items 54, 124 |
+| capability + message `interrupt {turn_id, text}` | item 61 |
+| mode lecture seule **réel** côté sandbox (pas seulement `readOnly` client) | items 55, 123 |
+| suivi de process `background` (nom, durée, dernières lignes) | item 62 |
+| `set_model` / `list_models` (déjà prévus C12) + rechargement llama-server | item 63 |
+| puces de suivi produites par l'agent | item 31 |
+| compteur d'étapes / `max_iterations` (déjà dans `turn_finished`) | item 67 |

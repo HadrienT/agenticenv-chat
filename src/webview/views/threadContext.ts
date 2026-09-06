@@ -18,6 +18,9 @@ export interface ThreadServices {
   onEditMessage: (itemId: string, text: string) => void;
   onRegenerate: (itemId: string, text: string) => void;
   onTruncate: (itemId: string, count: number) => void;
+  /** Cap d'itérations atteint (C09 §5) : continuer, continuer avec consigne, ou s'arrêter. */
+  onContinueAfterCap: (itemId: string, guidance?: string) => void;
+  onStopAfterCap: (itemId: string) => void;
 }
 
 const noop = (): void => undefined;
@@ -33,6 +36,8 @@ export const ThreadContext = createContext<ThreadServices>({
   onEditMessage: noop,
   onRegenerate: noop,
   onTruncate: noop,
+  onContinueAfterCap: noop,
+  onStopAfterCap: noop,
 });
 
 export function useThreadServices(): ThreadServices {

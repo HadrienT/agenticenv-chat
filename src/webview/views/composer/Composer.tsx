@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import type { ContextChip, FileHit, SlashCommand } from "../../../messages";
 import type { BudgetStatus, ComposerButton } from "../../store/selectors";
-import { BudgetMeter } from "./BudgetMeter";
 import { ChipBar } from "./ChipBar";
+import { ComposerFoot } from "./ComposerFoot";
 import { MentionMenu, SlashMenu } from "./Menu";
 import { activeToken, parseSlash, stripToken } from "./composerParse";
+import { handleComposerKey } from "./composerKeys";
 import { isKnownCommand, mentionOptions, slashMatches } from "./menuOptions";
 import { useHistoryNav } from "./useHistoryNav";
 
@@ -21,10 +22,16 @@ export interface ComposerProps {
   button: ComposerButton;
   placeholder: string;
   canSend: boolean;
+  /** Un tour est en cours : `Send` devient `Send note` (interruption, C09 §4). */
+  turnActive: boolean;
+  planMode: boolean;
+  planToggleAvailable: boolean;
   onDraft: (v: string) => void;
   onSend: () => void;
+  onInterrupt: (text: string) => void;
   onStop: () => void;
   onForceNew: () => void;
+  onTogglePlan: (enabled: boolean) => void;
   onSearchFiles: (query: string, requestId: string) => void;
   onAddChip: (chip: ContextChip) => void;
   onRemoveChip: (index: number, auto: boolean, refKey: string) => void;
@@ -107,48 +114,34 @@ export function Composer(props: ComposerProps): JSX.Element {
       runCommand(slash.command, slash.args);
       return;
     }
-    if (props.canSend && props.draft.trim()) {
+    const text = props.draft.trim();
+    if (!text) {
+      return;
+    }
+    if (props.turnActive) {
+      // C09 §4 : consigne ajoutée au tour en cours, jamais perdue.
+      props.onInterrupt(text);
+      hist.reset();
+      return;
+    }
+    if (props.canSend) {
       props.onSend();
       hist.reset();
     }
   };
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
-    if (token.kind !== "none" && menuCount > 0) {
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setMenuIndex((i) => Math.min(i + 1, menuCount - 1));
-        return;
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setMenuIndex((i) => Math.max(i - 1, 0));
-        return;
-      }
-      if (e.key === "Enter" || e.key === "Tab") {
-        e.preventDefault();
-        ref.current
-          ?.closest(".agx-composer")
-          ?.querySelector<HTMLElement>(".agx-menu__item--active")
-          ?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
-        return;
-      }
-      if (e.key === "Escape") {
-        e.preventDefault();
-        commit(props.draft.slice(0, pos) + " " + props.draft.slice(pos), pos + 1);
-        return;
-      }
-    }
-
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      submit();
-      return;
-    }
-    if ((e.key === "ArrowUp" || e.key === "ArrowDown") && hist.handle(e.key)) {
-      e.preventDefault();
-    }
-  };
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void =>
+    handleComposerKey(e, {
+      menuOpen: token.kind !== "none",
+      menuCount,
+      setMenuIndex,
+      fieldEl: ref.current,
+      draft: props.draft,
+      caret: pos,
+      commit,
+      submit,
+      historyHandle: hist.handle,
+    });
 
   return (
     <div className="agx-composer">
@@ -176,24 +169,20 @@ export function Composer(props: ComposerProps): JSX.Element {
           onKeyDown={onKeyDown}
         />
       </div>
-      <div className="agx-composer__foot">
-        <button className="agx-icon-btn" aria-label="Add context" title="Add context" onClick={props.onPickContext}>
-          ＋
-        </button>
-        <BudgetMeter status={props.budget} />
-        {props.button === "send" ? (
-          <button className="agx-btn" disabled={!props.canSend || !props.draft.trim()} onClick={submit}>
-            Send
-          </button>
-        ) : (
-          <button
-            className="agx-btn agx-btn--danger"
-            onClick={props.button === "stop" ? props.onStop : props.onForceNew}
-          >
-            {props.button === "stop" ? "Stop" : "Force new session"}
-          </button>
-        )}
-      </div>
+      <ComposerFoot
+        budget={props.budget}
+        button={props.button}
+        canSend={props.canSend}
+        hasDraft={props.draft.trim().length > 0}
+        turnActive={props.turnActive}
+        planMode={props.planMode}
+        planToggleAvailable={props.planToggleAvailable}
+        onPickContext={props.onPickContext}
+        onSubmit={submit}
+        onStop={props.onStop}
+        onForceNew={props.onForceNew}
+        onTogglePlan={props.onTogglePlan}
+      />
     </div>
   );
 }
