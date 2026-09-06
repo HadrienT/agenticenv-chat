@@ -24,6 +24,8 @@ export interface ComposerProps {
   canSend: boolean;
   /** Un tour est en cours : `Send` devient `Send note` (interruption, C09 §4). */
   turnActive: boolean;
+  /** Bridge non connecté : le champ est verrouillé (rien à envoyer). */
+  disabled?: boolean;
   sessionMode: SessionMode;
   modeSelectorAvailable: boolean;
   onDraft: (v: string) => void;
@@ -159,6 +161,7 @@ export function Composer(props: ComposerProps): JSX.Element {
           placeholder={props.placeholder}
           value={props.draft}
           aria-label="Message the agent"
+          disabled={props.disabled}
           rows={1}
           onChange={(e) => {
             props.onDraft(e.target.value);

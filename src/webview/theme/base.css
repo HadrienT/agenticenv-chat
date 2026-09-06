@@ -605,6 +605,10 @@ button {
   font-size: 13px;
   overflow-y: auto;
 }
+.agx-composer__input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 .agx-composer__foot {
   display: flex;
   align-items: center;
