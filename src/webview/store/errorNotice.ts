@@ -28,6 +28,22 @@ export function errorNotice(code: string, message: string, details?: Record<stri
         text: "Another client owns this session.",
         actions: [{ label: "Force new session", kind: "forceNewSession" }, RETRY],
       };
+    // WP08d : états attendus, pas des erreurs — message clair, aucune action.
+    case "NO_WORKING_COPY":
+      return {
+        ...base,
+        level: "info",
+        text: "This session has no project working copy — diffs, checkpoints and Apply aren't available (start a session with a folder open).",
+      };
+    case "READ_ONLY_SESSION":
+      return {
+        ...base,
+        level: "info",
+        text: "This session is read-only (Ask / Plan mode) — switch to Agent mode to apply the agent's changes to your repo.",
+      };
+    case "NO_SESSION":
+    case "ALREADY_STARTED":
+      return { ...base, level: "warn", text: message || code, dismissible: true };
     case "PROJECT_READONLY": {
       const cmd = typeof details?.command === "string" ? details.command : message;
       return {
