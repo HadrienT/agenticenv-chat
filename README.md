@@ -123,6 +123,9 @@ shipped and what it deferred.
 
 ## Bridge dependencies (AgenticEnv)
 
+Full wire spec for the bridge side: **[`docs/bridge-v2-spec.md`](docs/bridge-v2-spec.md)**
+— every message, capability, SDK mapping and an incremental delivery plan.
+
 These are coded on the client and gated on capability negotiation; they stay
 inert until `packages/openhands-bridge` catches up (tracked in
 `src/protocol.ts` → `CLIENT_AHEAD_OF_BRIDGE`):
