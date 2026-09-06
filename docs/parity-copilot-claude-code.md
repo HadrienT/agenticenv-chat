@@ -203,7 +203,7 @@ Légende de faisabilité :
 | 86 | Export de la conversation (markdown / json) | Copilot | 🟢 — ✅ **C08** (`toMarkdown` : outils en `<details>`, chemins relatifs au dépôt ; `toJson` = `StoredConversation` brut) |
 | 87 | « Nouveau chat » efface le contexte (déjà là via New Session) | les deux | ✅ |
 | 88 | Ouvrir le chat dans un onglet éditeur / sidebar / quick chat flottant | Copilot | 🟢 — ⏸️ **différé** (`openInEditor` : `WebviewPanel` + transfert d'état à concevoir — item 93 déjà couvert par VS Code) |
-| 89 | Chat inline dans l'éditeur (Ctrl+I) — widget flottant sur la sélection | Copilot | 🟢/🟡 |
+| 89 | Chat inline dans l'éditeur (Ctrl+I) — widget flottant sur la sélection | Copilot | 🟢/🟡 — **C11** : différé. L'API d'inline chat VS Code mérite sa propre décision d'archi (widget maison coûteux vs `ChatParticipant`) ; non démarré pour ne pas livrer un widget qui vieillira mal. `Ctrl+Alt+I` ouvre le panneau. |
 | 90 | Éditer un message user précédent et relancer (branche la conversation) | Copilot | 🟡 — ✅ **C08** (`editMessage` : items suivants retirés, branche conservée, « show previous version » ; bloqué pendant `running` ; l'agent « se souvient » tant que le bridge ne tronque pas) |
 | 91 | Supprimer un message / tronquer la conversation à partir d'un point | Copilot | 🟡 — ✅ **C08** (`truncateFrom` : retire l'item + suivants ; n'annule PAS les fichiers écrits — dit explicitement, cf. Undo turn) |
 | 92 | Régénérer la dernière réponse | Copilot | 🟡 — ✅ **C08** (`regenerate` = edit & resend sans changer le texte) |
@@ -213,17 +213,17 @@ Légende de faisabilité :
 
 | # | Subtilité | Qui | Faisab. |
 |---|---|---|---|
-| 94 | « Fix with Copilot » sur les squiggles d'erreur (quick fix / menu sparkle) | Copilot | 🟢/🟡 |
-| 95 | CodeLens « Explain / Fix » sur les erreurs | Copilot | 🟢 |
-| 96 | Génération du message de commit depuis le staged (bouton dans Source Control) | Copilot | 🟡 |
-| 97 | Génération de description de PR | Copilot | 🟡 |
+| 94 | « Fix with Copilot » sur les squiggles d'erreur (quick fix / menu sparkle) | Copilot | 🟢/🟡 — ✅ **C11** : `CodeActionProvider` quickfix → « Fix with agent » / « Explain this error » ; message = diagnostic + fenêtre ±8 lignes (jamais le fichier) ; **ouvre le panneau prérempli**, n'envoie pas (réglage `editor.autoSendCodeActions` pour l'envoi direct). |
+| 95 | CodeLens « Explain / Fix » sur les erreurs | Copilot | 🟢 — **C11** : différé (le WP le veut désactivé par défaut ; le CodeActionProvider couvre le besoin). |
+| 96 | Génération du message de commit depuis le staged (bouton dans Source Control) | Copilot | 🟡 — ✅ **C11** : ✨ dans `scm/inputBox` → tour capturé sur `git diff --cached` (ou non stagé, en le disant) → écrit dans la boîte SCM (confirmation si non vide), **jamais commité** ; style `scm.commitStyle`. |
+| 97 | Génération de description de PR | Copilot | 🟡 — ✅ **C11** : commande `generatePrDescription` — commits + diff contre l'amont → document markdown non enregistré. |
 | 98 | Génération de tests dans le bon fichier de test | Copilot | 🔴 |
-| 99 | Chat inline terminal (Ctrl+I dans le terminal) — génère/explique une commande | Copilot | 🟢/🟡 |
+| 99 | Chat inline terminal (Ctrl+I dans le terminal) — génère/explique une commande | Copilot | 🟢/🟡 — ✅ **C11** : commande `terminalChat` (menu `terminal/context`) → quick-pick → commande **insérée non exécutée** (`sendText(cmd, false)`), terminal « AgenticEnv » exclu. |
 | 100 | Suggestions de renommage de symbole | Copilot | 🔴 |
 | 101 | Next Edit Suggestions (prédit le prochain endroit à éditer) | Copilot | 🔴 |
 | 102 | Décorations dans la gouttière pour les lignes touchées par l'agent | Copilot | 🟢 — ✅ **C06** (`TurnDecorations` : overview ruler, couleur de token distincte du git, effacé au tour suivant, `edits.decorations`) |
-| 103 | Annoncer la progression aux lecteurs d'écran (ARIA live) | les deux | 🟢 |
-| 104 | Raccourcis clavier partout (focus composer, nouveau chat, accepter diff…) | les deux | 🟢 |
+| 103 | Annoncer la progression aux lecteurs d'écran (ARIA live) | les deux | 🟢 — ✅ **C11 §6** : `PhaseAnnouncer` annonce **une fois** par phase (`assertive` pour l'attente d'approbation, `polite` sinon) ; fil déjà `aria-live="polite"` ; `prefers-reduced-motion` respecté. |
+| 104 | Raccourcis clavier partout (focus composer, nouveau chat, accepter diff…) | les deux | 🟢 — ✅ **C11 §5** : `contributes.keybindings` (Ctrl+Alt+I / Ctrl+Alt+N / Esc / Ctrl+Alt+Backspace), tous avec `when` restrictif (clés de contexte posées depuis la machine à états) et redéfinissables ; palette filtrée pour qu'aucune commande visible n'échoue. |
 | 105 | Badge sur l'icône activity bar (agent en attente / terminé) | Copilot | 🟢 — ✅ **C08** (`view.badge` : `value:0` = activité pendant `running`, `value:1` = alerte en `awaiting`) |
 | 106 | Notification VS Code quand l'agent finit alors que le panneau est caché | Claude Code | 🟢 — ✅ **C08** (`maybeNotify` : fin de tour seulement si panneau caché ET tour > 30 s ; approbation notifiée immédiatement ; `agenticenvChat.notifications` never/awaiting/always) |
 

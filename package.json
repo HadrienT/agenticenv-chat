@@ -84,6 +84,23 @@
       {
         "command": "agenticenvChat.remember",
         "title": "AgenticEnv Chat: Remember… (add a note to AGENTS.md)"
+      },
+      {
+        "command": "agenticenvChat.stop",
+        "title": "AgenticEnv Chat: Stop the Current Turn"
+      },
+      {
+        "command": "agenticenvChat.generateCommitMessage",
+        "title": "AgenticEnv Chat: Generate Commit Message",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "agenticenvChat.generatePrDescription",
+        "title": "AgenticEnv Chat: Generate Pull Request Description"
+      },
+      {
+        "command": "agenticenvChat.terminalChat",
+        "title": "AgenticEnv Chat: Generate a Terminal Command…"
       }
     ],
     "menus": {
@@ -103,8 +120,62 @@
           "when": "view == agenticenvChat.view",
           "group": "navigation"
         }
+      ],
+      "scm/inputBox": [
+        {
+          "command": "agenticenvChat.generateCommitMessage",
+          "when": "scmProvider == git"
+        }
+      ],
+      "terminal/context": [
+        {
+          "command": "agenticenvChat.terminalChat",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "agenticenvChat.stop",
+          "when": "agenticenvChat.turnRunning"
+        },
+        {
+          "command": "agenticenvChat.undoTurn",
+          "when": "agenticenvChat.hasCheckpoint"
+        },
+        {
+          "command": "agenticenvChat.restoreCheckpoint",
+          "when": "agenticenvChat.hasCheckpoint"
+        },
+        {
+          "command": "agenticenvChat.openTurnDiff",
+          "when": "agenticenvChat.hasCheckpoint"
+        }
       ]
     },
+    "keybindings": [
+      {
+        "command": "agenticenvChat.view.focus",
+        "key": "ctrl+alt+i",
+        "mac": "cmd+alt+i"
+      },
+      {
+        "command": "agenticenvChat.newSession",
+        "key": "ctrl+alt+n",
+        "mac": "cmd+alt+n",
+        "when": "view == agenticenvChat.view && focusedView == agenticenvChat.view"
+      },
+      {
+        "command": "agenticenvChat.stop",
+        "key": "escape",
+        "when": "agenticenvChat.turnRunning && focusedView == agenticenvChat.view"
+      },
+      {
+        "command": "agenticenvChat.undoTurn",
+        "key": "ctrl+alt+backspace",
+        "mac": "cmd+alt+backspace",
+        "when": "agenticenvChat.hasCheckpoint && focusedView == agenticenvChat.view"
+      }
+    ],
     "configuration": {
       "title": "AgenticEnv Chat",
       "properties": {
@@ -150,6 +221,17 @@
           "type": "object",
           "default": {},
           "markdownDescription": "Client-side hooks (item 118). Events: `onTurnStarted`, `onTurnFinished`, `onFilesChanged`, `onSessionStarted`. Each is a list of `{ \"command\": \"...\", \"when\": \"always\" | \"filesChanged\" }`. Commands run **on your machine** through the permission policy; they are loaded only from VS Code settings (Workspace Trust applies), never from the repo. Example: `{ \"onTurnFinished\": [{ \"command\": \"npm run lint\", \"when\": \"filesChanged\" }] }`."
+        },
+        "agenticenvChat.editor.autoSendCodeActions": {
+          "type": "boolean",
+          "default": false,
+          "description": "When a diagnostic code action (Fix with agent / Explain this error) is triggered, send the message immediately instead of only prefilling the panel. Off by default so a stray Ctrl+. never starts a long turn."
+        },
+        "agenticenvChat.scm.commitStyle": {
+          "type": "string",
+          "enum": ["conventional", "plain"],
+          "default": "conventional",
+          "description": "Style passed as an instruction when generating a commit message from the Source Control input box."
         },
         "agenticenvChat.defaultContextWindow": {
           "type": "number",

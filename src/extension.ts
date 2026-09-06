@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { ChatViewProvider } from "./chatViewProvider";
 import { watchTerminals } from "./context/terminal";
+import { registerEditorIntegration } from "./editor/register";
 import { createOutputChannel, log, type LogLevel } from "./logging";
 
 const VIEW_ID = "agenticenvChat.view";
@@ -17,6 +18,7 @@ export function activate(context: vscode.ExtensionContext): void {
   watchTerminals(context);
 
   const provider = new ChatViewProvider(context);
+  registerEditorIntegration(context, provider);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(VIEW_ID, provider, {
       webviewOptions: { retainContextWhenHidden: true },
@@ -30,6 +32,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("agenticenvChat.history", () => provider.history()),
     vscode.commands.registerCommand("agenticenvChat.exportConversation", () => provider.export()),
     vscode.commands.registerCommand("agenticenvChat.remember", () => provider.remember()),
+    vscode.commands.registerCommand("agenticenvChat.stop", () => provider.stopTurn()),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("agenticenvChat.logLevel")) {
         log.setLevel(

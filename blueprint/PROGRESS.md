@@ -23,7 +23,7 @@ quand ses critères d'acceptation **automatisables** sont verts.
 | C08 | Sessions, historique | `wp/C08-sessions` | ✅ **fait** | `openInEditor` différé ; F5 |
 | C09 | Plan, todo, pilotage boucle agent | `wp/C09-agent-loop` | ✅ **client fait** | `todo`/`interrupt` = moitié AgenticEnv ; terminaux bg + suivi (31) différés ; F5 |
 | C10 | Instructions, prompts, mémoire | `wp/C10-instructions` | ✅ **fait** | chip instructions à rendre ; F5 |
-| C11 | Intégration éditeur & commandes | — | ⏳ à faire | |
+| C11 | Intégration éditeur & commandes | `wp/C11-editor-integration` | 🟡 **partiel** | code actions, SCM ✨, terminal, clés de contexte, raccourcis, a11y faits ; chat inline (89) + CodeLens (95) différés ; F5 |
 | C12 | MCP opérationnel & sélection modèle | `wp/C12-mcp-models` | 🟡 **partiel (client)** | sélecteurs modèle/mode faits ; MCP réellement branché = AgenticEnv (non démarré) |
 | C13 | Budget de contexte, compaction | `wp/C13-context-budget` | ✅ **client fait** | `context_stats`/`history_compacted`/`compact` = moitié AgenticEnv ; F5 |
 | C14 | Robustesse, a11y, packaging | — | ⏳ à faire | |
@@ -429,6 +429,56 @@ Branche `wp/C12-mcp-models`. Items 12, 13, 121.
 - `set_model` réel + rechargement `llama-server` : moitié AgenticEnv.
 - F5 : sélecteurs en situation, échec VRAM affiché, mode Ask → écriture refusée.
 
+## C11 — Intégration éditeur & commandes VS Code 🟡 (partiel)
+
+Branche `wp/C11-editor-integration`. Items 89, 94–97, 99, 103, 104.
+
+> Ce WP **rebranche** C02/C03/C04 sur les points d'accroche natifs — il ne crée
+> aucune capacité. Aucune dépendance bridge : c'est du code extension host.
+
+**Fait** :
+- `src/editor/message.ts` : constructeurs **purs** des messages (fix / explain /
+  commit / PR / terminal) — testés en Node.
+- `src/editor/register.ts` :
+  - **CodeActionProvider** (quickfix) sur les diagnostics Error/Warning →
+    « Fix with agent » / « Explain this error ». Message = diagnostic + fenêtre de
+    ±8 lignes (jamais le fichier entier). **Ouvre le panneau prérempli**, n'envoie
+    pas le tour (réglage `agenticenvChat.editor.autoSendCodeActions` pour l'envoi
+    direct).
+  - **SCM** : commande `agenticenvChat.generateCommitMessage` dans `scm/inputBox`
+    (✨) — `git diff --cached` (ou non stagé, en le disant), tour capturé, écrit
+    dans la boîte SCM (confirmation si non vide), **jamais commité**. Style
+    `agenticenvChat.scm.commitStyle` (`conventional`/`plain`).
+  - **PR** : `agenticenvChat.generatePrDescription` — commits + diff contre l'amont,
+    résultat dans un document markdown non enregistré.
+  - **Terminal** : `agenticenvChat.terminalChat` (menu `terminal/context`) —
+    quick-pick, commande **insérée non exécutée** (`sendText(cmd, false)`),
+    terminal « AgenticEnv » exclu.
+- `ChatViewProvider` : `openWithMessage()` (préremplit), `runCapturedTurn()`
+  (lance un tour **visible dans le panneau** et capture son texte final),
+  `stopTurn()`. Clés de contexte `agenticenvChat.turnRunning` /
+  `awaitingConfirmation` / `hasCheckpoint` posées depuis la machine à états
+  (`setContextKey`), pas dupliquées.
+- `package.json` : commandes + `keybindings` (Ctrl+Alt+I focus, Ctrl+Alt+N new,
+  Esc stop, Ctrl+Alt+Backspace undo — tous avec `when` restrictif et
+  redéfinissables), `commandPalette` filtré par clé de contexte (aucune commande
+  visible qui échouerait), réglages.
+- **A11y (C11 §6)** : `views/PhaseAnnouncer.tsx` — annonce **une fois** par phase
+  (`assertive` pour l'attente d'approbation, `polite` sinon), classe
+  `.agx-sr-only`, `@media (prefers-reduced-motion)`. Le fil est déjà
+  `aria-live="polite"` (C02).
+- 263 tests (`test/unit/editorMessage.test.ts`, `test/render/PhaseAnnouncer.test.tsx`).
+
+**Différé** :
+- **Chat inline `Ctrl+I`** (item 89) : l'API d'inline chat VS Code (`[À CONFIRMER]`
+  du WP) mérite sa propre décision d'archi — widget maison coûteux, ou
+  `ChatParticipant`. Non démarré pour ne pas livrer un widget qui vieillira mal.
+- **CodeLens Explain/Fix** (item 95) : « désactivé par défaut » dans le WP même ;
+  reporté (le CodeActionProvider couvre le besoin principal).
+- F5 : parcours clavier complet, annonces lecteur d'écran, ✨ SCM en situation,
+  Ctrl+I terminal, aucun conflit de raccourci dans une fenêtre vierge.
+
 ## Prochaine étape
 
-C11 (intégration éditeur & commandes VS Code) puis C14.
+C14 (robustesse, a11y finale, packaging, publication) + extraction
+`EditsController` de `chatViewProvider.ts`.
