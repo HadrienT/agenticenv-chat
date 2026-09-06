@@ -1693,12 +1693,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     applied: { path: string; status: string }[],
     skipped: { path: string; reason: string }[],
   ): Promise<void> {
+    // Résultat détaillé en notice dans le panneau (là où l'utilisateur regarde).
     this.postToWebview({ type: "changesApplied", applied, skipped });
-    if (applied.length) {
-      void vscode.window.showInformationMessage(
-        `Applied ${applied.length} file${applied.length === 1 ? "" : "s"} to your repo.`,
-      );
-    }
     if (!skipped.length) {
       return;
     }
