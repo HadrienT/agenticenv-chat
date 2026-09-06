@@ -1,8 +1,34 @@
 import type { HostToWebview } from "../../messages";
-import { appendItems } from "./reduceHelpers";
+import { appendItems, withNotice } from "./reduceHelpers";
 import type { AppState } from "./types";
 
 /** Cas hôte→webview annexes, extraits de `reduceHost.ts` pour la limite de taille. */
+
+/**
+ * `changesApplied` (WP08d) : résultat d'`apply_changes` — notice regroupée,
+ * `skipped` avec sa raison telle quelle (conflit hôte, fichier disparu, hors
+ * workspace).
+ */
+export function applyChangesApplied(
+  state: AppState,
+  msg: Extract<HostToWebview, { type: "changesApplied" }>,
+): AppState {
+  const parts: string[] = [];
+  if (msg.applied.length) {
+    parts.push(`Applied ${msg.applied.length} file${msg.applied.length === 1 ? "" : "s"} to your repo.`);
+  }
+  for (const s of msg.skipped) {
+    parts.push(`Skipped ${s.path} — ${s.reason}.`);
+  }
+  return parts.length === 0
+    ? state
+    : withNotice(state, {
+        id: "changes-applied",
+        level: msg.skipped.length ? "warn" : "info",
+        text: parts.join("\n"),
+        dismissible: true,
+      });
+}
 
 /** `metrics` (C13) : jauge utile **avant** le premier tour + débit tokens/s. */
 export function applyMetrics(

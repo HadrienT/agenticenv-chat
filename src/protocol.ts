@@ -491,6 +491,7 @@ export type Capability =
   | "apply"
   | "compact"
   | "interrupt"
+  | "resume"
   | "models";
 
 // --- contexte résolu (hôte → bridge), défini ici car il transite sur le fil ---

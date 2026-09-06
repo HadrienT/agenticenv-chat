@@ -115,9 +115,13 @@ jusqu'au réducteur webview et n'y font rien.
 
 ---
 
-## 4. Reste à faire — côté client
+## 4. Reste à faire — côté client — **fait** (commit sur `feat/protocol-v2-wp08d`)
 
-### 4.1 `mode` (petit, faire en premier)
+> Câblé le 2026-09-06 : `mode`, diffs/checkpoints via bridge, `apply`/`discard`/
+> `bundle_diff`, gating `resume`. 280 tests, `tsc`/`lint`/`build` verts.
+> Reste F5 (pas de GUI) et l'intégration faux-bridge de bout en bout.
+
+### 4.1 `mode` (petit, faire en premier) — ✅
 
 - `chatViewProvider.ts` ~ligne 977 (`case "startSession"`) : ajouter
   `mode: this.sessionMode === "ask" || this.sessionMode === "plan" ? "read_only" : "agent"`
@@ -193,6 +197,30 @@ Bouton « View all changes » sur le panneau → `request_bundle_diff` → affic
   / `changes_applied` / `checkpoint` pour l'intégration.
 
 ---
+
+### 4.6 Ce qui a été fait (récap)
+
+| Zone | Fichier | Fait |
+|---|---|---|
+| `start_session.mode` | `chatViewProvider.ts` `case "startSession"` | `mode: this.sessionMode === "agent" ? "agent" : "read_only"` |
+| `session_started.mode` | `case "session_started"` | stocké dans `this.sandboxMode` ; pilote `canApply` / le libellé du panneau |
+| double checkpoint | `case "turn_started"` / `"turn_finished"` | `beginTurn`/`finishTurn` **seulement si** `!bridgeOwnsEdits()` |
+| `checkpoint` (in) | `case "checkpoint"` | stocke `lastCheckpoint {checkpointId, turnId, files}` |
+| working set | `sendWorkingSet(bridgeChanges?)` | quand `bridgeOwnsEdits()` : `files_changed` du bridge → `workingSet {viaBridge, canApply, strategy}` |
+| `file_diff` (in) | `case "file_diff"` | → message hôte `fileDiff` ; décorations gouttière |
+| `sendFileDiff` / `openTurnFileDiff` | idem | `request_diff` au lieu du `CheckpointStore` |
+| `bundle_diff` (in) | `case "bundle_diff"` → `showBundleDiff` | doc `diff` read-only |
+| `restore_checkpoint` | `undoTurn()` | modale + `restore_checkpoint {checkpoint_id}` |
+| `checkpoint_restored` (in) | `case "checkpoint_restored"` | message info ; `files_changed` rafraîchit ensuite |
+| `apply_changes` | `onWebviewMessage` `applyChanges` → `applyChanges()` | **modale** avant d'écrire dans le vrai dépôt |
+| `discard_changes` | `case "discardChanges"` + `revertFile` (bridge) | `discard_changes {paths}` |
+| `changes_applied` (in) | `onChangesApplied` → message `changesApplied` | notice `applied`/`skipped` ; conflit → modale « Apply anyway (overwrite) » `force:true` |
+| `request_bundle_diff` | `case "requestBundleDiff"` | bouton « View all changes » |
+| `revertHunk` (bridge) | — | refusé avec message (« use Discard on the whole file ») |
+| `resume` gating | `beginNegotiation` / `case "welcome"` | `resume` **uniquement** si capability `resume` ; sinon conversation périmée effacée + retour au picker |
+| `WorkingSet.tsx` | libellé + boutons | « N files in the sandbox working copy » ; `Apply`/`discard`/`View all changes` en mode bridge, `revert` sinon |
+
+Tests : `test/unit/wp08d.test.ts` (5), `editsState.test.ts` mis à jour.
 
 ## 5. Points de vigilance
 

@@ -71,7 +71,7 @@ besoin.
 
 - `protocol` : entier. Le client considère `< 2` comme dégradé.
 - `capabilities` : sous-ensemble de
-  `{turns, deltas, cancel, diffs, todo, checkpoints, apply, compact, interrupt, models}`
+  `{turns, deltas, cancel, diffs, todo, checkpoints, apply, compact, interrupt, resume, models}`
   (liste `Capability` dans `protocol.ts`). N'annoncer **que** ce qui est
   réellement implémenté et testé.
 - **État bridge AgenticEnv (WP08d livré)** : annonce
@@ -110,11 +110,18 @@ compteur, incrémenté à chaque `_send`). Sert à `resume`.
 - Ajouter `seq` à un modèle de base partagé (l'équivalent de `class Seq` côté
   client).
 
-### `resume` (client → bridge)
+### `resume` (client → bridge) — capability `resume`
 
 ```jsonc
 { "type": "resume", "conversation_id": "…", "last_seq": 42 }
 ```
+
+> **Gaté sur une capability `resume`.** Le client n'émet `resume` que si `welcome`
+> l'annonce. Un bridge qui ne l'annonce pas (l'état AgenticEnv actuel) fait que le
+> client **efface** la conversation persistée et retourne à l'écran de sélection —
+> plutôt que d'afficher un composer sur une session que le bridge ne connaît plus.
+> Donc : soit livrer `resume` **complet** (buffer + `resumed`), soit ne rien
+> annoncer ; pas de demi-mesure.
 
 Envoyé par le client **après `hello`** quand il a une conversation persistée
 (reload de l'extension, coupure réseau). Le bridge doit :
@@ -453,7 +460,7 @@ Le v1 `usage` reste tel quel, juste ajouter `seq`. Idem `files_changed`,
 | `user_message` | `{text, context?: ResolvedContext[]}` | — | **v2** : `context` remplace la concaténation — préfixer/injecter les blocs dans le prompt (voir §5.1) |
 | `confirm_action` | `{accept, action_id?, remember?, edited_command?}` | `turns` | `action_id` cible l'action ; `remember` best-effort ; `edited_command` best-effort |
 | `cancel_turn` | `{turn_id}` | `cancel` | interrompre le run → `turn_finished{cancelled}` |
-| `resume` | `{conversation_id, last_seq}` | — (dès `seq`) | rejouer `seq > last_seq` → `resumed` |
+| `resume` | `{conversation_id, last_seq}` | `resume` | rejouer `seq > last_seq` → `resumed` (sinon : client efface la conversation, retour au picker) |
 | `interrupt` | `{turn_id, text}` | `interrupt` | injecter sans arrêter |
 | `request_diff` | `{path}` | `diffs` | → `file_diff` |
 | `restore_checkpoint` | `{checkpoint_id}` | `checkpoints` | restaure le tour |

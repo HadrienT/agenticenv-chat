@@ -7,17 +7,17 @@ import type { WorkingSetView } from "../../src/messages";
 describe("working set & file diffs (C06)", () => {
   it("message workingSet remplace la liste et affiche la stratégie", () => {
     const files: WorkingSetView[] = [{ path: "src/a.cpp", status: "M", added: 3, removed: 1 }];
-    const s = reduce(initialState(), host({ type: "workingSet", files, strategy: "checkpoint: git (invisible ref)" }));
+    const s = reduce(initialState(), host({ type: "workingSet", files, strategy: "checkpoint: git (invisible ref)", viaBridge: false, canApply: false }));
     expect(s.workingSet).toEqual(files);
     expect(s.checkpointStrategy).toContain("git");
   });
 
   it("fileDiff stocke le diff par chemin ; workingSet purge les diffs orphelins", () => {
-    let s = reduce(initialState(), host({ type: "workingSet", files: [{ path: "a", status: "M" }], strategy: "x" }));
+    let s = reduce(initialState(), host({ type: "workingSet", files: [{ path: "a", status: "M" }], strategy: "x", viaBridge: false, canApply: false }));
     s = reduce(s, host({ type: "fileDiff", path: "a", unified: "@@ -1 +1 @@\n-x\n+y", conflict: false }));
     expect(s.fileDiffs.a.unified).toContain("+y");
     // "a" disparaît du working set → son diff est purgé
-    s = reduce(s, host({ type: "workingSet", files: [{ path: "b", status: "A" }], strategy: "x" }));
+    s = reduce(s, host({ type: "workingSet", files: [{ path: "b", status: "A" }], strategy: "x", viaBridge: false, canApply: false }));
     expect(s.fileDiffs.a).toBeUndefined();
   });
 
