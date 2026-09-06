@@ -88,6 +88,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private sessionMode: SessionMode = "agent";
   /** Consignes mid-turn en file quand le bridge n'a pas la capability `interrupt`. */
   private queuedInterrupts: string[] = [];
+  /** Capture du texte final d'un tour lancé par un point d'accroche éditeur (C11 §3/§4). */
+  private capture: { buf: string; resolve: (text: string | null) => void } | undefined;
   private readonly statusBar = new StatusBar();
   private status = {
     session: false,
@@ -210,11 +212,22 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.lastSeq = 0;
     void this.context.workspaceState.update(K_CONVERSATION, undefined);
     void this.context.workspaceState.update(K_LAST_SEQ, undefined);
+    this.setContextKey("turnRunning", false);
+    this.setContextKey("awaitingConfirmation", false);
+    this.setContextKey("hasCheckpoint", false);
+    this.finishCapture(true);
     this.postToWebview({ type: "reset" });
   }
 
   reconnect(): void {
     this.bridge?.reconnect();
+  }
+
+  /** Commande `agenticenvChat.stop` (raccourci Esc, C11 §5). */
+  stopTurn(): void {
+    if (this.currentTurnId) {
+      this.sendOrNotify({ type: "cancel_turn", turn_id: this.currentTurnId }, "stop the turn");
+    }
   }
 
   /** Commande `agenticenvChat.history`. */
@@ -372,6 +385,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             args: (ev.action as Record<string, unknown>) ?? {},
           };
         }
+        if (this.capture && ev.kind === "MessageEvent" && ev.llm_message?.role === "assistant") {
+          for (const part of ev.llm_message.content ?? []) {
+            if (typeof part.text === "string") {
+              this.capture.buf += part.text;
+            }
+          }
+        }
         this.postToWebview({ type: "bridge", message });
         return;
       }
@@ -391,6 +411,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.filesChangedThisTurn = false;
         void this.hooks?.run("onTurnStarted", { filesChanged: false, cwd: this.projectPath() });
         this.pushStatus({ phase: "running", turnStartMs: this.turnStartMs });
+        this.setContextKey("turnRunning", true);
         this.setBadge("running");
         this.autoOpened.clear();
         this.turnDecorations.clear();
@@ -409,10 +430,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         });
         this.setBadge("idle");
         this.pushStatus({ phase: "idle" });
+        this.setContextKey("turnRunning", false);
+        this.setContextKey("awaitingConfirmation", false);
+        this.setContextKey("hasCheckpoint", true);
         this.maybeNotify("turn-done");
         void this.persistConversation();
         this.postToWebview({ type: "bridge", message });
         this.flushQueuedInterrupts();
+        this.finishCapture(message.reason === "error");
         return;
 
       case "files_changed":
@@ -761,7 +786,60 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.postToWebview({ type: "pendingAction", action: pending });
     this.setBadge("awaiting");
     this.pushStatus({ phase: "awaiting" });
+    this.setContextKey("awaitingConfirmation", true);
     this.maybeNotify("awaiting");
+  }
+
+  /** Clé de contexte VS Code (C11 §5) : miroir de la machine à états, pas dupliquée. */
+  private setContextKey(key: "turnRunning" | "awaitingConfirmation" | "hasCheckpoint", value: boolean): void {
+    void vscode.commands.executeCommand("setContext", `agenticenvChat.${key}`, value);
+  }
+
+  private finishCapture(errored: boolean): void {
+    if (!this.capture) {
+      return;
+    }
+    const { buf, resolve } = this.capture;
+    this.capture = undefined;
+    resolve(errored ? null : buf.trim() || null);
+  }
+
+  /**
+   * Lance un tour depuis un point d'accroche éditeur (C11 §3/§4) et **capture**
+   * son texte final. Le tour est visible dans le panneau comme n'importe quel
+   * autre (progression, annulation) ; on ne masque rien.
+   */
+  async runCapturedTurn(text: string): Promise<string | null> {
+    if (!this.conversationId) {
+      void vscode.window.showWarningMessage("Start an AgenticEnv session first.");
+      return null;
+    }
+    if (this.currentTurnId || this.capture) {
+      void vscode.window.showWarningMessage("A turn is already running — wait for it to finish.");
+      return null;
+    }
+    await vscode.commands.executeCommand(`${VIEW_ID}.focus`);
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => this.finishCapture(true), 15 * 60_000);
+      this.capture = {
+        buf: "",
+        resolve: (v) => {
+          clearTimeout(timer);
+          resolve(v);
+        },
+      };
+      void this.sendUserMessage(text, []);
+    });
+  }
+
+  /** Ouvre le panneau avec un message prérempli (C11 §2) ; n'envoie pas le tour. */
+  async openWithMessage(text: string, autoSend: boolean): Promise<void> {
+    await vscode.commands.executeCommand(`${VIEW_ID}.focus`);
+    if (autoSend && this.conversationId && !this.currentTurnId) {
+      void this.sendUserMessage(text, []);
+    } else {
+      this.postToWebview({ type: "commandResult", command: "editor", prefill: text });
+    }
   }
 
   private defaultContextWindow(): number {
@@ -802,6 +880,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       "answer",
     );
     this.postToWebview({ type: "pendingAction", action: null });
+    this.setContextKey("awaitingConfirmation", false);
   }
 
   // --- webview -> hôte ------------------------------------------------

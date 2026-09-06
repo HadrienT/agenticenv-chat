@@ -146,11 +146,34 @@ capabilities:    untrustedWorkspaces: limited (C07 §7)
 
 ## 9. Critères d'acceptation
 
-- [ ] `Ctrl+.` sur une erreur propose « Fix with agent » avec un contexte pertinent et ciblé.
-- [ ] Le bouton ✨ du SCM produit un message de commit dans la boîte, sans commiter.
-- [ ] `Ctrl+I` fonctionne dans l'éditeur et dans le terminal.
-- [ ] Le chat inline et le panneau partagent une seule session et un seul historique.
-- [ ] Toutes les fonctions sont utilisables au clavier seul.
-- [ ] Un lecteur d'écran annonce l'arrivée d'une réponse et une demande d'approbation.
-- [ ] L'extension ne s'active pas si l'utilisateur n'ouvre pas le panneau.
-- [ ] Aucune commande visible dans la palette n'échoue faute d'état valide.
+- [x] `Ctrl+.` sur une erreur propose « Fix with agent » avec un contexte ciblé. —
+  `CodeActionProvider` quickfix ; message = diagnostic condensé + fenêtre ±8 lignes
+  (`fixMessage`), **pas** le fichier entier. *(F5 : le menu en situation.)*
+- [x] Le bouton ✨ du SCM produit un message de commit dans la boîte, sans commiter. —
+  `generateCommitMessage` écrit `repositories[0].inputBox.value` ; confirmation modale si
+  la boîte n'est pas vide ; jamais de `git commit`.
+- [~] `Ctrl+I` fonctionne dans l'éditeur et dans le terminal. — **terminal** fait
+  (`terminalChat`, commande insérée non exécutée) ; **éditeur inline** différé (API
+  `[À CONFIRMER]`, cf. §1) — `Ctrl+Alt+I` ouvre le panneau en attendant.
+- [~] Le chat inline et le panneau partagent une seule session. — s.o. tant que l'inline
+  chat n'est pas fait ; `runCapturedTurn` (SCM/PR/terminal) passe par **la** session du
+  panneau et le tour y est visible (pas de 2ᵉ sandbox, D7).
+- [x] Toutes les fonctions sont utilisables au clavier seul. — commandes + `keybindings`
+  redéfinissables ; menus SCM/terminal/palette. *(F5 : parcours complet.)*
+- [x] Un lecteur d'écran annonce l'arrivée d'une réponse et une demande d'approbation. —
+  `PhaseAnnouncer` (`polite` / `assertive`) ; fil `aria-live="polite"` (C02) — un
+  évènement par phase, pas par delta.
+- [x] L'extension ne s'active pas si l'utilisateur n'ouvre pas le panneau. —
+  `activationEvents` reste vide ; `registerEditorIntegration` n'enregistre que des
+  providers/commandes (pas de sandbox, pas de sonde) ; aucun `onStartupFinished`.
+- [x] Aucune commande visible dans la palette n'échoue faute d'état valide. — `stop` /
+  `undoTurn` / `restoreCheckpoint` / `openTurnDiff` masquées par `commandPalette` `when`
+  sur `agenticenvChat.turnRunning` / `hasCheckpoint`.
+
+### Différé
+
+- **Chat inline `Ctrl+I` éditeur** (item 89) : décision d'archi dédiée (widget vs
+  `ChatParticipant`) — non démarré.
+- **CodeLens** (item 95) : désactivé par défaut dans le WP même ; reporté.
+- F5 : tout le parcours clavier + lecteur d'écran, conflits de raccourcis dans une
+  fenêtre vierge.

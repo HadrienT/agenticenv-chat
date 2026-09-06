@@ -16,6 +16,7 @@ import { StarterPrompts } from "./composer/StarterPrompts";
 import { ConfirmCard } from "./ConfirmCard";
 import { ContextGauge } from "./ContextGauge";
 import { ModelPicker } from "./ModelPicker";
+import { PhaseAnnouncer } from "./PhaseAnnouncer";
 import { PlanApproval } from "./PlanApproval";
 import { Thread } from "./Thread";
 import { ThreadBar } from "./ThreadBar";
@@ -50,6 +51,7 @@ export function ChatScreen(props: {
 
   return (
     <>
+      <PhaseAnnouncer phase={state.phase} />
       <ThreadBar
         branchCount={state.branches.length}
         onHistory={actions.openHistory}
