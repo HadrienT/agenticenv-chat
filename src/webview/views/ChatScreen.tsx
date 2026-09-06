@@ -123,6 +123,7 @@ export function ChatScreen(props: {
         placeholder={composerPlaceholder(state)}
         canSend={canSendMessage(state)}
         turnActive={turnActive}
+        disabled={state.connection.state !== "open"}
         sessionMode={state.sessionMode}
         modeSelectorAvailable={state.phase.kind === "idle" || state.phase.kind === "picking"}
         onDraft={actions.setDraft}

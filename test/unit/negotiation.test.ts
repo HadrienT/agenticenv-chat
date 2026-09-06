@@ -16,6 +16,17 @@ describe("négociation — détection d'un bridge v1", () => {
     ).toBe(true);
   });
 
+  it("reconnaît le rejet de `resume` (2e message v2 de la négociation)", () => {
+    expect(
+      isV1HandshakeRejection(
+        err(
+          "VALIDATION_ERROR",
+          "invalid message from client: 1 validation error for tagged-union[StartSession,UserMessage,ConfirmAction,ListMcpServers] Input tag 'resume' found using 'type' does not match any of the expected tags",
+        ),
+      ),
+    ).toBe(true);
+  });
+
   it("reconnaît d'autres codes de rejet de handshake", () => {
     expect(isV1HandshakeRejection(err("BAD_REQUEST"))).toBe(true);
     expect(isV1HandshakeRejection(err("UNKNOWN_MESSAGE_TYPE"))).toBe(true);

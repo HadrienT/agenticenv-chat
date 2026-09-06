@@ -283,15 +283,17 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.clearNegotiationTimer();
     // `hello` en premier (send direct, socket ouvert), puis le reste en file.
     this.bridge?.send({ type: "hello", protocol: CLIENT_PROTOCOL, client: CLIENT_ID });
+    // `list_mcp_servers` est valide en v1 comme en v2 : toujours envoyé, pour que
+    // l'écran de sélection ait sa liste même si la reprise échoue.
+    this.bridge?.enqueue({ type: "list_mcp_servers" });
     if (this.conversationId) {
-      // Resynchronisation après coupure : le bridge rejoue seq > last_seq (C01 §6).
+      // [v2] Resynchronisation après coupure : le bridge rejoue seq > last_seq
+      // (C01 §6). Rejeté par un bridge v1 → `fallbackToV1` efface la session.
       this.bridge?.enqueue({
         type: "resume",
         conversation_id: this.conversationId,
         last_seq: this.lastSeq,
       });
-    } else {
-      this.bridge?.enqueue({ type: "list_mcp_servers" });
     }
     // `list_models` est un message v2 : il n'est émis qu'après un `welcome` qui
     // annonce la capability `models` (sinon un bridge v1 le rejette — C12).
@@ -321,6 +323,16 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.capabilities = [];
     log.warn(`${reason} — falling back to protocol v1 (degraded)`);
     this.postToWebview({ type: "protocol", version: 1, capabilities: [], degraded: true });
+    // Un bridge v1 n'a pas de `resume` : une conversation persistée ne peut pas
+    // reprendre. On efface la session périmée et on ramène la webview à l'écran
+    // de sélection — sinon elle affiche un composer qui écrit dans le vide.
+    if (this.conversationId) {
+      this.conversationId = undefined;
+      this.lastSeq = 0;
+      void this.context.workspaceState.update(K_CONVERSATION, undefined);
+      void this.context.workspaceState.update(K_LAST_SEQ, undefined);
+      this.postToWebview({ type: "reset" });
+    }
   }
 
   private clearNegotiationTimer(): void {
@@ -499,16 +511,24 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         return;
 
       case "error":
-        // Un bridge v1 rejette nos messages de négociation v2 (`hello`, …) par un
-        // `VALIDATION_ERROR` : c'est le signal « pas de v2 », pas une erreur à
-        // montrer. On bascule en dégradé en silence (03-PROTOCOL §2.1).
-        if (!this.negotiated && isV1HandshakeRejection(message)) {
-          this.fallbackToV1("bridge rejected the v2 handshake");
+        // Un bridge v1 rejette chacun de nos messages v2 (`hello`, `resume`, …)
+        // par un `VALIDATION_ERROR` `union_tag_invalid`. C'est toujours un
+        // décalage de version de protocole, jamais une erreur sur laquelle
+        // l'utilisateur peut agir : on l'avale (et on bascule en dégradé si ce
+        // n'est pas déjà fait) plutôt que d'empiler des notices.
+        if (isV1HandshakeRejection(message)) {
+          if (!this.negotiated) {
+            this.fallbackToV1("bridge rejected the v2 handshake");
+          } else {
+            log.debug("bridge rejected a v2 message (protocol mismatch), ignored:", message.code);
+          }
           return;
         }
         if (message.code === "UNKNOWN_CONVERSATION") {
           this.conversationId = undefined;
           void this.context.workspaceState.update(K_CONVERSATION, undefined);
+          this.postToWebview({ type: "reset" });
+          return;
         }
         this.postToWebview({ type: "bridge", message });
         return;
