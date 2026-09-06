@@ -9,7 +9,7 @@ import { initialState } from "./types";
  * `version` est incrémentée à **chaque** changement de forme. Une version
  * inconnue ⇒ l'état est **jeté** (jamais migré à la devinette) + notice (I7).
  */
-export const PERSIST_VERSION = 9;
+export const PERSIST_VERSION = 10;
 
 const MAX_PERSISTED_ITEMS = 200;
 
@@ -25,6 +25,7 @@ const CHAT_ITEM_KINDS = new Set([
   "compaction",
   "max-iterations",
   "queued-note",
+  "model-switch",
 ]);
 
 export interface PersistedState {
@@ -38,7 +39,7 @@ export interface PersistedState {
   panels: Record<PanelId, boolean>;
   /** Plan/todo produit par l'agent — archivé avec la conversation (C09 §2). */
   todo: AppState["todo"];
-  planMode: boolean;
+  sessionMode: AppState["sessionMode"];
 }
 
 export function toPersisted(state: AppState): PersistedState {
@@ -53,7 +54,7 @@ export function toPersisted(state: AppState): PersistedState {
     branches: state.branches.map((b) => ({ at: b.at, removed: b.removed.slice(-MAX_PERSISTED_ITEMS) })),
     panels: state.panels,
     todo: state.todo,
-    planMode: state.planMode,
+    sessionMode: state.sessionMode,
   };
 }
 
@@ -119,7 +120,8 @@ export function fromPersisted(raw: unknown): HydrateResult {
           }
         : base.panels,
       todo: Array.isArray(raw.todo) ? (raw.todo.filter(isTodoItem) as AppState["todo"]) : null,
-      planMode: raw.planMode === true,
+      sessionMode:
+        raw.sessionMode === "ask" || raw.sessionMode === "plan" ? raw.sessionMode : "agent",
     },
   };
 }

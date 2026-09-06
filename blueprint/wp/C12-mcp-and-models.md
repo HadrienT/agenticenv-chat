@@ -124,11 +124,41 @@ disponibles comme `/kbase.summarize` dans le menu de C03 §4.
 
 ## 6. Critères d'acceptation
 
-- [ ] Cocher un serveur MCP a un **effet réel** : l'agent peut appeler ses outils, vérifié par un appel dans le fil.
-- [ ] Un serveur injoignable depuis le sandbox est signalé comme tel et non sélectionnable.
-- [ ] L'UI ne promet plus une capacité MCP inexistante (le texte d'avertissement du picker actuel est retiré, parce qu'il est devenu faux).
-- [ ] Le modèle courant est visible en permanence.
-- [ ] Un changement de modèle qui échoue affiche la raison réelle.
-- [ ] Le mode Ask empêche réellement l'écriture.
-- [ ] Les résultats MCP sont présentés comme des citations, avec leur source.
-- [ ] Aucun sélecteur n'apparaît si le bridge n'expose pas la capacité correspondante.
+- [ ] Cocher un serveur MCP a un **effet réel**. — **non démarré** : le wiring MCP
+  (joignabilité conteneur, passage de la sélection à la création de conversation) est
+  côté AgenticEnv (WP08b §7). Rien codé côté client qui simulerait cet effet.
+- [ ] Un serveur injoignable est signalé et non sélectionnable. — **non démarré** :
+  demande une **vérification réelle** côté bridge, pas encore exposée.
+- [ ] L'UI ne promet plus une capacité MCP inexistante. — le texte d'avertissement du
+  picker **reste** tant que la capacité n'est pas réelle (le retirer maintenant serait
+  le vrai mensonge).
+- [x] Le modèle courant est visible en permanence. — `ModelPicker` affiche `current`,
+  rendu dès que `state.models !== null`.
+- [x] Un changement de modèle qui échoue affiche la raison réelle. — `models[].error`
+  (message brut `llama-server`) rendu tel quel ; `loading` renvoie au panneau Components.
+- [x] Le mode Ask empêche réellement l'écriture. — `setSessionMode("ask")` →
+  `permissions.setModeOverride("readOnly")` (RANK strict) ; toute écriture passe par
+  `evaluate()` en `readOnly` → refusée (matrice C07). *(F5 : bout en bout.)*
+- [ ] Les résultats MCP sont présentés comme des citations. — **non démarré** : dépend
+  d'appels MCP réels dans le fil ; le renderer générique de C05 §4 les couvre en
+  attendant, l'encadré « citation » dédié est à ajouter avec le wiring.
+- [x] Aucun sélecteur n'apparaît si le bridge n'expose pas la capacité. — `ModelPicker`
+  rend `null` si `state.models === null` ; le sélecteur Ask/Agent/Plan est purement
+  client (protection `readOnly` réelle), donc toujours pertinent.
+
+### Fait (client)
+
+- `list_models` / `set_model` / `models` dans `protocol.ts` (+ `CLIENT_AHEAD_OF_BRIDGE`) ;
+  `list_models` enqueué à la négociation.
+- `views/ModelPicker.tsx` : modèle courant, `context_window` → jauge C13
+  (`reduceHostAux.applyModels`), changement refusé pendant `running`, `model-switch`
+  inscrit dans le fil.
+- Sélecteur **Ask / Agent / Plan** (pas de « Edit ») dans `ComposerFoot` ;
+  `applyPermissionOverride()` = le plus strict de (`.mode.md`, mode de session) ;
+  bannière d'explication ; `PERSIST_VERSION` 9→10 (`planMode` bool → `sessionMode`).
+
+### Reste (moitié AgenticEnv)
+
+`models` / `set_model` dans `packages/openhands-bridge` + rechargement `llama-server` ;
+joignabilité MCP depuis le conteneur + `tools/list` réel + vérification par serveur ;
+prompts MCP dans `McpServerEntry` ; encadré citation MCP.

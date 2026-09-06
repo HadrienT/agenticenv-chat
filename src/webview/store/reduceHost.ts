@@ -2,7 +2,7 @@ import { assertNever } from "../../assertNever";
 import type { HostToWebview } from "../../messages";
 import { applyBridge, endTurnOnError } from "./reduceBridge";
 import { hash, resetState, withNotice } from "./reduceHelpers";
-import { applyHookResult, applyMetrics, applyTodo } from "./reduceHostAux";
+import { applyHookResult, applyMetrics, applyModels, applyTodo } from "./reduceHostAux";
 import { applyPermission } from "./reducePermission";
 import type { AppState } from "./types";
 
@@ -156,8 +156,11 @@ export function applyHost(state: AppState, msg: HostToWebview, at: number): AppS
     case "todo":
       return applyTodo(state, msg);
 
-    case "planMode":
-      return { ...state, planMode: msg.enabled };
+    case "sessionMode":
+      return { ...state, sessionMode: msg.mode };
+
+    case "models":
+      return applyModels(state, msg);
 
     case "hookResult":
       return applyHookResult(state, msg, at);

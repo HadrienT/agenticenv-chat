@@ -147,9 +147,9 @@ export function applyLocal(state: AppState, action: LocalAction): AppState {
     case "intent/resolveMaxIterations":
       return patchItem(state, action.itemId, { resolved: true });
 
-    case "plan/set":
-      // Optimiste : l'hôte confirme via `planMode` + `permissionMode` (readOnly).
-      return { ...state, planMode: action.enabled };
+    case "session/setMode":
+      // Optimiste : l'hôte confirme via `sessionMode` + `permissionMode` (readOnly).
+      return { ...state, sessionMode: action.mode };
 
     case "thread/truncateFrom":
       return truncateFrom(state, action.itemId, action.at);

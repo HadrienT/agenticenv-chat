@@ -24,7 +24,7 @@ quand ses critères d'acceptation **automatisables** sont verts.
 | C09 | Plan, todo, pilotage boucle agent | `wp/C09-agent-loop` | ✅ **client fait** | `todo`/`interrupt` = moitié AgenticEnv ; terminaux bg + suivi (31) différés ; F5 |
 | C10 | Instructions, prompts, mémoire | `wp/C10-instructions` | ✅ **fait** | chip instructions à rendre ; F5 |
 | C11 | Intégration éditeur & commandes | — | ⏳ à faire | |
-| C12 | MCP opérationnel & sélection modèle | — | ⏳ à faire | |
+| C12 | MCP opérationnel & sélection modèle | `wp/C12-mcp-models` | 🟡 **partiel (client)** | sélecteurs modèle/mode faits ; MCP réellement branché = AgenticEnv (non démarré) |
 | C13 | Budget de contexte, compaction | `wp/C13-context-budget` | ✅ **client fait** | `context_stats`/`history_compacted`/`compact` = moitié AgenticEnv ; F5 |
 | C14 | Robustesse, a11y, packaging | — | ⏳ à faire | |
 
@@ -385,6 +385,50 @@ Branche `wp/C09-agent-loop`. Items 31, 54, 55, 56, 61, 62, 63, 67, 123, 124.
 - F5 : todo live, bascule plan → tentative d'écriture refusée, interruption
   réelle contre un bridge v2.
 
+## C12 — MCP opérationnel & sélection de modèle/mode 🟡 (client partiel)
+
+Branche `wp/C12-mcp-models`. Items 12, 13, 121.
+
+> Ce WP est **majoritairement côté AgenticEnv** : rendre les serveurs MCP
+> joignables depuis le conteneur et exposer `models`/`set_model` dans le bridge.
+> La part client faite ici est celle qui ne crée **aucune promesse vide** :
+> sélecteurs gated, affichage de l'état réel.
+
+**Fait (client, testé contre le faux bridge)** :
+- `protocol.ts` : `list_models` / `set_model {model_id}` (client→bridge),
+  `models {models:[{id,label,context_window,current,state?,error?}]}`
+  (bridge→client). Ajoutés à `CLIENT_AHEAD_OF_BRIDGE`. `list_models` enqueué à
+  la négociation.
+- `messages.ts` : `models` / `sessionMode` (hôte→webview) ; `setModel` /
+  `setSessionMode` (webview→hôte). `ModelView`, `SessionMode`.
+- **Sélecteur de modèle** (`views/ModelPicker.tsx`, item 12) : n'apparaît que si
+  le bridge a répondu à `list_models` (`state.models !== null`) — jamais de liste
+  en dur. Modèle courant visible en permanence ; `context_window` du modèle
+  courant **alimente la jauge C13** avant le premier `usage` (`applyModels`).
+  Changement pendant `running` refusé (message clair). Rechargement : état
+  `loading` → renvoi au panneau Components, pas de spinner ; `error` → message
+  brut de `llama-server`. Un changement est **inscrit dans le fil**
+  (`ChatItem` kind `model-switch`).
+- **Sélecteur de mode** (`ComposerFoot`, item 13) : **trois modes réels**
+  Ask / Agent / Plan (pas de « Edit » qui n'aurait pas de contrepartie sandbox).
+  `ask` et `plan` forcent `permissions.mode = readOnly` côté hôte
+  (`applyPermissionOverride` : le plus strict de `.mode.md` et mode de session
+  gagne). Bannière d'explication ; mémorisé au reload (`PERSIST_VERSION` 9→10,
+  `planMode` bool → `sessionMode`).
+- 256 tests (`test/unit/modelsAndMode.test.ts`, `test/render/ModelPicker.test.tsx`).
+  Bundle 458 Ko webview / 121 Ko extension.
+
+**Non démarré (attend AgenticEnv — cf. avertissement du WP)** :
+- **MCP réellement branché** (§1) : joignabilité des serveurs depuis le conteneur,
+  état **vérifié** par serveur, `tools/list` réel, appels MCP dans le fil,
+  citations MCP encadrées. Aucune capability/vérif bridge aujourd'hui → on
+  n'affiche pas un état inventé. Le texte d'avertissement du picker actuel reste
+  tant que la capacité n'est pas réelle.
+- **Prompts MCP en `/`-commandes** (item 121) : `McpServerEntry` ne porte pas de
+  prompts ; à plumber quand le bridge les expose.
+- `set_model` réel + rechargement `llama-server` : moitié AgenticEnv.
+- F5 : sélecteurs en situation, échec VRAM affiché, mode Ask → écriture refusée.
+
 ## Prochaine étape
 
-C12 (MCP opérationnel & sélection modèle) puis C11, C14.
+C11 (intégration éditeur & commandes VS Code) puis C14.

@@ -96,8 +96,8 @@ Légende de faisabilité :
 | 9 | Historique des prompts : flèche ↑ pour rappeler les précédents | les deux | 🟢 — ✅ **C03** (`↑`/`↓` sur champ vide, historique de 50 persistant par dossier, ne détruit pas un brouillon) |
 | 10 | Prompts de démarrage / suggestions quand le chat est vide | Copilot | 🟢 — ✅ **C03** (`starterPrompts()` hôte : dérivés des diagnostics/git réels ; repli neutre sinon ; affichés fil vide) |
 | 11 | Textarea auto-grandissante (min/max lignes), `Enter` envoie, `Shift+Enter` saut de ligne, `Esc` annule | les deux | 🟢 — ✅ **C03** (auto-grandissement 1→12 lignes, `Enter`/`Shift+Enter`, `Esc` ferme le menu) |
-| 12 | Sélecteur de modèle inline (dans le composer) | les deux | 🟡 |
-| 13 | Sélecteur de mode : Ask / Edit / Agent | Copilot | 🟡 |
+| 12 | Sélecteur de modèle inline (dans le composer) | les deux | 🟡 — ✅ **C12** (client) : `ModelPicker` gated sur `models` (jamais de liste en dur) ; modèle courant toujours visible ; `context_window` du courant alimente la jauge C13 ; changement pendant `running` refusé ; `loading`→Components, `error`→message llama-server ; bascule inscrite dans le fil. `set_model` réel = AgenticEnv. |
+| 13 | Sélecteur de mode : Ask / Edit / Agent | Copilot | 🟡 — ✅ **C12** (client) : **Ask / Agent / Plan** — trois modes réels, pas de « Edit » sans contrepartie sandbox. `ask` et `plan` forcent `readOnly` côté hôte (le plus strict de `.mode.md` et mode gagne) ; bannière d'explication ; mémorisé par dossier. |
 | 14 | Complétion floue des chemins après `@`/`#` (fuzzy find, comme le file picker) | Claude Code | 🟢 — ✅ **C03** (`fuzzyScore` côté hôte, résultats dans le menu `#`, au clavier) |
 | 15 | Modes de chat custom / instructions custom mentionnables | Copilot | 🟢/🟡 — ✅ **C10** (`.agenticenv/modes/*.mode.md` : instructions + permissions + mcp + model ; sélecteur pré-session ; un mode restreint, ne relâche jamais les permissions) |
 | 16 | Indication « contexte trop gros » / troncature avant l'envoi | les deux | 🟢 — ✅ **C03** (`BudgetMeter` : seuils ok/warn/high/over vs `context_window` ; aucune troncature auto, l'utilisateur décide) |
@@ -250,7 +250,7 @@ Légende de faisabilité :
 | 118 | Hooks pre/post tool-use (lint après édition, etc.) | 🟡/🔴 — ✅ **C10** (hooks **côté hôte** sur `onTurnStarted/Finished`/`onFilesChanged`/`onSessionStarted` ; passent par `evaluate()` ; item « hook » visible ; chargés **uniquement** depuis les réglages VS Code, jamais le dépôt) |
 | 119 | `/`-commandes custom définies par le repo | 🟢/🟡 — ✅ **C10** (`.prompt.md` du dépôt → `/`-commande listée dans le menu C03, rechargée à chaud) |
 | 120 | Statusline configurable (branche, modèle, contexte restant, coût) | 🟢 — ✅ **C13** : `StatusBarItem` à droite, visible seulement en session ; `agenticenvChat.statusBar.format` (`${model}`/`${context}`/`${cost}`/`${elapsed}`/`${mode}`) ; spinner + durée écoulée pendant un tour ; fond d'avertissement en attente d'approbation ; masquable |
-| 121 | Ressources / prompts MCP exposés comme `/`-commandes | 🟡 |
+| 121 | Ressources / prompts MCP exposés comme `/`-commandes | 🟡 — **C12** : non démarré. `McpServerEntry` du bridge ne porte pas encore les prompts MCP ; à fusionner avec les `.prompt.md` de C10 (préfixés par serveur) quand le bridge les expose. |
 | 122 | Rendu de diff en couleur dans le fil, style unified | 🟢 |
 | 123 | Mode « plan » approuvé explicitement avant toute écriture | 🔴 — ✅ **C09** (client) : mode plan = `readOnly` forcé, écran d'approbation en fin de tour ; « Edit plan » renvoie le plan édité comme message d'approbation. |
 | 124 | Todo tool avec cases à cocher qui se mettent à jour | 🟡 — ✅ **C09** (client) : `TodoPanel` sur message `todo`, glyphes ✓/⟳/○/⊘, remplacement d'état complet. L'agent produit le todo côté AgenticEnv. |

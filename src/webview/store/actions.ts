@@ -1,4 +1,4 @@
-import type { ContextChip, HostToWebview } from "../../messages";
+import type { ContextChip, HostToWebview, SessionMode } from "../../messages";
 import type { Notice, PanelId } from "./types";
 
 /**
@@ -22,7 +22,7 @@ export type LocalAction =
   | { type: "intent/cancelTurn" }
   | { type: "intent/interrupt"; text: string; capable: boolean }
   | { type: "intent/resolveMaxIterations"; itemId: string }
-  | { type: "plan/set"; enabled: boolean }
+  | { type: "session/setMode"; mode: SessionMode }
   | { type: "thread/truncateFrom"; itemId: string; at: number }
   | { type: "thread/editMessage"; itemId: string; text: string; at: number }
   | { type: "thread/restoreBranch"; index: number };

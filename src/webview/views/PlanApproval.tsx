@@ -14,7 +14,7 @@ export function PlanApproval(props: { state: AppState; actions: Actions }): JSX.
 
   const last = state.items[state.items.length - 1];
   const ready =
-    state.planMode &&
+    state.sessionMode === "plan" &&
     state.phase.kind === "idle" &&
     last?.kind === "assistant" &&
     !last.streaming &&
@@ -31,7 +31,7 @@ export function PlanApproval(props: { state: AppState; actions: Actions }): JSX.
         <button
           className="agx-btn"
           onClick={() => {
-            actions.setPlanMode(false);
+            actions.setSessionMode("agent");
             actions.sendMessage("Proceed with the plan above and implement it.", []);
           }}
         >

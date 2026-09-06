@@ -8,6 +8,7 @@ import {
   type ComponentId,
   type HealthActionId,
   type HostToWebview,
+  type SessionMode,
   type WebviewToHost,
 } from "./messages";
 import { DEFAULT_SANDBOX_ROOT, resetMapping, setMapping, toHostUri } from "./paths";
@@ -83,8 +84,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private filesChangedThisTurn = false;
   /** Capabilities annoncées par le bridge dans `welcome` (C09 : `interrupt`). */
   private capabilities: string[] = [];
-  /** Mode plan (C09 §3) : force `readOnly` en attendant un vrai mode sandbox. */
-  private planMode = false;
+  /** Mode de session (C12 §3) : `ask`/`plan` forcent `readOnly` en attendant un vrai mode sandbox. */
+  private sessionMode: SessionMode = "agent";
   /** Consignes mid-turn en file quand le bridge n'a pas la capability `interrupt`. */
   private queuedInterrupts: string[] = [];
   private readonly statusBar = new StatusBar();
@@ -278,6 +279,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     } else {
       this.bridge?.enqueue({ type: "list_mcp_servers" });
     }
+    this.bridge?.enqueue({ type: "list_models" });
     this.negotiationTimer = setTimeout(() => this.onNegotiationTimeout(), NEGOTIATION_MS);
   }
 
@@ -330,6 +332,26 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           })),
         });
         return;
+
+      case "models": {
+        const models = message.models.map((m) => ({
+          id: m.id,
+          label: m.label,
+          contextWindow: m.context_window,
+          current: m.current,
+          state: m.state,
+          error: m.error,
+        }));
+        this.postToWebview({ type: "models", models });
+        const current = models.find((m) => m.current);
+        if (current) {
+          this.pushStatus({ model: current.label });
+          if (current.contextWindow > 0) {
+            this.postToWebview({ type: "metrics", contextWindow: current.contextWindow });
+          }
+        }
+        return;
+      }
 
       case "session_started":
         this.conversationId = message.conversation_id;
@@ -487,22 +509,23 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   /**
-   * L'override de permissions effectif = le plus strict de (`.mode.md`, mode
-   * plan). Le mode plan (C09 §3) force `readOnly` : protection réelle en
-   * attendant un mode lecture seule côté sandbox — un préfixe de prompt ne
-   * garantit rien face à un modèle local.
+   * L'override de permissions effectif = le plus strict de (`.mode.md`, mode de
+   * session). `ask` et `plan` (C12 §3 / C09 §3) forcent `readOnly` : protection
+   * réelle en attendant un mode lecture seule côté sandbox — un préfixe de
+   * prompt ne garantit rien face à un modèle local.
    */
   private applyPermissionOverride(): void {
-    this.permissions.setModeOverride(this.planMode ? "readOnly" : this.modePermissions);
+    const modeReadOnly = this.sessionMode === "ask" || this.sessionMode === "plan";
+    this.permissions.setModeOverride(modeReadOnly ? "readOnly" : this.modePermissions);
     this.sendPermissionMode();
   }
 
-  private setPlanMode(enabled: boolean): void {
-    this.planMode = enabled;
+  private setSessionMode(mode: SessionMode): void {
+    this.sessionMode = mode;
     this.applyPermissionOverride();
     this.postToWebview({
-      type: "planMode",
-      enabled,
+      type: "sessionMode",
+      mode,
       interruptCapable: this.capabilities.includes("interrupt"),
     });
   }
@@ -855,8 +878,18 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case "interrupt":
         this.onInterrupt(msg.text);
         break;
-      case "setPlanMode":
-        this.setPlanMode(msg.enabled);
+      case "setSessionMode":
+        this.setSessionMode(msg.mode);
+        break;
+      case "setModel":
+        if (this.currentTurnId) {
+          this.postToWebview({
+            type: "hostError",
+            text: "Can't switch model while a turn is running — stop it first.",
+          });
+        } else {
+          this.sendOrNotify({ type: "set_model", model_id: msg.modelId }, "switch the model");
+        }
         break;
       case "continueTurn":
         // C09 §5 : continuation après cap d'itérations — ne reformule jamais la

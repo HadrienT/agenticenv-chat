@@ -4,6 +4,7 @@ import type {
   ContextRef,
   ContextRefKind,
   HealthActionId,
+  SessionMode,
 } from "../../messages";
 import { post } from "../vscodeApi";
 import type { Action, LocalAction } from "./actions";
@@ -31,7 +32,8 @@ export interface Actions {
   interrupt(text: string, capable: boolean): void;
   resolveMaxIterations(itemId: string): void;
   continueTurn(itemId: string, guidance?: string): void;
-  setPlanMode(enabled: boolean): void;
+  setSessionMode(mode: SessionMode): void;
+  setModel(modelId: string): void;
   forceNewSession(): void;
   confirm(opts: {
     accept: boolean;
@@ -110,10 +112,11 @@ export function createActions(dispatch: (action: Action) => void, now: () => num
       post({ type: "continueTurn", guidance });
       send({ type: "intent/resolveMaxIterations", itemId });
     },
-    setPlanMode: (enabled) => {
-      post({ type: "setPlanMode", enabled });
-      send({ type: "plan/set", enabled });
+    setSessionMode: (mode) => {
+      post({ type: "setSessionMode", mode });
+      send({ type: "session/setMode", mode });
     },
+    setModel: (modelId) => post({ type: "setModel", modelId }),
     forceNewSession: () => post({ type: "forceNewSession" }),
     confirm: (opts) => {
       post({ type: "confirm", ...opts });

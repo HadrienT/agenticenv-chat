@@ -1,44 +1,47 @@
+import type { SessionMode } from "../../../messages";
 import type { BudgetStatus, ComposerButton } from "../../store/selectors";
 import { BudgetMeter } from "./BudgetMeter";
 
 /**
- * Pied du composer : sélecteur Plan/Agent (C09 §3), ajout de contexte, budget,
- * bouton principal. Pendant un tour, une consigne peut être ajoutée
- * (« Send note » — interruption, C09 §4) et l'arrêt reste un bouton distinct.
+ * Pied du composer : sélecteur de mode Ask/Agent/Plan (C12 §3 — trois modes
+ * réels, pas quatre dont un ment), ajout de contexte, budget, bouton principal.
+ * Pendant un tour, une consigne peut être ajoutée (« Send note » — C09 §4).
  */
+const MODES: { mode: SessionMode; label: string; title: string }[] = [
+  { mode: "ask", label: "Ask", title: "Read and answer only — no writing, no running" },
+  { mode: "agent", label: "Agent", title: "Full agent behaviour" },
+  { mode: "plan", label: "Plan", title: "Explore and propose a plan, then approve it" },
+];
+
 export function ComposerFoot(props: {
   budget: BudgetStatus;
   button: ComposerButton;
   canSend: boolean;
   hasDraft: boolean;
   turnActive: boolean;
-  planMode: boolean;
-  planToggleAvailable: boolean;
+  sessionMode: SessionMode;
+  modeSelectorAvailable: boolean;
   onPickContext: () => void;
   onSubmit: () => void;
   onStop: () => void;
   onForceNew: () => void;
-  onTogglePlan: (enabled: boolean) => void;
+  onSetMode: (mode: SessionMode) => void;
 }): JSX.Element {
   return (
     <div className="agx-composer__foot">
-      {props.planToggleAvailable && (
+      {props.modeSelectorAvailable && (
         <div className="agx-planseg" role="group" aria-label="Session mode">
-          <button
-            className={`agx-planseg__opt${props.planMode ? " agx-planseg__opt--on" : ""}`}
-            aria-pressed={props.planMode}
-            title="Explore and propose without writing or running anything"
-            onClick={() => props.onTogglePlan(true)}
-          >
-            Plan
-          </button>
-          <button
-            className={`agx-planseg__opt${!props.planMode ? " agx-planseg__opt--on" : ""}`}
-            aria-pressed={!props.planMode}
-            onClick={() => props.onTogglePlan(false)}
-          >
-            Agent
-          </button>
+          {MODES.map((m) => (
+            <button
+              key={m.mode}
+              className={`agx-planseg__opt${props.sessionMode === m.mode ? " agx-planseg__opt--on" : ""}`}
+              aria-pressed={props.sessionMode === m.mode}
+              title={m.title}
+              onClick={() => props.onSetMode(m.mode)}
+            >
+              {m.label}
+            </button>
+          ))}
         </div>
       )}
       <button className="agx-icon-btn" aria-label="Add context" title="Add context" onClick={props.onPickContext}>

@@ -520,6 +520,34 @@ button {
   color: var(--agx-muted);
 }
 
+.agx-modelpick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 0;
+  font-size: 11px;
+  flex-wrap: wrap;
+}
+.agx-modelpick__label {
+  color: var(--agx-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.agx-modelpick__select {
+  background: var(--agx-input-bg);
+  color: var(--agx-input-fg);
+  border: 1px solid var(--agx-input-border);
+  border-radius: 3px;
+  font-size: 11px;
+  padding: 1px 4px;
+}
+.agx-modelpick__note {
+  color: var(--agx-muted);
+}
+.agx-modelpick__err {
+  color: var(--agx-error);
+}
+
 /* --- composer ------------------------------------------------ */
 
 .agx-composer {
