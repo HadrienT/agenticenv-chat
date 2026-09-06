@@ -10,6 +10,15 @@ quand ses critères d'acceptation **automatisables** sont verts.
 > AgenticEnv ; les messages du protocole v2 sont codés côté client et testés
 > contre le faux bridge). Ces points sont listés « à finir » par WP.
 
+**État global (C14 clôturé)** : les 15 work packages `C00`–`C14` sont mergés dans
+`main`. C01/C06/C07/C09/C12/C13 ont une **moitié AgenticEnv** en attente (bridge
+v2 — voir `src/protocol.ts` → `CLIENT_AHEAD_OF_BRIDGE` et la section
+« Bridge dependencies » du README). Différés côté client : Mermaid/KaTeX (C02),
+`openInEditor` (C08), chat inline éditeur (C11), virtualisation + recherche
+interne du fil (C14), extraction `EditsController` de `chatViewProvider.ts`.
+270 tests ; bundle 460 Ko webview / 128 Ko extension. F5 reste à faire sur chaque
+WP (pas de GUI ici).
+
 | WP | Titre | Branche | État | Notes |
 |---|---|---|---|---|
 | C00 | Fondations | `wp/C00-foundations` | ✅ **fait** (commit `5353b2c`) | F5 + fixtures réelles à finir |
