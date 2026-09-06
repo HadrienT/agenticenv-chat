@@ -61,6 +61,15 @@ describe("BridgeClient ↔ faux bridge", () => {
     client.stop();
   });
 
+  it("`state` reflète la connexion vive (source pour la ligne santé « bridge »)", async () => {
+    fake = await startFakeBridge({ greeting: [{ type: "mcp_servers", servers: [] }] });
+    const client = new BridgeClient(fake.url, { onState: () => undefined, onMessage: () => undefined });
+    expect(client.state).toBe("closed");
+    client.start();
+    await waitFor(() => client.state === "open");
+    client.stop();
+  });
+
   it("reconnexion : après une coupure serveur, le client se rebranche", async () => {
     fake = await startFakeBridge({ closeAfterMs: 60 });
     const states: string[] = [];

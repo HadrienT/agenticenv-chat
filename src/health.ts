@@ -52,6 +52,13 @@ function agentServerImage(agenticEnvPath: string): string {
 export interface HealthContext {
   bridgeUrl: string;
   agenticEnvPath: string;
+  /**
+   * État de la connexion WebSocket vive tenue par l'extension. Quand il est
+   * fourni, la ligne « bridge » le reflète **au lieu** d'une sonde TCP — un
+   * connect/close brut fait rejeter le handshake par le serveur `websockets` et
+   * pollue ses logs (une ERROR par sonde).
+   */
+  bridgeLive?: "connecting" | "open" | "closed";
 }
 
 /** Shell command for a (component, action), run by the extension in a terminal. */
@@ -82,7 +89,7 @@ export async function checkHealth(ctx: HealthContext): Promise<ComponentHealth[]
   const image = agentServerImage(dir);
 
   const [bridge, llama, bridgeUnit, docker, imageInspect, gpu] = await Promise.all([
-    checkBridge(ctx.bridgeUrl),
+    checkBridge(ctx.bridgeUrl, ctx.bridgeLive),
     checkLlamaServer(),
     checkUnit(BRIDGE_UNIT),
     run("docker", ["version", "--format", "{{.Server.Version}}"]),
@@ -124,16 +131,33 @@ export async function checkHealth(ctx: HealthContext): Promise<ComponentHealth[]
   ];
 }
 
-async function checkBridge(url: string): Promise<ComponentHealth> {
+async function checkBridge(
+  url: string,
+  live: HealthContext["bridgeLive"],
+): Promise<ComponentHealth> {
   const m = url.match(/^wss?:\/\/([^/:]+):(\d+)/);
   const host = m?.[1] ?? "127.0.0.1";
   const port = m ? Number(m[2]) : 8300;
+
+  // Connexion vive connue : on ne sonde jamais (une sonde TCP brute fait rejeter
+  // le handshake par le serveur `websockets` et log une ERROR à chaque poll).
+  if (live) {
+    const map = {
+      open: { status: "up" as const, detail: "connected", actions: [] as HealthActionId[] },
+      connecting: { status: "degraded" as const, detail: "connecting…", actions: [] as HealthActionId[] },
+      closed: { status: "down" as const, detail: "not reachable", actions: ["start"] as HealthActionId[] },
+    }[live];
+    return { id: "bridge", label: "openhands-bridge", detail: `${host}:${port} — ${map.detail}`, status: map.status, actions: map.actions };
+  }
+
   const up = await tcpProbe(host, port);
   return {
     id: "bridge",
     label: "openhands-bridge",
     status: up ? "up" : "down",
-    detail: `${host}:${port}${up ? "" : " — not listening"}`,
+    detail: up
+      ? `${host}:${port} — listening (not connected)`
+      : `${host}:${port} — not listening`,
     actions: up ? [] : ["start"],
   };
 }
