@@ -106,6 +106,7 @@ export function App(): JSX.Element {
           disabled={!canStartSession(state)}
           starting={isStarting(state)}
           onToggle={actions.toggleMcp}
+          onSetAll={actions.setAllMcp}
           onSelectMode={actions.selectMode}
           onStart={() => actions.startSession(state.mcp.selected, state.selectedMode)}
         />

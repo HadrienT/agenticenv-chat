@@ -51,6 +51,11 @@ export function applyLocal(state: AppState, action: LocalAction): AppState {
       return { ...state, mcp: { ...state.mcp, selected } };
     }
 
+    case "mcp/setAll": {
+      const selected = action.all ? state.mcp.servers.map((s) => s.name) : [];
+      return { ...state, mcp: { ...state.mcp, selected } };
+    }
+
     case "mode/select":
       return { ...state, selectedMode: action.name };
 

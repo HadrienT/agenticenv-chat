@@ -44,6 +44,7 @@ export interface Actions {
   }): void;
   setDraft(draft: string): void;
   toggleMcp(name: string): void;
+  setAllMcp(all: boolean): void;
   togglePanel(id: PanelId): void;
   dismissNotice(id: string): void;
   noticeAction(action: NoticeAction): void;
@@ -129,6 +130,7 @@ export function createActions(dispatch: (action: Action) => void, now: () => num
     },
     setDraft: (draft) => send({ type: "composer/setDraft", draft }),
     toggleMcp: (name) => send({ type: "mcp/toggle", name }),
+    setAllMcp: (all) => send({ type: "mcp/setAll", all }),
     togglePanel: (id) => send({ type: "panel/toggle", id }),
     dismissNotice: (id) => send({ type: "notice/dismiss", id }),
     noticeAction: (action) => {

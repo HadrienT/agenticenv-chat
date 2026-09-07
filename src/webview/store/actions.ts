@@ -12,6 +12,7 @@ export type LocalAction =
   | { type: "composer/clearAttachments" }
   | { type: "composer/dismissAuto"; refKey: string }
   | { type: "mcp/toggle"; name: string }
+  | { type: "mcp/setAll"; all: boolean }
   | { type: "mode/select"; name: string | null }
   | { type: "panel/toggle"; id: PanelId }
   | { type: "panel/set"; id: PanelId; open: boolean }
