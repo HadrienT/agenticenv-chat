@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import * as vscode from "vscode";
 import { assertNever } from "./assertNever";
 import { BridgeClient, type BridgeState } from "./bridgeClient";
@@ -68,6 +69,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private lastTurnId: string | undefined;
   private llmSource: string | undefined;
   private lastSeq = 0;
+  /**
+   * Hash du dernier bloc d'instructions **effectivement joint** à un
+   * `user_message` (#7). OpenHands garde tout l'historique : rejoindre le bloc à
+   * chaque message le ferait figurer N fois dans le prompt. On ne le rejoint que
+   * s'il a changé ; remis à `undefined` quand l'historique repart de zéro
+   * (`newSession`, `session_started`, `history_compacted`).
+   */
+  private lastInstructionsHash: string | undefined;
   private readonly checkpoints = new CheckpointStore();
   private readonly turnDecorations = new TurnDecorations();
   private readonly diffProvider = new CheckpointContentProvider();
@@ -217,6 +226,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.turnDecorations.clear();
     this.llmSource = undefined;
     this.lastSeq = 0;
+    this.lastInstructionsHash = undefined;
     void this.context.workspaceState.update(K_CONVERSATION, undefined);
     void this.context.workspaceState.update(K_LAST_SEQ, undefined);
     this.setContextKey("turnRunning", false);
@@ -423,6 +433,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         this.sandboxMode = message.mode ?? "agent";
         this.lastCheckpoint = undefined;
         this.lastBridgeChanges = [];
+        this.lastInstructionsHash = undefined;
         this.pushStatus({ session: true, phase: "idle", model: message.llm_source });
         this.postToWebview({ type: "metrics", contextWindow: this.defaultContextWindow() });
         this.permissions.resetSession();
@@ -600,6 +611,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           this.postToWebview({ type: "reset" });
           return;
         }
+        this.postToWebview({ type: "bridge", message });
+        return;
+
+      case "history_compacted":
+        // L'historique vient d'être résumé : le bloc d'instructions joint plus
+        // tôt a pu disparaître du contexte → le rejoindre au prochain message (#7).
+        this.lastInstructionsHash = undefined;
         this.postToWebview({ type: "bridge", message });
         return;
 
@@ -1231,24 +1249,33 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
     // Instructions du dépôt (C10 §7) : en **tête** du contexte, kind "instructions",
     // jamais concaténées dans `text`. Elles ne sont pas tronquées avant le reste.
+    // #7 : jointes **une seule fois par session** — l'historique OpenHands les
+    // conserve, les rejoindre à chaque tour les empilerait dans le prompt. On ne
+    // les rejoint que si leur contenu a changé depuis le dernier envoi.
     try {
       const instr = await this.buildInstructionsContext();
       if (instr) {
-        context.unshift({
-          kind: "instructions",
-          label: `instructions (${instr.applied.join(", ")})`,
-          body: instr.block,
-          truncated: instr.truncated,
-        });
+        const hash = createHash("sha1").update(instr.block).digest("hex");
+        if (hash !== this.lastInstructionsHash) {
+          context.unshift({
+            kind: "instructions",
+            label: `instructions (${instr.applied.join(", ")})`,
+            body: instr.block,
+            truncated: instr.truncated,
+          });
+          this.lastInstructionsHash = hash;
+          for (const ig of instr.ignored) {
+            this.postToWebview({ type: "hostError", text: `Instruction file ignored — ${ig.rel}: ${ig.reason}` });
+          }
+        }
+        // Le chip du composer reflète toujours l'état courant, même quand le bloc
+        // n'est pas rejoint (il l'a déjà été plus tôt dans la session).
         this.postToWebview({
           type: "instructionsInfo",
           applied: instr.applied,
           ignored: instr.ignored,
           truncated: instr.truncated,
         });
-        for (const ig of instr.ignored) {
-          this.postToWebview({ type: "hostError", text: `Instruction file ignored — ${ig.rel}: ${ig.reason}` });
-        }
       }
     } catch (err) {
       log.debug("instructions assembly failed:", err);
