@@ -144,6 +144,7 @@ client, pas sur les appels d'outils de l'agent (qui vivent dans le sandbox).
 | Règle |
 |---|
 | Les instructions sont envoyées dans `context[]` avec `kind: "instructions"`, **pas** concaténées dans `text` (03-PROTOCOL §2.2). |
+| Le bloc n'est joint qu'**une fois par session** (#7) : l'historique OpenHands le conserve, le rejoindre à chaque tour l'empilerait N fois dans le prompt. L'hôte garde le hash SHA-1 du dernier bloc envoyé et ne le rejoint que s'il a changé (hot-reload d'un fichier, changement de `.mode.md`). Le hash est remis à zéro quand l'historique repart : `newSession`, `session_started`, `history_compacted` (et, à terme, `resume`). Le chip du composer, lui, reflète l'état courant à chaque message. |
 | En cas de dépassement de budget, on tronque le **contexte** avant les instructions : les instructions sont ce qui donne du sens au reste. |
 | Le contenu du dépôt est du **contenu**, pas une consigne système : le bridge le présente comme tel. Un fichier `CLAUDE.md` d'un dépôt tiers cloné peut contenir n'importe quoi — d'où le verrou Workspace Trust. |
 
