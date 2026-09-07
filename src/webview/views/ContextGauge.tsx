@@ -16,7 +16,9 @@ export function ContextGauge(props: {
   onNewSession: () => void;
 }): JSX.Element {
   const { promptTokens, completionTokens, contextWindow, accumulatedCost, tokensPerSec } = props.usage;
+  const accumulatedPromptTokens = props.usage.accumulatedPromptTokens ?? 0;
   const attachedTokens = Math.round(props.attachedBytes / 4);
+  // Jauge = occupation de la **fenêtre** (`context_stats`), jamais la dépense cumulée (#8).
   const usedTokens = promptTokens || attachedTokens;
   const pct = contextWindow > 0 ? Math.min(100, (usedTokens / contextWindow) * 100) : 0;
   const zone = pct > 85 ? "alert" : pct >= 60 ? "warn" : "ok";
@@ -24,7 +26,7 @@ export function ContextGauge(props: {
   return (
     <div className={`agx-gauge agx-gauge--${zone}`}>
       <div className="agx-gauge__head">
-        <span title={breakdown(promptTokens, attachedTokens, contextWindow)}>
+        <span title={breakdown(promptTokens, attachedTokens, contextWindow, accumulatedPromptTokens)}>
           {fmtCount(usedTokens)}
           {contextWindow > 0 ? ` / ${fmtCount(contextWindow)} · ${Math.round(pct)}%` : ""}
           {completionTokens > 0 ? ` · out ${fmtCount(completionTokens)}` : ""}
@@ -61,11 +63,15 @@ export function ContextGauge(props: {
   );
 }
 
-function breakdown(prompt: number, attached: number, window: number): string {
+function breakdown(prompt: number, attached: number, window: number, accumulated: number): string {
   const history = Math.max(0, prompt - attached);
-  return [
+  const lines = [
     `context window: ${window || "unknown"}`,
     `attached (chips + instructions): ~${attached}`,
     `history + last message: ~${history}`,
-  ].join("\n");
+  ];
+  if (accumulated > 0) {
+    lines.push(`prompt tokens billed so far (all turns): ${accumulated}`);
+  }
+  return lines.join("\n");
 }

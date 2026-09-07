@@ -554,25 +554,25 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         return;
 
       case "usage": {
+        // `usage.prompt_tokens` = dépense cumulée, pas l'occupation fenêtre (#8) :
+        // ne pas en dériver `contextPct` (c'est `context_stats` qui le fait).
         const secs = (Date.now() - this.turnStartMs) / 1000;
         const tps = secs > 1 && message.completion_tokens > 0 ? message.completion_tokens / secs : null;
-        const window = message.context_window || this.defaultContextWindow();
-        this.pushStatus({
-          cost: message.accumulated_cost,
-          contextPct: window > 0 ? (message.prompt_tokens / window) * 100 : null,
-        });
-        this.postToWebview({ type: "metrics", contextWindow: window, tokensPerSec: tps });
+        this.pushStatus({ cost: message.accumulated_cost });
+        this.postToWebview({ type: "metrics", tokensPerSec: tps });
         this.postToWebview({ type: "bridge", message });
         return;
       }
 
-      case "context_stats":
+      case "context_stats": {
+        const window = message.context_window || this.defaultContextWindow();
         this.pushStatus({
-          contextPct:
-            message.context_window > 0 ? (message.prompt_tokens / message.context_window) * 100 : null,
+          contextPct: window > 0 ? (message.prompt_tokens / window) * 100 : null,
         });
+        this.postToWebview({ type: "metrics", contextWindow: window });
         this.postToWebview({ type: "bridge", message });
         return;
+      }
 
       case "todo":
         // État complet produit par l'agent (C09 §2) — traduit wire → vue (formes

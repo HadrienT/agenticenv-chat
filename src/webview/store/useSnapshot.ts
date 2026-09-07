@@ -32,7 +32,8 @@ export function useSnapshot(
         branches: state.branches,
         title: titleFor(state),
         cost: state.usage?.accumulatedCost ?? 0,
-        promptTokens: state.usage?.promptTokens ?? 0,
+        // Archive : la dépense cumulée, pas l'occupation fenêtre du moment (#8).
+        promptTokens: state.usage?.accumulatedPromptTokens ?? 0,
         completionTokens: state.usage?.completionTokens ?? 0,
       });
     }, 1500);

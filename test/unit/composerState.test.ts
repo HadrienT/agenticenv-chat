@@ -67,7 +67,7 @@ describe("historique de prompts (item 9)", () => {
 describe("budget (item 16)", () => {
   it("seuils ok / warn / high / over selon la fenêtre de contexte", () => {
     let s = initialState();
-    s = reduce(s, host({ type: "bridge", message: { type: "usage", accumulated_cost: 0, prompt_tokens: 0, completion_tokens: 0, context_window: 1000 } }));
+    s = reduce(s, host({ type: "bridge", message: { type: "context_stats", prompt_tokens: 0, context_window: 1000, compacted: false } }));
     // fenêtre = 1000 tok * 4 = 4000 octets
     s = reduce(s, local({ type: "composer/addAttachment", chip: chip("a", 1000) }));
     expect(budgetStatus(s).level).toBe("ok");

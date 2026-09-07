@@ -1,4 +1,5 @@
 import type { HostToWebview } from "../../messages";
+import { emptyUsage } from "./initialState";
 import { appendItems, withNotice } from "./reduceHelpers";
 import type { AppState } from "./types";
 
@@ -35,13 +36,7 @@ export function applyMetrics(
   state: AppState,
   msg: Extract<HostToWebview, { type: "metrics" }>,
 ): AppState {
-  const usage = state.usage ?? {
-    accumulatedCost: 0,
-    promptTokens: 0,
-    completionTokens: 0,
-    contextWindow: 0,
-    tokensPerSec: null,
-  };
+  const usage = state.usage ?? emptyUsage();
   return {
     ...state,
     usage: {
@@ -91,13 +86,7 @@ export function applyModels(
   }
 
   if (current && current.contextWindow > 0) {
-    const usage = next.usage ?? {
-      accumulatedCost: 0,
-      promptTokens: 0,
-      completionTokens: 0,
-      contextWindow: 0,
-      tokensPerSec: null,
-    };
+    const usage = next.usage ?? emptyUsage();
     next = { ...next, usage: { ...usage, contextWindow: current.contextWindow } };
   }
   return next;
