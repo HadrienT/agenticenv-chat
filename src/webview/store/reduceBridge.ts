@@ -1,6 +1,7 @@
 import { assertNever } from "../../assertNever";
 import type { Outbound } from "../../protocol";
 import { errorNotice } from "./errorNotice";
+import { emptyUsage } from "./initialState";
 import { withNotice } from "./reduceHelpers";
 import {
   applyEvent,
@@ -61,29 +62,34 @@ export function applyBridge(state: AppState, msg: Outbound, at: number): AppStat
     }
 
     case "usage": {
+      // `usage.prompt_tokens` = dépense **cumulée**, pas l'occupation fenêtre
+      // (#8). La jauge vient de `context_stats` ; on n'y touche ici qu'en repli
+      // v1 (bridge sans `context_stats`).
+      const prev = state.usage ?? emptyUsage();
       const usage = {
-        ...(state.usage ?? {
-          accumulatedCost: 0,
-          promptTokens: 0,
-          completionTokens: 0,
-          contextWindow: 0,
-          tokensPerSec: null as number | null,
-        }),
+        ...prev,
         accumulatedCost: msg.accumulated_cost,
-        promptTokens: msg.prompt_tokens,
+        accumulatedPromptTokens: msg.prompt_tokens,
         completionTokens: msg.completion_tokens,
-        contextWindow: msg.context_window || state.usage?.contextWindow || 0,
+        ...(state.protocol.degraded
+          ? {
+              promptTokens: msg.prompt_tokens,
+              contextWindow: msg.context_window || prev.contextWindow,
+            }
+          : {}),
       };
       return maybeV1EndTurn({ ...state, usage }, msg);
     }
 
     case "context_stats": {
+      // Source de vérité de la jauge d'occupation (#8) : taille du dernier
+      // prompt vs fenêtre réelle. `context_window` peut être 0 si le bridge ne
+      // la connaît pas encore → on garde la dernière valeur connue.
+      const prev = state.usage ?? emptyUsage();
       const usage = {
-        accumulatedCost: state.usage?.accumulatedCost ?? 0,
-        completionTokens: state.usage?.completionTokens ?? 0,
-        tokensPerSec: state.usage?.tokensPerSec ?? null,
+        ...prev,
         promptTokens: msg.prompt_tokens,
-        contextWindow: msg.context_window,
+        contextWindow: msg.context_window || prev.contextWindow,
       };
       return { ...state, usage, compacted: msg.compacted };
     }

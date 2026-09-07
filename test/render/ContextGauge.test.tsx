@@ -7,6 +7,7 @@ import type { UsageState } from "../../src/webview/store/types";
 const usage = (over: Partial<UsageState> = {}): UsageState => ({
   accumulatedCost: 0,
   promptTokens: 0,
+  accumulatedPromptTokens: 0,
   completionTokens: 0,
   contextWindow: 32768,
   tokensPerSec: null,

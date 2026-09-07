@@ -1,4 +1,16 @@
-import type { AppState } from "./types";
+import type { AppState, UsageState } from "./types";
+
+/** Usage neutre — base de fusion partout où un message met à jour un sous-ensemble des compteurs. */
+export function emptyUsage(): UsageState {
+  return {
+    accumulatedCost: 0,
+    promptTokens: 0,
+    accumulatedPromptTokens: 0,
+    completionTokens: 0,
+    contextWindow: 0,
+    tokensPerSec: null,
+  };
+}
 
 /** État initial du store (extrait de types.ts pour tenir < 200 lignes). */
 export function initialState(): AppState {

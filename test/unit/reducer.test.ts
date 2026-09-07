@@ -63,7 +63,29 @@ describe("reducer — machine à états v2 (C01)", () => {
     s = reduce(s, bridge(usage()));
     expect(s.phase.kind).toBe("running");
     expect(s.workingSet).toHaveLength(1);
-    expect(s.usage?.promptTokens).toBe(10);
+    // #8 : en v2, `usage.prompt_tokens` alimente la dépense cumulée, pas la jauge.
+    expect(s.usage?.accumulatedPromptTokens).toBe(10);
+    expect(s.usage?.promptTokens).toBe(0);
+  });
+
+  it("#8 — `context_stats` et `usage` ne s'écrasent plus (jauge vs dépense)", () => {
+    let s = running();
+    s = reduce(s, bridge({ type: "context_stats", prompt_tokens: 30000, context_window: 65536, compacted: false }));
+    s = reduce(s, bridge(usage())); // usage.prompt_tokens = 10 (cumulé)
+    expect(s.usage?.promptTokens).toBe(30000); // jauge : occupation fenêtre, intacte
+    expect(s.usage?.contextWindow).toBe(65536);
+    expect(s.usage?.accumulatedPromptTokens).toBe(10);
+    s = reduce(s, bridge({ type: "context_stats", prompt_tokens: 31000, context_window: 65536, compacted: true }));
+    expect(s.usage?.promptTokens).toBe(31000);
+    expect(s.compacted).toBe(true);
+  });
+
+  it("#8 — bridge v1 (dégradé) : `usage` alimente encore la jauge en repli", () => {
+    let s = running(); // running() → idle() → connected(false) ; on force le dégradé
+    s = { ...s, protocol: { ...s.protocol, degraded: true } };
+    s = reduce(s, bridge({ type: "usage", accumulated_cost: 0, prompt_tokens: 500, completion_tokens: 0, context_window: 8000 }));
+    expect(s.usage?.promptTokens).toBe(500);
+    expect(s.usage?.contextWindow).toBe(8000);
   });
 
   it("`running → idle` uniquement sur `turn_finished` du bon turnId (I3)", () => {

@@ -25,6 +25,12 @@ tokens en continu), 120 (statusline configurable).
 `context_stats {prompt_tokens, context_window, compacted}` est poussé **pendant**
 le tour (03-PROTOCOL §2.3), pas seulement à la fin.
 
+**Deux grandeurs distinctes, jamais fusionnées (#8)** : `context_stats.prompt_tokens`
+= taille du **dernier** prompt (occupation de la fenêtre, alimente la jauge) ;
+`usage.prompt_tokens` = **somme cumulée** sur tous les appels LLM (dépense, monte
+toujours) → `usage.accumulatedPromptTokens`, affichée dans le survol, jamais dans
+la jauge. En bridge v1 (pas de `context_stats`), `usage` alimente la jauge en repli.
+
 | Règle |
 |---|
 | La jauge est visible **dès la connexion**, alimentée par la `context_window` du modèle (C12 §2), avant même le premier tour. |
@@ -117,7 +123,8 @@ ou de prompt système côté AgenticEnv.
 - [x] La jauge est utile **avant** d'envoyer le premier message. — `metrics {contextWindow}`
   poussé au `ready`/`session_started` ; `ContextGauge` s'affiche dès `state.usage != null`.
 - [x] Elle progresse pendant un tour. — `context_stats` routé par `reduceBridge` met à jour
-  `usage.promptTokens` **pendant** le tour (pas seulement `usage` en fin).
+  `usage.promptTokens` (occupation fenêtre) **pendant** le tour ; `usage` ne l'écrase plus
+  (#8 : `usage.prompt_tokens` cumulé → `usage.accumulatedPromptTokens`).
 - [x] À > 85 %, trois options concrètes sont proposées, aucune imposée. — zone `alert` :
   « remove chips » / bouton `/compact` (si capability) / bouton « new session ».
 - [x] Une compaction automatique est toujours annoncée dans le fil et son résumé est

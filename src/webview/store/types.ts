@@ -95,7 +95,19 @@ export interface ProtocolState {
 
 export interface UsageState {
   accumulatedCost: number;
+  /**
+   * Occupation de la fenêtre : taille du **dernier** prompt envoyé au modèle
+   * (`context_stats.prompt_tokens`), à comparer à `contextWindow`. C'est la
+   * grandeur de la jauge C13. En bridge v1 (pas de `context_stats`), alimentée
+   * en repli par `usage.prompt_tokens`.
+   */
   promptTokens: number;
+  /**
+   * Somme **cumulée** des `prompt_tokens` sur tous les appels LLM de la
+   * conversation (`usage.prompt_tokens`) — compteur de dépense, monte toujours.
+   * Sert au coût/tokens dépensés, jamais à la jauge d'occupation.
+   */
+  accumulatedPromptTokens: number;
   completionTokens: number;
   contextWindow: number;
   /** débit dérivé (`completion_tokens` / durée du dernier tour), ou `null` (C13 §5). */

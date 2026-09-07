@@ -67,7 +67,7 @@ describe("cycle de tour v2 contre le faux bridge", () => {
     const assistants = state.items.filter((i) => i.kind === "assistant");
     expect(assistants).toHaveLength(1);
     expect(assistants[0]).toMatchObject({ text: "Hello!", streaming: false });
-    expect(state.usage?.promptTokens).toBe(42);
+    expect(state.usage?.accumulatedPromptTokens).toBe(42);
     expect(state.progress).toBeNull();
     client.stop();
   });
