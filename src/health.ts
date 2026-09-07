@@ -18,7 +18,7 @@ function run(cmd: string, args: string[], timeoutMs = 4000): Promise<{ code: num
   });
 }
 
-function expandHome(p: string): string {
+export function expandHome(p: string): string {
   return p.startsWith("~") ? path.join(os.homedir(), p.slice(1)) : p;
 }
 
@@ -60,16 +60,27 @@ export interface HealthContext {
   bridgeLive?: "connecting" | "open" | "closed";
 }
 
-/** Shell command for a (component, action), run by the extension in a terminal. */
-export function actionCommand(
+/**
+ * Argv structuré pour une action (composant, action) — lancé **directement** par
+ * l'extension via `execFile` (WP08f §3.1), sans terminal ni shell. Suppose la
+ * pile desktop installée (`just install-stack` côté AgenticEnv : unit
+ * `systemctl --user` pour le bridge + sudoers NOPASSWD étroit pour les units
+ * système). Le repli terminal reste proposé si un appel échoue.
+ */
+export function actionArgv(
   id: ComponentHealth["id"],
   action: HealthActionId,
   ctx: HealthContext,
-): string | undefined {
+): string[] | undefined {
   const dir = expandHome(ctx.agenticEnvPath);
   switch (id) {
+    case "bridge":
+      // uid 1000 obligatoire (write-back WP08d, docker, gh) → unit *user*.
+      return action === "start" ? ["systemctl", "--user", "start", "agenticenv-bridge"] : undefined;
     case "llama-server":
-      return action === "pull" ? undefined : `sudo systemctl ${action} ${LLAMA_UNIT}`;
+      return action === "pull"
+        ? undefined
+        : ["sudo", "-n", "systemctl", action, `${LLAMA_UNIT}.service`];
     case "llama-bridge":
       // `start` arme le `.socket` ; `stop`/`restart` visent le `.service` (le
       // proxy qui tourne) — `restart llama-bridge.socket` échoue tant que le
@@ -78,17 +89,30 @@ export function actionCommand(
         return undefined;
       }
       return action === "start"
-        ? "sudo systemctl start llama-bridge.socket"
-        : `sudo systemctl ${action} llama-bridge.service`;
+        ? ["sudo", "-n", "systemctl", "start", "llama-bridge.socket"]
+        : ["sudo", "-n", "systemctl", action, "llama-bridge.service"];
     case "docker":
-      return action === "start" ? "sudo systemctl start docker" : undefined;
+      return action === "start" ? ["sudo", "-n", "systemctl", "start", "docker.service"] : undefined;
     case "agent-server-image":
-      return action === "pull" ? `docker pull ${agentServerImage(dir)}` : undefined;
-    case "bridge":
-      return action === "start" ? `cd ${dir} && uv run openhands-bridge` : undefined;
+      return action === "pull" ? ["docker", "pull", agentServerImage(dir)] : undefined;
     default:
       return undefined;
   }
+}
+
+/** Lance une action de `actionArgv` sans shell. Timeout large : le démarrage de `llama-server` charge le modèle. */
+export function runComponentAction(argv: string[]): Promise<{ code: number; out: string }> {
+  return run(argv[0], argv.slice(1), 120_000);
+}
+
+/**
+ * La pile desktop est-elle installée ? `systemctl --user cat` sort non-zéro et
+ * écrit « No files found for … » quand l'unit `agenticenv-bridge` n'existe pas
+ * (WP08f §3.3). Sert à orienter le message de repli vers `just install-stack`.
+ */
+export async function stackInstalled(): Promise<boolean> {
+  const r = await run("systemctl", ["--user", "cat", "agenticenv-bridge.service"]);
+  return r.code === 0;
 }
 
 export async function checkHealth(ctx: HealthContext): Promise<ComponentHealth[]> {

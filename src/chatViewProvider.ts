@@ -1,7 +1,14 @@
 import * as vscode from "vscode";
 import { assertNever } from "./assertNever";
 import { BridgeClient, type BridgeState } from "./bridgeClient";
-import { actionCommand, checkHealth, type HealthContext } from "./health";
+import {
+  actionArgv,
+  checkHealth,
+  expandHome,
+  runComponentAction,
+  stackInstalled,
+  type HealthContext,
+} from "./health";
 import { log } from "./logging";
 import {
   isWebviewToHost,
@@ -1214,7 +1221,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         void this.pollHealth();
         break;
       case "healthAction":
-        this.runHealthAction(msg.component, msg.action);
+        void this.runHealthAction(msg.component, msg.action);
         break;
       default:
         assertNever(msg, "WebviewToHost");
@@ -1476,17 +1483,53 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private runHealthAction(component: ComponentId, action: HealthActionId): void {
-    const cmd = actionCommand(component, action, this.healthContext());
-    if (!cmd) {
+  /**
+   * WP08f §3.1 : lance l'action directement (`execFile`, pas de terminal). En cas
+   * d'échec (`sudo` sans NOPASSWD, unit absente) on propose le repli terminal /
+   * `just install-stack` — choisi, pas imposé.
+   */
+  private async runHealthAction(component: ComponentId, action: HealthActionId): Promise<void> {
+    const argv = actionArgv(component, action, this.healthContext());
+    if (!argv) {
       return;
     }
-    const term =
-      vscode.window.terminals.find((t) => t.name === "AgenticEnv") ??
-      vscode.window.createTerminal("AgenticEnv");
-    term.show();
-    term.sendText(cmd, true);
-    setTimeout(() => void this.pollHealth(), 4000);
+    const res = await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: `AgenticEnv — ${action} ${component}…`,
+        cancellable: false,
+      },
+      () => runComponentAction(argv),
+    );
+    if (res.code === 0) {
+      setTimeout(() => void this.pollHealth(), 2000);
+      return;
+    }
+    log.warn(`health action ${action} ${component} failed:`, res.out);
+    await this.offerStackFallback(argv.join(" "), res.out);
+    void this.pollHealth();
+  }
+
+  private async offerStackFallback(shell: string, out: string): Promise<void> {
+    const passwordless = /a password is required|^sudo:|sudo: a terminal/im.test(out);
+    const missingUnit = /could not be found|not found|no files found/i.test(out);
+    const installed = await stackInstalled();
+    const needInstall = !installed || missingUnit || passwordless;
+    const msg = needInstall
+      ? "The AgenticEnv desktop stack isn't installed (user service + narrow sudoers rule). Run `just install-stack` in the AgenticEnv repo once."
+      : `"${shell}" failed: ${out.split("\n")[0] || "unknown error"}`;
+    const runInTerm = needInstall ? "just install-stack" : shell;
+    const pick = await vscode.window.showWarningMessage(msg, "Open terminal", "Copy command");
+    if (pick === "Open terminal") {
+      const cwd = expandHome(this.healthContext().agenticEnvPath);
+      const term =
+        vscode.window.terminals.find((t) => t.name === "AgenticEnv") ??
+        vscode.window.createTerminal({ name: "AgenticEnv", cwd });
+      term.show();
+      term.sendText(runInTerm, false);
+    } else if (pick === "Copy command") {
+      await vscode.env.clipboard.writeText(runInTerm);
+    }
   }
 
   private healthContext(): HealthContext {
