@@ -842,6 +842,11 @@ button {
   gap: 6px;
   align-items: baseline;
 }
+.agx-mcp-item--all {
+  padding-bottom: 4px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--agx-border);
+}
 .agx-mcp-item__meta {
   color: var(--agx-fg-muted);
 }

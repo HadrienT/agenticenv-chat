@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { McpServerView, ModeView } from "../../../messages";
 
 export function McpPicker(props: {
@@ -9,10 +10,18 @@ export function McpPicker(props: {
   disabled: boolean;
   starting: boolean;
   onToggle: (name: string) => void;
+  onSetAll: (all: boolean) => void;
   onSelectMode: (name: string | null) => void;
   onStart: () => void;
 }): JSX.Element {
   const selected = new Set(props.selected);
+  const selectedCount = props.servers.filter((s) => selected.has(s.name)).length;
+  const allSelected = selectedCount === props.servers.length && props.servers.length > 0;
+  const someSelected = selectedCount > 0 && !allSelected;
+  const allRef = useRef<HTMLInputElement>(null);
+  if (allRef.current) {
+    allRef.current.indeterminate = someSelected;
+  }
   return (
     <div className="agx-picker">
       <div className="agx-picker__title">New session</div>
@@ -45,6 +54,20 @@ export function McpPicker(props: {
       </div>
       {props.servers.length === 0 && (
         <div className="agx-picker__hint">No MCP servers configured.</div>
+      )}
+      {props.servers.length > 1 && (
+        <label className="agx-mcp-item agx-mcp-item--all">
+          <input
+            ref={allRef}
+            type="checkbox"
+            checked={allSelected}
+            disabled={props.disabled}
+            onChange={() => props.onSetAll(!allSelected)}
+          />
+          <span>
+            <strong>{allSelected ? "Deselect all" : "Select all"}</strong>
+          </span>
+        </label>
       )}
       {props.servers.map((s) => (
         <label key={s.name} className="agx-mcp-item">

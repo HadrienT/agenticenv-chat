@@ -222,6 +222,21 @@ describe("reducer — machine à états v2 (C01)", () => {
     });
   });
 
+  it("mcp/setAll coche puis décoche tous les serveurs annoncés", () => {
+    let s = connected();
+    s = reduce(s, bridge({
+      type: "mcp_servers",
+      servers: [
+        { name: "a", transport: "stdio", tools_allowlist: [] },
+        { name: "b", transport: "stdio", tools_allowlist: [] },
+      ],
+    }));
+    s = reduce(s, local({ type: "mcp/setAll", all: true }));
+    expect(s.mcp.selected).toEqual(["a", "b"]);
+    s = reduce(s, local({ type: "mcp/setAll", all: false }));
+    expect(s.mcp.selected).toEqual([]);
+  });
+
   it("reset conserve connexion / protocole / mcp, vide le fil", () => {
     let s = running("t1");
     s = reduce(s, bridge({ type: "event", event: assistantEvent("hi") }));
