@@ -5,6 +5,7 @@ import { hash, resetState, withNotice } from "./reduceHelpers";
 import {
   applyChangesApplied,
   applyHookResult,
+  applyLlmProfiles,
   applyMetrics,
   applyModels,
   applyTodo,
@@ -59,6 +60,9 @@ export function applyHost(state: AppState, msg: HostToWebview, at: number): AppS
 
     case "health":
       return { ...state, health: msg.components };
+
+    case "llmProfiles":
+      return applyLlmProfiles(state, msg);
 
     case "fileResults":
       return { ...state, fileSearch: { requestId: msg.requestId, results: msg.results } };

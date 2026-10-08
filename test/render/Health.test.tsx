@@ -46,6 +46,50 @@ describe("Health panel", () => {
     expect(onAction).toHaveBeenCalledWith("llama-server", "restart");
   });
 
+  it("sélecteur de profil LLM sous llama-server ; verrouillé pendant une bascule", async () => {
+    const user = userEventLib.setup();
+    const onSelect = vi.fn();
+    const profiles = [
+      { name: "code", servedName: "Qwen3-Coder", contextWindow: 65536, active: true },
+      { name: "tutor", servedName: "Mistral-Small", contextWindow: 16384, active: false },
+    ];
+    const view = (switching: string | null) => (
+      <Health
+        components={components}
+        open
+        onToggle={vi.fn()}
+        onRefresh={vi.fn()}
+        onAction={vi.fn()}
+        llm={{ profiles, switching }}
+        onSelectProfile={onSelect}
+      />
+    );
+    const { rerender } = render(view(null));
+    const select = screen.getByLabelText("profile") as HTMLSelectElement;
+    expect(select.value).toBe("code");
+    await user.selectOptions(select, "tutor");
+    expect(onSelect).toHaveBeenCalledWith("tutor");
+
+    rerender(view("tutor"));
+    expect(select.value).toBe("tutor");
+    expect(select).toBeDisabled();
+    expect(screen.getByText("switching…")).toBeInTheDocument();
+  });
+
+  it("aucun sélecteur si la pile n'a pas de profils", async () => {
+    render(
+      <Health
+        components={components}
+        open
+        onToggle={vi.fn()}
+        onRefresh={vi.fn()}
+        onAction={vi.fn()}
+        llm={{ profiles: [], switching: null }}
+      />,
+    );
+    expect(screen.queryByLabelText("profile")).toBeNull();
+  });
+
   it("rien à afficher si aucun composant", () => {
     const { container } = render(<Harness components={[]} />);
     expect(container).toBeEmptyDOMElement();

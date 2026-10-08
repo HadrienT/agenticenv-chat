@@ -11,13 +11,14 @@ export type NoticeActionKind =
   | "openComponents"
   | "openSettings"
   | "forceNewSession"
+  | "switchLlmProfile"
   | "copy"
   | "runInTerminal";
 
 export interface NoticeAction {
   label: string;
   kind: NoticeActionKind;
-  /** commande à copier / exécuter pour `copy` et `runInTerminal`. */
+  /** commande à copier / exécuter pour `copy` et `runInTerminal` ; nom du profil pour `switchLlmProfile`. */
   payload?: string;
 }
 

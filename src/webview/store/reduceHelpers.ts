@@ -46,6 +46,7 @@ export function resetState(state: AppState): AppState {
     connection: state.connection,
     protocol: state.protocol,
     health: state.health,
+    llm: state.llm,
     workspace: state.workspace,
     mcp: state.mcp,
     notices: state.notices,

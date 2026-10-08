@@ -31,6 +31,15 @@ export interface ComponentHealth {
   actions: HealthActionId[];
 }
 
+/** Profil de modèle servi par `llama-server` (AgenticEnv#16) : un seul chargé à la fois. */
+export interface LlmProfileView {
+  name: string;
+  /** `id` annoncé par `/v1/models` quand ce profil est chargé. */
+  servedName: string;
+  contextWindow: number;
+  active: boolean;
+}
+
 // --- vues légères poussées vers la webview ---
 
 export interface McpServerView {
@@ -151,6 +160,7 @@ export type HostToWebview =
   | { type: "bridge"; message: Outbound }
   | { type: "mcpServers"; servers: McpServerView[] }
   | { type: "health"; components: ComponentHealth[] }
+  | { type: "llmProfiles"; profiles: LlmProfileView[]; switching: string | null }
   | { type: "hostError"; text: string }
   | { type: "fileResults"; requestId: string; results: FileHit[] }
   | { type: "contextChips"; chips: ContextChip[] }
@@ -197,6 +207,7 @@ export const HOST_TO_WEBVIEW_TYPES = [
   "bridge",
   "mcpServers",
   "health",
+  "llmProfiles",
   "hostError",
   "fileResults",
   "contextChips",
@@ -274,6 +285,7 @@ export type WebviewToHost =
   | { type: "feedback"; itemId: string; value: "up" | "down" }
   | { type: "refreshHealth" }
   | { type: "healthAction"; component: ComponentId; action: HealthActionId }
+  | { type: "setLlmProfile"; profile: string }
   | { type: "openSettings" };
 
 export const WEBVIEW_TO_HOST_TYPES = [
@@ -317,6 +329,7 @@ export const WEBVIEW_TO_HOST_TYPES = [
   "feedback",
   "refreshHealth",
   "healthAction",
+  "setLlmProfile",
   "openSettings",
 ] as const;
 

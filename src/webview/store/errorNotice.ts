@@ -1,3 +1,4 @@
+import type { LlmProfileView } from "../../messages";
 import type { Notice, NoticeAction } from "./notice";
 
 /**
@@ -9,7 +10,12 @@ import type { Notice, NoticeAction } from "./notice";
 const RETRY: NoticeAction = { label: "Retry", kind: "retry" };
 const COMPONENTS: NoticeAction = { label: "Open Components", kind: "openComponents" };
 
-export function errorNotice(code: string, message: string, details?: Record<string, unknown>): Notice {
+export function errorNotice(
+  code: string,
+  message: string,
+  details?: Record<string, unknown>,
+  profiles: LlmProfileView[] = [],
+): Notice {
   const base = { id: `bridge-${code}`, dismissible: true };
 
   switch (code) {
@@ -85,12 +91,29 @@ export function errorNotice(code: string, message: string, details?: Record<stri
         text: `The GPU is busy${details?.processes ? ` — ${String(details.processes)}` : ""}.`,
         actions: [COMPONENTS],
       };
-    default:
+    case "DEPENDENCY_ERROR": {
+      // `llama-server` sert un autre profil que celui attendu par l'agent
+      // (AgenticEnv#16) : bascule en un clic plutôt que l'erreur brute.
+      const target = profiles.find((p) => p.servedName === details?.expected);
+      if (!target) {
+        return generic(base, code, message);
+      }
+      const served = Array.isArray(details?.served) ? details.served.join(", ") : "";
       return {
         ...base,
-        level: "error",
-        text: `${code}: ${message}`,
-        actions: [RETRY],
+        level: "warn",
+        text: `llama-server is serving ${served || "another model"}, but the agent needs ${target.servedName}. Switching restarts llama-server (10–30 s) for every client.`,
+        actions: [
+          { label: `Switch to "${target.name}" profile`, kind: "switchLlmProfile", payload: target.name },
+          COMPONENTS,
+        ],
       };
+    }
+    default:
+      return generic(base, code, message);
   }
+}
+
+function generic(base: { id: string; dismissible: boolean }, code: string, message: string): Notice {
+  return { ...base, level: "error", text: `${code}: ${message}`, actions: [RETRY] };
 }

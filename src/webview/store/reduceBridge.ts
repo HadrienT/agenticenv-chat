@@ -124,7 +124,7 @@ export function applyBridge(state: AppState, msg: Outbound, at: number): AppStat
       const fatal = msg.code !== "PROJECT_READONLY";
       // C14 §3 : notice **actionnable** (au moins une action, ou l'aveu qu'il n'y
       // en a pas) ; les erreurs répétées sont regroupées par `withNotice`.
-      const withN = withNotice(state, errorNotice(msg.code, msg.message, msg.details));
+      const withN = withNotice(state, errorNotice(msg.code, msg.message, msg.details, state.llm.profiles));
       // En v2 une `error` fatale est suivie de `turn_finished{reason:"error"}` :
       // on laisse la machine à `turn_finished`. En v1 (dégradé) il faut rendre la
       // main ici, sinon le tour ne se termine jamais.

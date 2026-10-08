@@ -9,6 +9,16 @@ v1 bridge (listed in `src/protocol.ts` → `CLIENT_AHEAD_OF_BRIDGE`).
 
 ## [Unreleased]
 
+### LLM profile switch (#11, AgenticEnv#16)
+- Components panel: a **profile** selector under `llama-server` lists the
+  profiles installed in `/etc/llm/profiles` (served model + context size) and
+  switches with `sudo -n agx-llm-use <profile>` — no terminal. The switch waits
+  for `/v1/models` to report the profile's model (up to 180 s) and is refused
+  while a turn is running; with an active session it asks for confirmation.
+- Start Session on the wrong profile (`DEPENDENCY_ERROR` with
+  `details.expected`) now offers **Switch to "<profile>" profile** instead of
+  the raw error.
+
 ### C15 / WP08d — sandbox working copy + `apply_changes`
 The bridge now runs the agent on a **disposable copy** of the project
 (`/workspace/source` read-only → `cp -a` → `/workspace/project`); the real repo

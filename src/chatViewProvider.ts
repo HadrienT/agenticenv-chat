@@ -10,6 +10,7 @@ import {
   stackInstalled,
   type HealthContext,
 } from "./health";
+import { listProfiles, switchArgv, waitForServed } from "./llmProfiles";
 import { log } from "./logging";
 import {
   isWebviewToHost,
@@ -68,6 +69,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private bridge: BridgeClient | undefined;
   private healthTimer: NodeJS.Timeout | undefined;
   private healthInFlight = false;
+  /** Profil vers lequel une bascule `agx-llm-use` est en cours (une à la fois). */
+  private llmSwitching: string | null = null;
   private closedTimer: NodeJS.Timeout | undefined;
   private negotiationTimer: NodeJS.Timeout | undefined;
   private negotiated = false;
@@ -1241,6 +1244,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case "healthAction":
         void this.runHealthAction(msg.component, msg.action);
         break;
+      case "setLlmProfile":
+        void this.switchLlmProfile(msg.profile);
+        break;
       default:
         assertNever(msg, "WebviewToHost");
     }
@@ -1503,6 +1509,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     try {
       const components = await checkHealth(this.healthContext());
       this.postToWebview({ type: "health", components });
+      this.postLlmProfiles();
     } catch (err) {
       log.debug("health poll failed, retrying next tick:", err);
     } finally {
@@ -1534,6 +1541,76 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
     log.warn(`health action ${action} ${component} failed:`, res.out);
     await this.offerStackFallback(argv.join(" "), res.out);
+    void this.pollHealth();
+  }
+
+  private postLlmProfiles(): void {
+    this.postToWebview({ type: "llmProfiles", profiles: listProfiles(), switching: this.llmSwitching });
+  }
+
+  /**
+   * Bascule le profil servi par `llama-server` (AgenticEnv#16) : `agx-llm-use`
+   * repointe l'env et redémarre le service, puis on attend que `/v1/models`
+   * annonce le modèle du profil — le code de retour seul ne prouve rien.
+   */
+  private async switchLlmProfile(name: string): Promise<void> {
+    const target = listProfiles().find((p) => p.name === name);
+    const argv = target && switchArgv(name);
+    if (!target || !argv || this.llmSwitching) {
+      this.postLlmProfiles();
+      return;
+    }
+    if (this.currentTurnId) {
+      this.postToWebview({
+        type: "hostError",
+        text: "Can't switch the LLM profile while a turn is running — stop it first.",
+      });
+      this.postLlmProfiles();
+      return;
+    }
+    if (this.conversationId && !target.active) {
+      // Un llama-server mono-modèle ignore le champ `model` : la session en
+      // cours continuerait, sans le dire, sur le modèle du nouveau profil.
+      const pick = await vscode.window.showWarningMessage(
+        `Switch llama-server to the "${name}" profile?`,
+        {
+          modal: true,
+          detail: `The active agent session would run on ${target.servedName} until you switch back.`,
+        },
+        "Switch",
+      );
+      if (pick !== "Switch") {
+        this.postLlmProfiles();
+        return;
+      }
+    }
+    this.llmSwitching = name;
+    this.postLlmProfiles();
+    let res = { code: 0, out: "" };
+    let ready = false;
+    try {
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `AgenticEnv — loading ${target.servedName} ("${name}" profile)…`,
+          cancellable: false,
+        },
+        async () => {
+          res = await runComponentAction(argv);
+          ready = res.code === 0 && (await waitForServed(target.servedName));
+        },
+      );
+    } finally {
+      this.llmSwitching = null;
+    }
+    if (res.code !== 0) {
+      log.warn(`llm profile switch to ${name} failed:`, res.out);
+      await this.offerStackFallback(argv.join(" "), res.out);
+    } else if (!ready) {
+      void vscode.window.showWarningMessage(
+        `llama-server did not come back on ${target.servedName}. Check: journalctl -u llama-server -n 50`,
+      );
+    }
     void this.pollHealth();
   }
 
