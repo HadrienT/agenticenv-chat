@@ -172,6 +172,8 @@ export interface SessionStarted extends Seq {
   llm_source: "create_payload" | "switch_llm";
   /** WP08d : mode négocié (défaut `"agent"` si le bridge ne le renvoie pas). */
   mode?: "agent" | "read_only";
+  /** WP11 : fichiers du projet que la copie sandbox n'a pas pu prendre. */
+  copy_warnings?: string[];
 }
 
 /** One openhands.sdk Event, already serialized (model_dump(mode="json")). */

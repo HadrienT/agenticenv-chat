@@ -33,14 +33,26 @@ export function errorNotice(code: string, message: string, details?: Record<stri
       return {
         ...base,
         level: "info",
-        text: "This session has no project working copy — diffs, checkpoints and Apply aren't available (start a session with a folder open).",
+        text: "This session has no project working copy — diffs and checkpoints aren't available (start a session with a folder open).",
       };
     case "READ_ONLY_SESSION":
       return {
         ...base,
         level: "info",
-        text: "This session is read-only (Ask / Plan mode) — switch to Agent mode to apply the agent's changes to your repo.",
+        text: "This session is read-only (Ask / Plan mode) — switch to Agent mode to write the agent's changes to your repo.",
       };
+    case "TURN_IN_PROGRESS":
+      return { ...base, level: "info", text: "The agent is still working — wait for this turn to finish, or stop it." };
+    case "APPLY_FAILED":
+      return {
+        ...base,
+        level: "error",
+        text: `The agent's edits could not be written to your repo. They stay in the sandbox and are retried after the next turn — ${message}`,
+      };
+    case "TURN_FAILED":
+    case "SESSION_START_FAILED":
+    case "INTERNAL_ERROR":
+      return { ...base, level: "error", text: message || code, actions: [COMPONENTS, RETRY] };
     case "NO_SESSION":
     case "ALREADY_STARTED":
       return { ...base, level: "warn", text: message || code, dismissible: true };

@@ -1,4 +1,5 @@
 import WebSocket from "ws";
+import { readBridgeToken } from "./bridgeToken";
 import { log } from "./logging";
 import type { Inbound, Outbound } from "./protocol";
 
@@ -30,6 +31,7 @@ export class BridgeClient {
   constructor(
     private url: string,
     private readonly handlers: BridgeHandlers,
+    private readonly readToken: () => string | null = readBridgeToken,
   ) {}
 
   /** État courant de la connexion — source de vérité pour la ligne « bridge » du panneau Components. */
@@ -112,7 +114,8 @@ export class BridgeClient {
     this.emitState("connecting");
     let ws: WebSocket;
     try {
-      ws = new WebSocket(this.url);
+      const token = this.readToken();
+      ws = new WebSocket(this.url, token ? { headers: { Authorization: `Bearer ${token}` } } : {});
     } catch (err) {
       log.warn("bridge connect failed:", err);
       this.emitState("closed", String(err));
@@ -140,6 +143,16 @@ export class BridgeClient {
       }
       log.trace("bridge ->", (parsed as { type?: string }).type ?? "?");
       this.handlers.onMessage(parsed);
+    });
+
+    // Refusé à la poignée de main : `ws` ne lève pas d'erreur utile si on écoute cet
+    // événement, mais le détail dit pourquoi au lieu d'un « connexion fermée » muet.
+    ws.on("unexpected-response", (req, res) => {
+      const why = res.statusCode === 401 ? "bridge token missing or stale" : `HTTP ${res.statusCode}`;
+      req.destroy();
+      this.ws = undefined;
+      this.emitState("closed", `bridge refused the connection: ${why}`);
+      this.scheduleReconnect();
     });
 
     ws.on("error", (err) => {

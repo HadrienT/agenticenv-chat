@@ -446,6 +446,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         void this.context.workspaceState.update(K_CONVERSATION, this.conversationId);
         this.sendPermissionMode();
         this.postToWebview({ type: "bridge", message });
+        if (message.copy_warnings?.length) {
+          this.postToWebview({
+            type: "hostError",
+            text: `The agent can't see ${message.copy_warnings.length} project file(s) that couldn't be copied:\n${message.copy_warnings.join("\n")}`,
+          });
+        }
         return;
 
       case "event": {
