@@ -1338,21 +1338,6 @@ button {
 .agx-diff__hunk {
   border-top: 1px solid var(--agx-border);
 }
-.agx-diff__hunkbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 2px 8px;
-  font-size: 10px;
-  color: var(--agx-fg-muted);
-}
-.agx-diff__hunkbar code {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* --- working set (C06) --- */
 .agx-files__toggle {
   background: transparent;

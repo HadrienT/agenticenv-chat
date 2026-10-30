@@ -88,15 +88,10 @@ export function ChatScreen(props: {
         fileDiffs={state.fileDiffs}
         strategy={state.checkpointStrategy}
         viaBridge={state.editsViaBridge}
-        canApply={state.canApplyChanges}
         onRequestDiff={actions.requestFileDiff}
         onOpenFileDiff={actions.openFileDiff}
-        onRevertFile={actions.revertFile}
-        onRevertHunk={actions.revertHunk}
         onUndoTurn={actions.undoTurn}
         onOpenAll={() => state.workingSet.slice(0, 10).forEach((f) => actions.openFile(f.path))}
-        onApply={actions.applyChanges}
-        onDiscard={actions.discardChanges}
         onBundleDiff={actions.requestBundleDiff}
       />
       {state.usage && (

@@ -48,7 +48,6 @@ export function initialState(): AppState {
     fileDiffs: {},
     checkpointStrategy: "no checkpoint yet",
     editsViaBridge: false,
-    canApplyChanges: false,
     permissions: { mode: "ask", trusted: true },
     notices: [],
     composer: { draft: "", attachments: [], history: [] },

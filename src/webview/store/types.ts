@@ -177,7 +177,6 @@ export interface AppState {
   checkpointStrategy: string;
   /** WP08d : working set piloté par le bridge (copie sandbox cumulée) ; `apply` possible. */
   editsViaBridge: boolean;
-  canApplyChanges: boolean;
   permissions: {
     mode: "ask" | "autoEdit" | "autoAll" | "readOnly";
     trusted: boolean;

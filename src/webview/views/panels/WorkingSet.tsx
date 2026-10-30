@@ -16,27 +16,22 @@ export interface WorkingSetProps {
   files: WorkingSetFile[];
   fileDiffs: Record<string, FileDiffState>;
   strategy: string;
-  /** WP08d : working set = copie sandbox cumulée (pas « ce tour ») ; `apply` écrit dans le vrai dépôt. */
+  /** WP08d : working set = copie sandbox cumulée (pas « ce tour »). */
   viaBridge: boolean;
-  canApply: boolean;
   onRequestDiff: (path: string) => void;
   onOpenFileDiff: (path: string) => void;
-  onRevertFile: (path: string) => void;
-  onRevertHunk: (path: string, hunkHeader: string) => void;
   onUndoTurn: () => void;
   onOpenAll: () => void;
-  onApply: (path?: string) => void;
-  onDiscard: (path?: string) => void;
   onBundleDiff: () => void;
 }
 
 /**
- * Fichiers modifiés (C06 §3 / WP08d). Sans bridge : diff checkpoint → maintenant,
- * vocabulaire `revert`. Avec bridge (copie sandbox) : l'écriture a eu lieu **dans
- * la copie**, le vrai dépôt est intact — donc un vrai « Apply to repo » / `Discard`.
+ * Fichiers modifiés (C06 §3 / WP08g) : un simple résumé, replié par défaut. Rien à
+ * valider ici — le bridge écrit dans le vrai dépôt à chaque fin de tour, et `Undo
+ * turn` défait le dernier tour dans la copie comme dans le dépôt.
  */
 export function WorkingSet(props: WorkingSetProps): JSX.Element | null {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   if (props.files.length === 0) {
     return null;
@@ -59,7 +54,7 @@ export function WorkingSet(props: WorkingSetProps): JSX.Element | null {
 
   const n = props.files.length;
   const heading = props.viaBridge
-    ? `${n} file${n === 1 ? "" : "s"} in the sandbox working copy`
+    ? `${n} file${n === 1 ? "" : "s"} changed this session`
     : `${n} file${n === 1 ? "" : "s"} changed by this turn`;
 
   return (
@@ -72,11 +67,6 @@ export function WorkingSet(props: WorkingSetProps): JSX.Element | null {
         {props.viaBridge && (
           <button className="agx-code__btn" onClick={props.onBundleDiff}>
             View all changes
-          </button>
-        )}
-        {props.viaBridge && props.canApply && (
-          <button className="agx-code__btn" onClick={() => props.onApply()}>
-            Apply all to repo
           </button>
         )}
         <button className="agx-code__btn" onClick={props.onUndoTurn}>
@@ -109,31 +99,9 @@ export function WorkingSet(props: WorkingSetProps): JSX.Element | null {
                 <button className="agx-code__btn" onClick={() => props.onOpenFileDiff(f.path)}>
                   diff
                 </button>
-                {props.viaBridge ? (
-                  <>
-                    {props.canApply && (
-                      <button className="agx-code__btn" onClick={() => props.onApply(f.path)}>
-                        apply
-                      </button>
-                    )}
-                    <button className="agx-code__btn" onClick={() => props.onDiscard(f.path)}>
-                      discard
-                    </button>
-                  </>
-                ) : (
-                  <button className="agx-code__btn" onClick={() => props.onRevertFile(f.path)}>
-                    revert
-                  </button>
-                )}
               </div>
               {expanded.has(f.path) && diff && diff.unified && (
-                <Diff
-                  unified={diff.unified}
-                  measured
-                  onRevertHunk={
-                    props.viaBridge ? undefined : (header) => props.onRevertHunk(f.path, header)
-                  }
-                />
+                <Diff unified={diff.unified} measured />
               )}
               {expanded.has(f.path) && diff && !diff.unified && (
                 <div className="agx-files__strategy">{diff.error ?? "no diff"}</div>

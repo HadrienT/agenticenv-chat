@@ -14,13 +14,11 @@ describe("C15 / WP08d — copie de travail sandbox", () => {
       host({
         type: "workingSet",
         files,
-        strategy: "sandbox working copy — Apply writes back to your repo",
+        strategy: "written to your repo at the end of each turn",
         viaBridge: true,
-        canApply: true,
       }),
     );
     expect(s.editsViaBridge).toBe(true);
-    expect(s.canApplyChanges).toBe(true);
     expect(s.workingSet).toEqual(files);
   });
 
@@ -30,23 +28,20 @@ describe("C15 / WP08d — copie de travail sandbox", () => {
       host({
         type: "workingSet",
         files: [{ path: "x", status: "ADDED" }],
-        strategy: "sandbox working copy · read-only (apply disabled)",
+        strategy: "sandbox working copy · read-only (not written to your repo)",
         viaBridge: true,
-        canApply: false,
       }),
     );
     expect(s.editsViaBridge).toBe(true);
-    expect(s.canApplyChanges).toBe(false);
   });
 
-  it("`changesApplied` : notice info quand tout passe, warn quand des fichiers sont sautés", () => {
+  it("`changesApplied` : silencieux quand tout passe, warn quand des fichiers sont sautés", () => {
     let s = reduce(
       initialState(),
       host({ type: "changesApplied", applied: [{ path: "a", status: "UPDATED" }], skipped: [] }),
     );
     let n = s.notices.find((x) => x.id === "changes-applied");
-    expect(n?.level).toBe("info");
-    expect(n?.text).toContain("Applied 1 file");
+    expect(n).toBeUndefined();
 
     s = reduce(
       s,
@@ -80,9 +75,8 @@ describe("C15 / WP08d — copie de travail sandbox", () => {
       at({
         type: "workingSet",
         files: [{ path: "src/black.cpp", status: "UPDATED" }],
-        strategy: "sandbox working copy — Apply writes back to your repo",
+        strategy: "written to your repo at the end of each turn",
         viaBridge: true,
-        canApply: true,
       }),
     );
     expect(s.phase.kind).toBe("idle");
@@ -104,7 +98,6 @@ describe("C15 / WP08d — copie de travail sandbox", () => {
     );
     const n = s.notices.find((x) => x.id === "changes-applied");
     expect(n?.level).toBe("warn");
-    expect(n?.text).toContain("Applied 1 file");
     expect(n?.text).toContain("Skipped src/other.cpp");
   });
 
@@ -116,12 +109,10 @@ describe("C15 / WP08d — copie de travail sandbox", () => {
         files: [{ path: "x", status: "ADDED" }],
         strategy: "sandbox working copy",
         viaBridge: true,
-        canApply: true,
       }),
     );
     s = reduce(s, host({ type: "reset" }));
     expect(s.editsViaBridge).toBe(false);
-    expect(s.canApplyChanges).toBe(false);
     expect(s.workingSet).toEqual([]);
   });
 });

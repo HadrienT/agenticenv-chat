@@ -41,7 +41,6 @@ import {
 import { CheckpointStore, isFiltered } from "./edits/checkpoints";
 import { TurnDecorations } from "./edits/decorations";
 import { CheckpointContentProvider, SCHEME, openCheckpointDiff } from "./edits/openDiff";
-import { revertHunk } from "./edits/hunkRevert";
 import { resolveRefs } from "./context";
 import { activeFileRef, searchFiles, selectionRef } from "./context/files";
 import { searchSymbols } from "./context/symbols";
@@ -1166,20 +1165,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case "openFileDiff":
         void this.openTurnFileDiff(msg.path);
         break;
-      case "revertFile":
-        void this.revertFile(msg.path);
-        break;
-      case "revertHunk":
-        void this.revertHunk(msg.path, msg.hunkHeader);
-        break;
       case "undoTurn":
         void this.undoTurn();
-        break;
-      case "applyChanges":
-        void this.applyChanges(msg.paths);
-        break;
-      case "discardChanges":
-        this.sendOrNotify({ type: "discard_changes", paths: msg.paths ?? null }, "discard changes");
         break;
       case "requestBundleDiff":
         this.sendOrNotify({ type: "request_bundle_diff" }, "load the diff");
@@ -1683,11 +1670,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       this.postToWebview({
         type: "workingSet",
         viaBridge: true,
-        canApply: this.sandboxMode === "agent",
         strategy:
           this.sandboxMode === "read_only"
-            ? "sandbox working copy · read-only (apply disabled)"
-            : "sandbox working copy — Apply writes back to your repo",
+            ? "sandbox working copy · read-only (not written to your repo)"
+            : "written to your repo at the end of each turn",
         files: changes.map((c) => ({
           path: c.path,
           status: c.status,
@@ -1704,7 +1690,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.postToWebview({
       type: "workingSet",
       viaBridge: false,
-      canApply: false,
       strategy: this.checkpoints.strategyLabel(),
       files: files.map((f) => ({
         path: f.path,
@@ -1738,27 +1723,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     await vscode.window.showTextDocument(doc, { preview: true });
   }
 
-  /** WP08d : écrire les éditions de la copie sandbox dans le vrai dépôt. Confirmation modale. */
-  private async applyChanges(paths: string[] | null | undefined): Promise<void> {
-    if (this.sandboxMode === "read_only") {
-      this.postToWebview({
-        type: "hostError",
-        text: "This session is read-only (Ask / Plan mode) — switch to Agent mode to apply changes.",
-      });
-      return;
-    }
-    const n = paths?.length;
-    const what = n ? `${n} file${n === 1 ? "" : "s"}` : "all changed files";
-    const ok = await vscode.window.showWarningMessage(
-      `Write ${what} from the agent's sandbox copy into your repository?`,
-      { modal: true },
-      "Apply",
-    );
-    if (ok === "Apply") {
-      this.sendOrNotify({ type: "apply_changes", paths: paths ?? null }, "apply the changes");
-    }
-  }
-
   private async onChangesApplied(
     applied: { path: string; status: string }[],
     skipped: { path: string; reason: string }[],
@@ -1771,11 +1735,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     const conflicts = skipped.filter((s) => /changed since/.test(s.reason)).map((s) => s.path);
     if (conflicts.length) {
       const pick = await vscode.window.showWarningMessage(
-        `${conflicts.length} file(s) changed on disk since the session started and were not overwritten: ${conflicts.join(", ")}.`,
-        { modal: true },
-        "Apply anyway (overwrite)",
+        `${conflicts.length} file(s) changed on disk during the session and were not overwritten: ${conflicts.join(", ")}.`,
+        "Overwrite",
       );
-      if (pick === "Apply anyway (overwrite)") {
+      if (pick === "Overwrite") {
         this.sendOrNotify(
           { type: "apply_changes", paths: conflicts, force: true },
           "apply the changes",
@@ -1835,57 +1798,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     );
   }
 
-  private async revertFile(relPath: string): Promise<void> {
-    if (this.bridgeOwnsEdits()) {
-      // WP08d : « revert » = remettre le fichier à la baseline **dans la copie**
-      // (le vrai dépôt n'a rien reçu). Pas destructif pour l'utilisateur.
-      this.sendOrNotify({ type: "discard_changes", paths: [relPath] }, "discard the change");
-      return;
-    }
-    const turnId = this.turnForEdits();
-    if (!turnId) {
-      return;
-    }
-    const res = await this.checkpoints.restoreFile(turnId, relPath);
-    if (res === "conflict") {
-      this.postToWebview({
-        type: "hostError",
-        text: `${relPath} was changed after the turn — revert refused. Open the diff to resolve it.`,
-      });
-    } else if (res === "unavailable") {
-      this.postToWebview({ type: "hostError", text: "Revert needs a git checkpoint (open the folder as a git repo)." });
-    } else {
-      void this.sendWorkingSet();
-    }
-  }
-
-  private async revertHunk(relPath: string, hunkHeader: string): Promise<void> {
-    if (this.bridgeOwnsEdits()) {
-      this.postToWebview({
-        type: "hostError",
-        text: "Hunk-level revert isn't available with the sandbox working copy — use Discard on the whole file.",
-      });
-      return;
-    }
-    const turnId = this.turnForEdits();
-    const root = this.root();
-    if (!turnId || !root) {
-      return;
-    }
-    const unified = (await this.checkpoints.diffFile(turnId, relPath)) ?? "";
-    const uri = vscode.Uri.joinPath(vscode.Uri.file(root), relPath);
-    const res = await revertHunk(uri, unified, hunkHeader);
-    if (res === "shifted") {
-      this.postToWebview({
-        type: "hostError",
-        text: `${relPath} moved since the diff — hunk revert refused. Reload the diff and retry.`,
-      });
-    } else if (res === "ok") {
-      void this.sendFileDiff(relPath);
-      void this.sendWorkingSet();
-    }
-  }
-
   async undoTurn(): Promise<void> {
     if (this.bridgeOwnsEdits()) {
       if (!this.lastCheckpoint) {
@@ -1893,11 +1805,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         return;
       }
       const ok = await vscode.window.showWarningMessage(
-        "Restore the sandbox working copy to before the last turn? The agent's edits since then are discarded.",
+        "Undo the last turn? Its edits are removed from the sandbox copy and from your repository.",
         { modal: true },
-        "Restore",
+        "Undo",
       );
-      if (ok === "Restore") {
+      if (ok === "Undo") {
         this.sendOrNotify(
           { type: "restore_checkpoint", checkpoint_id: this.lastCheckpoint.checkpointId },
           "restore the checkpoint",

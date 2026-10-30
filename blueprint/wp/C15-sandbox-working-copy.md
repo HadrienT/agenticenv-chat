@@ -1,5 +1,9 @@
 # C15 — Copie de travail sandbox (WP08d) + `apply_changes`
 
+> **Remplacé en partie par WP08g (AgenticEnv).** Le bridge écrit dans le vrai dépôt
+> à chaque fin de tour. Les boutons `apply` / `discard` par fichier, `Apply all to
+> repo`, la modale et `discard_changes` décrits ci-dessous n'existent plus.
+
 > **Handoff.** Le bridge AgenticEnv a livré WP08d + le protocole v2 (P0→P3). Ce
 > WP décrit ce qui est **déjà fait côté client** (miroir `protocol.ts`) et ce qui
 > **reste à câbler**. Référence AgenticEnv :

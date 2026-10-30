@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { Diff } from "../../src/webview/views/Diff";
 
 const UNIFIED = `--- a/x.cpp
@@ -17,13 +17,6 @@ describe("Diff (items 41, 122, C06 §4)", () => {
     render(<Diff unified={UNIFIED} measured />);
     expect(screen.getByText("+2")).toBeInTheDocument();
     expect(screen.getByText("−1")).toBeInTheDocument();
-  });
-
-  it("bouton « revert hunk » émet le header du hunk", () => {
-    const onRevertHunk = vi.fn();
-    render(<Diff unified={UNIFIED} measured onRevertHunk={onRevertHunk} />);
-    fireEvent.click(screen.getByRole("button", { name: "revert hunk" }));
-    expect(onRevertHunk).toHaveBeenCalledWith(expect.stringContaining("@@ -1,2 +1,3 @@"));
   });
 
   it("replie au-delà de 40 lignes", () => {

@@ -137,7 +137,6 @@ export function applyHost(state: AppState, msg: HostToWebview, at: number): AppS
         workingSet: msg.files,
         checkpointStrategy: msg.strategy,
         editsViaBridge: msg.viaBridge,
-        canApplyChanges: msg.canApply,
         // purge les diffs des fichiers qui ne sont plus dans le set
         fileDiffs: Object.fromEntries(
           Object.entries(state.fileDiffs).filter(([p]) => msg.files.some((f) => f.path === p)),

@@ -24,11 +24,11 @@ function waitFor(pred: () => boolean, ms = 3000): Promise<void> {
 /**
  * Fil complet WP08d contre le rejoueur `wp08dResponder` : négociation,
  * `start_session.mode`, `checkpoint` avant le tour, `file_diff`, `bundle_diff`,
- * `apply_changes` → `changes_applied` (+ `skipped`), `discard_changes`,
+ * `apply_changes` → `changes_applied` (+ `skipped`),
  * `restore_checkpoint`. Vérifie les **formes du fil** et la monotonie de `seq`.
  */
 describe("WP08d — fil bridge complet (BridgeClient ↔ faux bridge)", () => {
-  it("négociation + tour + apply/discard/diff/restore, seq monotone", async () => {
+  it("négociation + tour + apply/diff/restore, seq monotone", async () => {
     fake = await startFakeBridge({ onMessage: wp08dResponder({ applySkips: [{ path: "src/other.cpp", reason: "host file changed since session start" }] }) });
 
     const seen: Outbound[] = [];
@@ -71,7 +71,6 @@ describe("WP08d — fil bridge complet (BridgeClient ↔ faux bridge)", () => {
     expect(applied.applied.map((a) => a.path)).toContain("src/black.cpp");
     expect(applied.skipped[0]).toMatchObject({ reason: "host file changed since session start" });
 
-    client.send({ type: "discard_changes", paths: ["src/black.cpp"] });
     client.send({ type: "restore_checkpoint", checkpoint_id: "cp-1" });
     await waitFor(() => got("checkpoint_restored") !== undefined);
 

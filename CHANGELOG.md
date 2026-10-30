@@ -9,6 +9,17 @@ v1 bridge (listed in `src/protocol.ts` → `CLIENT_AHEAD_OF_BRIDGE`).
 
 ## [Unreleased]
 
+### WP08g — auto-apply, end of per-file review
+The bridge now writes the agent's edits to the real repo at the end of each turn,
+like Claude Code. Requires the matching AgenticEnv bridge.
+- Removed: `apply` / `discard` / `revert` per file, `revert hunk`, **Apply all to
+  repo** and its modal, and the `discard_changes` message.
+- The files panel is a summary, collapsed by default: **View all changes** and
+  **Undo turn**. Undo now also reverts the real repo.
+- A conflict (file edited on disk during the session) is left untouched and
+  reported in a non-modal warning offering **Overwrite**.
+- `read_only` sessions (Ask / Plan) still never write.
+
 ### C15 / WP08d — sandbox working copy + `apply_changes`
 The bridge now runs the agent on a **disposable copy** of the project
 (`/workspace/source` read-only → `cp -a` → `/workspace/project`); the real repo

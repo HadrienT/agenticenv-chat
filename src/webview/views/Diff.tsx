@@ -6,7 +6,7 @@ const FOLD_THRESHOLD = 40;
 
 /**
  * Diff unifié coloré (items 41, 122). Deux entrées :
- *  - `unified` (chaîne `git diff`) → hunks parsés, bouton **revert hunk** par hunk
+ *  - `unified` (chaîne `git diff`) → hunks parsés
  *    (C06 §4 : le vocabulaire est `keep` / `revert`, pas `accept`) ;
  *  - `oldText`/`newText` → diff calculé (LCS) pour les aperçus rapides (C05).
  *
@@ -17,7 +17,6 @@ export function Diff(props: {
   oldText?: string;
   newText?: string;
   measured?: boolean;
-  onRevertHunk?: (hunkHeader: string) => void;
 }): JSX.Element {
   const parsed = props.unified ? parseUnifiedDiff(props.unified)[0] : undefined;
   const hunks: RenderHunk[] = parsed
@@ -47,16 +46,8 @@ export function Diff(props: {
       {expanded &&
         hunks.map((h, i) => (
           <div key={i} className="agx-diff__hunk">
-            {h.header && props.onRevertHunk && (
-              <div className="agx-diff__hunkbar">
-                <code>{h.header}</code>
-                <button className="agx-code__btn" onClick={() => props.onRevertHunk?.(h.header)}>
-                  revert hunk
-                </button>
-              </div>
-            )}
             <pre className="agx-diff__pre">
-              {(props.onRevertHunk ? h.lines : collapse(h.lines)).map((l, j) => (
+              {collapse(h.lines).map((l, j) => (
                 <div key={j} className={`agx-diff__line agx-diff__line--${l.kind}`}>
                   <span className="agx-diff__gutter">{gutter(l.kind)}</span>
                   <span className="agx-diff__text">{l.text}</span>

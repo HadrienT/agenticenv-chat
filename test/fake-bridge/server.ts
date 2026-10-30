@@ -34,7 +34,7 @@ export interface FakeBridge {
  * `blueprint/wp/C15-sandbox-working-copy.md`). À passer comme `onMessage` d'un
  * `startFakeBridge`. Reproduit ce que le vrai bridge AgenticEnv émet :
  * négociation, frontières de tour, `checkpoint` avant chaque tour, diffs et
- * `apply`/`discard`/`restore` de la copie sandbox.
+ * `apply`/`restore` de la copie sandbox.
  */
 export interface Wp08dOptions {
   /** Capabilities annoncées dans `welcome` (défaut : le set WP08d complet). */
@@ -97,8 +97,6 @@ export function wp08dResponder(opts: Wp08dOptions = {}): (msg: unknown) => unkno
           },
           filesChanged,
         ];
-      case "discard_changes":
-        return [filesChanged];
       case "restore_checkpoint":
         return [
           { type: "checkpoint_restored", checkpoint_id: (m as { checkpoint_id?: string }).checkpoint_id ?? `cp-${turn}` },

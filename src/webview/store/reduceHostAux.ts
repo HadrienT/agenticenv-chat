@@ -6,29 +6,23 @@ import type { AppState } from "./types";
 /** Cas hôte→webview annexes, extraits de `reduceHost.ts` pour la limite de taille. */
 
 /**
- * `changesApplied` (WP08d) : résultat d'`apply_changes` — notice regroupée,
- * `skipped` avec sa raison telle quelle (conflit hôte, fichier disparu, hors
- * workspace).
+ * `changesApplied` (WP08g) : le bridge écrit tout seul à chaque fin de tour, donc
+ * seuls les `skipped` méritent une notice, avec leur raison telle quelle (conflit
+ * hôte, fichier disparu, hors workspace). Le panneau de fichiers montre le reste.
  */
 export function applyChangesApplied(
   state: AppState,
   msg: Extract<HostToWebview, { type: "changesApplied" }>,
 ): AppState {
-  const parts: string[] = [];
-  if (msg.applied.length) {
-    parts.push(`Applied ${msg.applied.length} file${msg.applied.length === 1 ? "" : "s"} to your repo.`);
+  if (msg.skipped.length === 0) {
+    return state;
   }
-  for (const s of msg.skipped) {
-    parts.push(`Skipped ${s.path} — ${s.reason}.`);
-  }
-  return parts.length === 0
-    ? state
-    : withNotice(state, {
-        id: "changes-applied",
-        level: msg.skipped.length ? "warn" : "info",
-        text: parts.join("\n"),
-        dismissible: true,
-      });
+  return withNotice(state, {
+    id: "changes-applied",
+    level: "warn",
+    text: msg.skipped.map((s) => `Skipped ${s.path} — ${s.reason}.`).join("\n"),
+    dismissible: true,
+  });
 }
 
 /** `metrics` (C13) : jauge utile **avant** le premier tour + débit tokens/s. */

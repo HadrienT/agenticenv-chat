@@ -168,8 +168,6 @@ export type HostToWebview =
       strategy: string;
       /** WP08d : le working set vient du bridge (copie sandbox cumulée, pas « ce tour »). */
       viaBridge: boolean;
-      /** WP08d : `apply_changes` autorisé (mode Agent, copie git). */
-      canApply: boolean;
     }
   | { type: "fileDiff"; path: string; unified: string; conflict: boolean; error?: string }
   | { type: "changesApplied"; applied: ChangesAppliedView["applied"]; skipped: ChangesAppliedView["skipped"] }
@@ -245,11 +243,7 @@ export type WebviewToHost =
   | { type: "openDiff"; path: string }
   | { type: "requestFileDiff"; path: string }
   | { type: "openFileDiff"; path: string }
-  | { type: "revertFile"; path: string }
-  | { type: "revertHunk"; path: string; hunkHeader: string }
   | { type: "undoTurn" }
-  | { type: "applyChanges"; paths?: string[] | null }
-  | { type: "discardChanges"; paths?: string[] | null }
   | { type: "requestBundleDiff" }
   | { type: "editMessage"; itemId: string; text: string }
   | { type: "regenerate"; itemId: string; text: string }
@@ -296,11 +290,7 @@ export const WEBVIEW_TO_HOST_TYPES = [
   "openDiff",
   "requestFileDiff",
   "openFileDiff",
-  "revertFile",
-  "revertHunk",
   "undoTurn",
-  "applyChanges",
-  "discardChanges",
   "requestBundleDiff",
   "editMessage",
   "regenerate",

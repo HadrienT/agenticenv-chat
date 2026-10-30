@@ -77,11 +77,12 @@ besoin.
 - **État bridge AgenticEnv (WP08d livré)** : annonce
   `["turns", "cancel", "diffs", "checkpoints", "apply"]`. La capability `apply`
   (ajoutée par WP08d, hors liste d'origine) déclenche `apply_changes` /
-  `discard_changes` / `request_bundle_diff` et la réponse `changes_applied` /
-  `bundle_diff` / `checkpoint_restored`. Sous WP08d l'agent travaille sur une
-  **copie jetable** du projet côté sandbox : `diffs` et `checkpoints` ne sont
-  plus « l'hôte s'en passe » mais le **seul** moyen de voir/annuler le travail
-  avant `apply_changes` (voir AgenticEnv `blueprint/wp/WP08d-sandbox-working-copy.md`).
+  `request_bundle_diff` et la réponse `changes_applied` / `bundle_diff` /
+  `checkpoint_restored`. Sous WP08d l'agent travaille sur une **copie jetable** du
+  projet côté sandbox, et depuis WP08g le bridge l'écrit dans le vrai dépôt à
+  chaque fin de tour : `apply_changes` ne sert plus qu'à écraser un conflit, et
+  `restore_checkpoint` annule aussi dans le dépôt (voir AgenticEnv
+  `blueprint/wp/WP08g-auto-apply.md`).
 
 ### Comportement client actuel (à connaître)
 

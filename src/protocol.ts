@@ -8,8 +8,8 @@
 // v2 (03-PROTOCOL §2) : négociation `hello`/`welcome`, frontières de tour
 // (`turn_started`/`turn_finished`), deltas (`event_delta`), annulation
 // (`cancel_turn`), `tool_status`, `progress`, `seq` monotone + `resume`.
-// WP08d : copie jetable du projet côté sandbox + `apply_changes` de retour vers
-// le vrai dépôt, `request_bundle_diff`/`bundle_diff`, `discard_changes`,
+// WP08d/WP08g : copie jetable du projet côté sandbox, écrite dans le vrai dépôt à
+// chaque fin de tour (`changes_applied`), `request_bundle_diff`/`bundle_diff`,
 // `checkpoint_restored`, `start_session.mode`.
 // Les messages v2 non encore branchés côté AgenticEnv sont marqués « [v2] »
 // (le bridge annonce aujourd'hui : turns, cancel, diffs, checkpoints, apply).
@@ -87,21 +87,14 @@ export interface RestoreCheckpoint {
 }
 
 /**
- * WP08d : écrit les fichiers changés de la copie sandbox dans le vrai dépôt.
- * `paths` absent → tous les fichiers changés. `force` outrepasse la détection de
- * conflit (fichier hôte modifié depuis le début de session). Réponse :
- * `changes_applied`.
+ * WP08g : le bridge écrit tout seul à chaque fin de tour ; le client n'envoie ce
+ * message que pour écraser des conflits signalés. `paths` absent → tout ce qui est
+ * en attente. `force` outrepasse la détection de conflit. Réponse : `changes_applied`.
  */
 export interface ApplyChanges {
   type: "apply_changes";
   paths?: string[] | null;
   force?: boolean;
-}
-
-/** WP08d : remet des fichiers de la copie sandbox à la baseline de session. */
-export interface DiscardChanges {
-  type: "discard_changes";
-  paths?: string[] | null;
 }
 
 /** [v2] Demande au bridge de compacter l'historique (C13 §2). Le client ne résume jamais lui-même. */
@@ -150,7 +143,6 @@ export type Inbound =
   | RequestBundleDiff
   | RestoreCheckpoint
   | ApplyChanges
-  | DiscardChanges
   | Compact
   | Interrupt
   | ListModels
@@ -440,7 +432,6 @@ export const INBOUND_TYPES = [
   "request_bundle_diff",
   "restore_checkpoint",
   "apply_changes",
-  "discard_changes",
   "compact",
   "interrupt",
   "list_models",
@@ -465,7 +456,7 @@ export const CLIENT_AHEAD_OF_BRIDGE = [
   // checkpoints/apply) : hello, welcome, turn_started, turn_finished,
   // cancel_turn, tool_status, progress, context_stats, request_diff, file_diff,
   // request_bundle_diff, bundle_diff, checkpoint, restore_checkpoint,
-  // checkpoint_restored, apply_changes, changes_applied, discard_changes.
+  // checkpoint_restored, apply_changes, changes_applied.
   // Restent « client en avance » (capabilities non annoncées) :
   "resume",
   "resumed",
