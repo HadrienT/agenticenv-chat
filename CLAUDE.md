@@ -1,54 +1,50 @@
-# agenticenv-chat — notes pour Claude Code
+# agenticenv-chat — notes for Claude Code
 
-Extension VS Code : un panneau de chat pour un agent **OpenHands local**, façon
-Copilot Chat / Claude Code. Elle ne fait rien seule — elle est cliente du serveur
-WebSocket **`openhands-bridge`**.
+VS Code extension: a chat panel for a **local OpenHands** agent, in the style of Copilot Chat /
+Claude Code. It does nothing alone: it is a client of the **`openhands-bridge`** WebSocket
+server.
 
-**Repo jumeau** : [`AgenticEnv`](https://github.com/HadrienT/AgenticEnv) — le
-bridge, l'adaptateur OpenHands, la sandbox Docker, `llama-server`. Les deux
-évoluent ensemble. Le contrat du fil bridge vit dans
-`AgenticEnv/packages/openhands-bridge/src/openhands_bridge/protocol.py` ;
-`src/protocol.ts` en est le **miroir manuel** (test de dérive
-`test/discipline/protocol-drift.test.ts`, qui a besoin d'`AgenticEnv` clôné à côté).
+**Twin repository**: [`AgenticEnv`](https://github.com/HadrienT/AgenticEnv): the bridge, the
+OpenHands adapter, the Docker sandbox, `llama-server`. The two evolve together. The bridge wire
+contract lives in `AgenticEnv/packages/openhands-bridge/src/openhands_bridge/protocol.py`;
+`src/protocol.ts` is its **manual mirror** (drift test
+`test/discipline/protocol-drift.test.ts`, which needs `AgenticEnv` cloned alongside).
 
-## Suivi du travail — GitHub Issues, pas de markdown de handoff
+## Tracking work: GitHub Issues, no handoff markdown
 
-Le « JIRA » du projet, ce sont les **GitHub Issues des deux repos**. `gh` est
-authentifié (compte `HadrienT`).
+The project's "JIRA" is the **GitHub Issues of both repositories**. `gh` is authenticated
+(account `HadrienT`).
 
-- **Au démarrage d'une session** : `gh issue list --state open` sur **ce repo** ET
-  sur `HadrienT/AgenticEnv`. Chaque repo a une issue épinglée **`📋 Board`** qui
-  agrège tout (agenticenv-chat#3, AgenticEnv#9).
-- **Une tâche ou un bug qui concerne l'autre repo** →
-  `gh issue create --repo HadrienT/AgenticEnv …`. **Jamais** un fichier markdown
-  de passation.
-- **Issue traitée** → `gh issue close <n> --repo … --comment "fait dans <sha>"`,
-  et cocher la case correspondante dans le Board.
-- **Labels** : `cross-repo` (coordination), `blocked` (attend l'autre repo),
-  `needs-verification` (code fait, reste un test manuel), `from-bridge` /
-  `from-client`.
-- Les gros morceaux de **conception** restent dans `blueprint/wp/*.md` ; l'issue y
-  renvoie, elle ne les remplace pas.
+- **At the start of a session**: `gh issue list --state open` on **this repository** AND on
+  `HadrienT/AgenticEnv`. Each repository has a pinned **`📋 Board`** issue that aggregates
+  everything (agenticenv-chat#3, AgenticEnv#9).
+- **A task or bug concerning the other repository** →
+  `gh issue create --repo HadrienT/AgenticEnv …`. **Never** a markdown handoff file.
+- **Issue handled** → `gh issue close <n> --repo … --comment "done in <sha>"`, and tick the
+  matching box in the Board.
+- **Labels**: `cross-repo` (coordination), `blocked` (waiting on the other repository),
+  `needs-verification` (code done, a manual test remains), `from-bridge` / `from-client`.
+- Large pieces of **design** stay in `blueprint/wp/*.md`; the issue points to them, it does not
+  replace them.
 
-## Commandes
+## Commands
 
 | | |
 |---|---|
 | `npm run typecheck` | `tsc --noEmit` (src + tests) |
 | `npm run lint` | eslint |
-| `npm test` | vitest — inclut les tests de discipline (dérive protocole, routeurs exhaustifs, hygiène) |
+| `npm test` | vitest, including the discipline tests (protocol drift, exhaustive routers, hygiene) |
 | `npm run build` | esbuild |
-| `npm run package` | build production + `vsce package` → `agenticenv-chat-<v>.vsix` |
+| `npm run package` | production build + `vsce package` → `agenticenv-chat-<v>.vsix` |
 
-Installer le `.vsix` : `code --install-extension agenticenv-chat-<v>.vsix --force`
-puis *Developer: Reload Window*.
+Install the `.vsix`: `code --install-extension agenticenv-chat-<v>.vsix --force`, then
+*Developer: Reload Window*.
 
-## Divers
+## Miscellaneous
 
-- **Conversation avec le mainteneur : en français.** Code, identifiants, messages
-  de commit : en anglais. `blueprint/` est en français.
-- Toute évolution de `src/protocol.ts` doit rester alignée avec le `protocol.py`
-  du bridge — si le bridge n'a pas encore un message, l'ajouter à
-  `CLIENT_AHEAD_OF_BRIDGE` et ouvrir une issue `from-client` sur `AgenticEnv`.
-- Commits : passer par une branche, pas directement sur `main`. Terminer les
-  messages de commit par `Co-Authored-By: Claude <noreply@anthropic.com>`.
+- **Language: English by default.** Everything you produce is in English: code, identifiers, comments, commit messages, PRs, issues, documentation and interface text. The only exception is the conversation: reply in the language the maintainer writes in, so in French when they write in French. `blueprint/` is historically in French: new content there is in English too.
+- Any change to `src/protocol.ts` must stay aligned with the bridge's `protocol.py`: if the
+  bridge does not have a message yet, add it to `CLIENT_AHEAD_OF_BRIDGE` and open a
+  `from-client` issue on `AgenticEnv`.
+- Commits: go through a branch, not directly on `main`. End commit messages with
+  `Co-Authored-By: Claude <noreply@anthropic.com>`.
