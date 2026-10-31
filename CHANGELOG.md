@@ -9,7 +9,12 @@ v1 bridge (listed in `src/protocol.ts` → `CLIENT_AHEAD_OF_BRIDGE`).
 
 ## [Unreleased]
 
-<<<<<<< HEAD
+### Fixed
+- Clicking a starter prompt sends it; it used to fill the composer and nothing else.
+- After a window reload with no live session, the chat screen goes back to the
+  session picker even when the `reset` sent at `welcome` reached the webview too
+  early. It used to stay on a composer with no session behind it.
+
 ### WP08g — auto-apply, end of per-file review
 The bridge now writes the agent's edits to the real repo at the end of each turn,
 like Claude Code. Requires the matching AgenticEnv bridge.
@@ -20,7 +25,6 @@ like Claude Code. Requires the matching AgenticEnv bridge.
 - A conflict (file edited on disk during the session) is left untouched and
   reported in a non-modal warning offering **Overwrite**.
 - `read_only` sessions (Ask / Plan) still never write.
-=======
 ### LLM profile switch (#11, AgenticEnv#16)
 - Components panel: a **profile** selector under `llama-server` lists the
   profiles installed in `/etc/llm/profiles` (served model + context size) and
@@ -30,7 +34,6 @@ like Claude Code. Requires the matching AgenticEnv bridge.
 - Start Session on the wrong profile (`DEPENDENCY_ERROR` with
   `details.expected`) now offers **Switch to "<profile>" profile** instead of
   the raw error.
->>>>>>> feat/llm-profile-switch
 
 ### C15 / WP08d — sandbox working copy + `apply_changes`
 The bridge now runs the agent on a **disposable copy** of the project

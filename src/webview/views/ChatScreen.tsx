@@ -105,7 +105,16 @@ export function ChatScreen(props: {
         />
       )}
       {state.items.length === 0 && state.phase.kind === "idle" && (
-        <StarterPrompts prompts={state.starters} onPick={actions.setDraft} />
+        <StarterPrompts
+          prompts={state.starters}
+          onPick={(text) => {
+            if (canSendMessage(state)) {
+              actions.sendMessage(text, effectiveAttachments(state).map((a) => a.chip.ref));
+            } else {
+              actions.setDraft(text);
+            }
+          }}
+        />
       )}
       <ModelPicker
         models={state.models}

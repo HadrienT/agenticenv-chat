@@ -1060,6 +1060,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     switch (msg.type) {
       case "ready":
         log.debug("webview ready, stateVersion", msg.stateVersion);
+        // Après un reload, la webview restaure `idle` depuis son état persisté. Le
+        // `reset` émis au `welcome` peut la précéder et se perdre : sans session
+        // côté hôte, on le rejoue ici, sinon le composer écrit dans le vide.
+        if (!this.conversationId) {
+          this.postToWebview({ type: "reset" });
+        }
         this.sendWorkspace();
         this.sendAutoContext();
         this.sendPermissionMode();
