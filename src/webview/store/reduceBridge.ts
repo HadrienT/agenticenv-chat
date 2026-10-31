@@ -35,8 +35,14 @@ export function applyBridge(state: AppState, msg: Outbound, at: number): AppStat
         ...state,
         session: { llmSource: msg.llm_source },
         phase: { kind: "idle", conversationId: msg.conversation_id },
+        startup: null,
         pendingSend: false,
       };
+
+    case "session_progress":
+      return state.phase.kind === "starting"
+        ? { ...state, startup: { steps: msg.steps, current: msg.current } }
+        : state;
 
     case "turn_started":
       return startTurn(state, msg, at);
@@ -153,7 +159,7 @@ export function applyBridge(state: AppState, msg: Outbound, at: number): AppStat
 export function endTurnOnError(state: AppState, endActive: boolean): AppState {
   const p = state.phase;
   if (p.kind === "starting") {
-    return { ...state, phase: { kind: "picking" }, pendingSend: false, progress: null };
+    return { ...state, phase: { kind: "picking" }, startup: null, pendingSend: false, progress: null };
   }
   if (endActive && (p.kind === "running" || p.kind === "awaiting" || p.kind === "cancelling")) {
     const items = state.items.map((it) =>

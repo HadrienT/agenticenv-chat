@@ -419,6 +419,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             name: s.name,
             transport: s.transport,
             tools: s.tools_allowlist,
+            unavailable: s.unavailable,
           })),
         });
         return;

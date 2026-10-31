@@ -48,6 +48,7 @@ export function MessageItem(props: {
     return (
       <div className="agx-bubble--user">
         <div className="agx-bubble__body">{item.text}</div>
+        {item.loaded && <div className="agx-bubble__loaded">Loaded: {item.loaded.join(", ")}</div>}
         <div className="agx-msg__foot">
           <Timestamp ts={item.ts} />
           {svc.canEditThread && (

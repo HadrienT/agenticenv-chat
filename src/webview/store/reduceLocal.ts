@@ -52,7 +52,9 @@ export function applyLocal(state: AppState, action: LocalAction): AppState {
     }
 
     case "mcp/setAll": {
-      const selected = action.all ? state.mcp.servers.map((s) => s.name) : [];
+      const selected = action.all
+        ? state.mcp.servers.filter((s) => !s.unavailable).map((s) => s.name)
+        : [];
       return { ...state, mcp: { ...state.mcp, selected } };
     }
 

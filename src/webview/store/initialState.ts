@@ -18,6 +18,7 @@ export function initialState(): AppState {
     connection: { state: "connecting", protocol: null },
     protocol: { version: 2, capabilities: [], degraded: false },
     phase: { kind: "picking" },
+    startup: null,
     session: null,
     items: [],
     itemIndex: {},

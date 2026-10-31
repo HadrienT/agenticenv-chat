@@ -1,5 +1,7 @@
 import { useRef } from "react";
 import type { McpServerView, ModeView } from "../../../messages";
+import type { AppState } from "../../store/types";
+import { StartupProgress } from "./StartupProgress";
 
 export function McpPicker(props: {
   servers: McpServerView[];
@@ -9,14 +11,16 @@ export function McpPicker(props: {
   workspaceFolder: string | null;
   disabled: boolean;
   starting: boolean;
+  startup: AppState["startup"];
   onToggle: (name: string) => void;
   onSetAll: (all: boolean) => void;
   onSelectMode: (name: string | null) => void;
   onStart: () => void;
 }): JSX.Element {
   const selected = new Set(props.selected);
-  const selectedCount = props.servers.filter((s) => selected.has(s.name)).length;
-  const allSelected = selectedCount === props.servers.length && props.servers.length > 0;
+  const usable = props.servers.filter((s) => !s.unavailable);
+  const selectedCount = usable.filter((s) => selected.has(s.name)).length;
+  const allSelected = selectedCount === usable.length && usable.length > 0;
   const someSelected = selectedCount > 0 && !allSelected;
   const allRef = useRef<HTMLInputElement>(null);
   if (allRef.current) {
@@ -50,12 +54,12 @@ export function McpPicker(props: {
       </div>
       <div className="agx-picker__hint">
         Select the MCP servers this session may use, then start. Selecting none gives the agent
-        all of them.
+        all the available ones.
       </div>
       {props.servers.length === 0 && (
         <div className="agx-picker__hint">No MCP servers configured.</div>
       )}
-      {props.servers.length > 1 && (
+      {usable.length > 1 && (
         <label className="agx-mcp-item agx-mcp-item--all">
           <input
             ref={allRef}
@@ -74,7 +78,7 @@ export function McpPicker(props: {
           <input
             type="checkbox"
             checked={selected.has(s.name)}
-            disabled={props.disabled}
+            disabled={props.disabled || Boolean(s.unavailable)}
             onChange={() => props.onToggle(s.name)}
           />
           <span>
@@ -82,6 +86,7 @@ export function McpPicker(props: {
             {s.tools.length > 0 && (
               <span className="agx-mcp-item__tools"> — {s.tools.join(", ")}</span>
             )}
+            {s.unavailable && <span className="agx-mcp-item__off"> — {s.unavailable}</span>}
           </span>
         </label>
       ))}
@@ -92,6 +97,7 @@ export function McpPicker(props: {
       >
         {props.starting ? "Starting sandbox…" : "Start session"}
       </button>
+      {props.starting && <StartupProgress startup={props.startup} />}
     </div>
   );
 }

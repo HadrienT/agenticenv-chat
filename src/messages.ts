@@ -46,6 +46,7 @@ export interface McpServerView {
   name: string;
   transport: string;
   tools: string[];
+  unavailable?: string | null;
 }
 
 /**

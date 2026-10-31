@@ -51,7 +51,7 @@ export function applyHost(state: AppState, msg: HostToWebview, at: number): AppS
       return applyBridge(state, msg.message, at);
 
     case "mcpServers": {
-      const names = new Set(msg.servers.map((s) => s.name));
+      const names = new Set(msg.servers.filter((s) => !s.unavailable).map((s) => s.name));
       return {
         ...state,
         mcp: { servers: msg.servers, selected: state.mcp.selected.filter((n) => names.has(n)) },

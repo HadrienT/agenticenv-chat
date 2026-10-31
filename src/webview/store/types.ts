@@ -31,7 +31,7 @@ export type SessionPhase =
 export type ToolStatus = "running" | "ok" | "error";
 
 export type ChatItem =
-  | { kind: "user"; id: string; text: string; ts?: number }
+  | { kind: "user"; id: string; text: string; loaded?: string[]; ts?: number }
   | {
       kind: "assistant";
       id: string;
@@ -145,6 +145,8 @@ export interface AppState {
   eventSeq: number;
   /** UI optimiste (item 112) : message envoyé, `turn_started` pas encore reçu. */
   pendingSend: boolean;
+  /** Étapes du démarrage de session en cours, ou `null`. */
+  startup: { steps: string[]; current: number } | null;
   /** Libellé de progression du tour en cours (« Reading black.cpp… »), ou `null`. */
   progress: string | null;
   workspace: {

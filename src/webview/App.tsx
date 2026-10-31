@@ -107,6 +107,7 @@ export function App(): JSX.Element {
           workspaceFolder={state.workspace.folder}
           disabled={!canStartSession(state)}
           starting={isStarting(state)}
+          startup={state.startup}
           onToggle={actions.toggleMcp}
           onSetAll={actions.setAllMcp}
           onSelectMode={actions.selectMode}

@@ -149,7 +149,7 @@ export function applyEvent(state: AppState, msg: EventMessage, at: number): AppS
     }
   }
 
-  const items = eventToItems(ev, state.eventSeq, at);
+  const items = eventToItems(ev, state.eventSeq, at, msg.user_display);
   const first = items[0];
   if (items.length === 1 && first.kind === "assistant" && first.sourceId) {
     const sourceId = first.sourceId;

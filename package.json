@@ -14,7 +14,7 @@
     "url": "https://github.com/HadrienT/agenticenv-chat/issues"
   },
   "engines": {
-    "vscode": "^1.93.0"
+    "vscode": "^1.134.0"
   },
   "categories": [
     "Chat",
@@ -43,7 +43,7 @@
   },
   "contributes": {
     "viewsContainers": {
-      "activitybar": [
+      "secondarySidebar": [
         {
           "id": "agenticenvChat",
           "title": "AgenticEnv Chat",

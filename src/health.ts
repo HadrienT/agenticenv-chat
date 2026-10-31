@@ -257,14 +257,10 @@ async function checkGpu(): Promise<ComponentHealth> {
     return { id: "gpu", label: "GPU", status: "unknown", detail: "nvidia-smi unavailable", actions: [] };
   }
   const apps = await run("nvidia-smi", [
-    "--query-compute-apps=process_name",
-    "--format=csv,noheader",
+    "--query-compute-apps=process_name,used_memory",
+    "--format=csv,noheader,nounits",
   ]);
-  const procs = apps.out
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean);
-  const foreign = procs.filter((p) => !p.includes("llama-server"));
+  const { heavy, others } = foreignGpuUse(apps.out);
   const lines = mem.out.split("\n").map((l) => l.trim()).filter(Boolean);
   const summary = lines
     .map((l, i) => {
@@ -275,11 +271,30 @@ async function checkGpu(): Promise<ComponentHealth> {
   return {
     id: "gpu",
     label: "GPU",
-    status: foreign.length > 0 ? "degraded" : "up",
-    detail:
-      foreign.length > 0
-        ? `${summary} — contention: ${foreign.join(", ")}`
-        : summary,
+    status: heavy.length > 0 ? "degraded" : "up",
+    detail: [summary, heavy.length > 0 && `contention: ${heavy.join(", ")}`, others.length > 0 && `also running: ${others.join(", ")}`]
+      .filter(Boolean)
+      .join(" — "),
     actions: [],
+  };
+}
+
+/** En dessous, un autre processus ne prive pas `llama-server` de mémoire utile. */
+const GPU_CONTENTION_MIB = 2048;
+
+/** Sépare, hors `llama-server`, les processus qui comptent des simples voisins. */
+export function foreignGpuUse(csv: string): { heavy: string[]; others: string[] } {
+  const byName = new Map<string, number>();
+  for (const line of csv.split("\n")) {
+    const [path, mib] = line.split(",").map((f) => f.trim());
+    if (path && !path.includes("llama-server")) {
+      const name = path.split("/").pop() as string;
+      byName.set(name, (byName.get(name) ?? 0) + (Number(mib) || 0));
+    }
+  }
+  const entries = [...byName].map(([name, mib]) => ({ mib, text: `${name} (${mib} MiB)` }));
+  return {
+    heavy: entries.filter((e) => e.mib >= GPU_CONTENTION_MIB).map((e) => e.text),
+    others: entries.filter((e) => e.mib < GPU_CONTENTION_MIB).map((e) => e.text),
   };
 }

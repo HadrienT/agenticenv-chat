@@ -9,6 +9,16 @@ v1 bridge (listed in `src/protocol.ts` → `CLIENT_AHEAD_OF_BRIDGE`).
 
 ## [Unreleased]
 
+### Changed
+- The chat opens in the secondary side bar (right), next to Claude Code and Copilot.
+  Requires VS Code 1.134 or later.
+- A session's start shows its real steps, a progress bar and the elapsed time.
+- A sent message shows what you wrote and a `Loaded: …` line, not the instruction
+  files and other blocks added to the prompt.
+- The session screen shows which MCP servers are unavailable and why, and they can
+  no longer be selected.
+- The GPU only reports contention when another process holds 2 GiB of VRAM or more.
+
 ### Fixed
 - Clicking a starter prompt sends it; it used to fill the composer and nothing else.
 - The session screen no longer stays disabled at startup. Messages sent before the

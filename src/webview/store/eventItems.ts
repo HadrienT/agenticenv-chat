@@ -8,7 +8,12 @@ import type { ChatItem } from "./types";
  * `seq` est un compteur monotone tenu par le réducteur : il donne un `id` stable
  * (donc une `key` React stable, 04-CONVENTIONS §2) sans dépendre de l'horloge.
  */
-export function eventToItems(ev: SdkEvent, seq: number, at: number): ChatItem[] {
+export function eventToItems(
+  ev: SdkEvent,
+  seq: number,
+  at: number,
+  display?: { text: string; loaded: string[] } | null,
+): ChatItem[] {
   const id = `ev-${seq}`;
   const kind = ev.kind ?? "";
   const ts = parseTimestamp(ev.timestamp) ?? at;
@@ -27,7 +32,11 @@ export function eventToItems(ev: SdkEvent, seq: number, at: number): ChatItem[] 
         { kind: "assistant", id, text, streaming: false, revision: 0, ts, sourceId: ev.id },
       ];
     }
-    return [{ kind: "user", id, text, ts }];
+    return [
+      display?.loaded.length
+        ? { kind: "user", id, text: display.text, loaded: display.loaded, ts }
+        : { kind: "user", id, text: display?.text ?? text, ts },
+    ];
   }
 
   if (kind === "ActionEvent") {

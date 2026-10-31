@@ -186,6 +186,15 @@ export interface SessionStarted extends Seq {
 export interface EventMessage extends Seq {
   type: "event";
   event: SdkEvent;
+  /** Sur l'écho d'un message utilisateur : ce qu'il a écrit, sans le prompt composé. */
+  user_display?: { text: string; loaded: string[] } | null;
+}
+
+/** Démarrage d'une session : `steps[current]` est en cours. */
+export interface SessionProgress extends Seq {
+  type: "session_progress";
+  steps: string[];
+  current: number;
 }
 
 export interface TurnStarted extends Seq {
@@ -351,6 +360,8 @@ export interface McpServerEntry {
   name: string;
   transport: string;
   tools_allowlist: string[];
+  /** Pourquoi une session ne pourrait pas l'utiliser maintenant. */
+  unavailable?: string | null;
 }
 
 export interface McpServers extends Seq {
@@ -380,6 +391,7 @@ export type Outbound =
   | Welcome
   | Resumed
   | SessionStarted
+  | SessionProgress
   | EventMessage
   | TurnStarted
   | TurnFinished
@@ -407,6 +419,7 @@ export const OUTBOUND_TYPES = [
   "welcome",
   "resumed",
   "session_started",
+  "session_progress",
   "event",
   "turn_started",
   "turn_finished",
