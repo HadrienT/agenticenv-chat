@@ -9,6 +9,10 @@ v1 bridge (listed in `src/protocol.ts` → `CLIENT_AHEAD_OF_BRIDGE`).
 
 ## [Unreleased]
 
+### Added
+- "Switch Conversation" opens or archives a conversation the bridge can reattach to, on a
+  bridge with `sandbox.persistent_conversations` on. A reload reattaches on its own.
+
 ### Changed
 - Answers are written as the model generates them, token by token.
 - The chat no longer has its own model selector: the profile selector in Components

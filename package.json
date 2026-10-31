@@ -93,6 +93,10 @@
         "icon": "$(history)"
       },
       {
+        "command": "agenticenvChat.switchConversation",
+        "title": "AgenticEnv Chat: Switch Conversation…"
+      },
+      {
         "command": "agenticenvChat.exportConversation",
         "title": "AgenticEnv Chat: Export Conversation…"
       },

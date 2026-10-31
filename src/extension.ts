@@ -30,6 +30,9 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("agenticenvChat.purgeCheckpoints", () => provider.purgeCheckpoints()),
     vscode.commands.registerCommand("agenticenvChat.restoreCheckpoint", () => provider.undoTurn()),
     vscode.commands.registerCommand("agenticenvChat.history", () => provider.history()),
+    vscode.commands.registerCommand("agenticenvChat.switchConversation", () =>
+      provider.switchConversation(),
+    ),
     vscode.commands.registerCommand("agenticenvChat.exportConversation", () => provider.export()),
     vscode.commands.registerCommand("agenticenvChat.remember", () => provider.remember()),
     vscode.commands.registerCommand("agenticenvChat.stop", () => provider.stopTurn()),
