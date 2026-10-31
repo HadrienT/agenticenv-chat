@@ -50,3 +50,19 @@ describe("eventToItems — traduction pure SdkEvent → ChatItem", () => {
     ]);
   });
 });
+
+describe("réponse finale par l'outil `finish`", () => {
+  it("devient un message de l'assistant", () => {
+    const ev = { kind: "ActionEvent", id: "a1", tool_name: "finish", action: { message: " voici " } };
+    expect(eventToItems(ev, 1, 0)).toMatchObject([{ kind: "assistant", text: "voici", streaming: false }]);
+  });
+
+  it("son observation, qui répète le texte, n'apparaît pas", () => {
+    expect(eventToItems({ kind: "ObservationEvent", tool_name: "finish", observation: {} }, 1, 0)).toEqual([]);
+  });
+
+  it("sans message, reste un outil visible", () => {
+    const ev = { kind: "ActionEvent", id: "a1", tool_name: "finish", action: {} };
+    expect(eventToItems(ev, 1, 0)).toMatchObject([{ kind: "tool", toolName: "finish" }]);
+  });
+});

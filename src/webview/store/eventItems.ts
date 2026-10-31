@@ -39,7 +39,18 @@ export function eventToItems(
     ];
   }
 
+  if (ev.tool_name === "finish" && kind === "ObservationEvent") {
+    return [];
+  }
+
   if (kind === "ActionEvent") {
+    // `finish` porte la réponse finale de l'agent, pas une action à montrer.
+    const finalAnswer = ev.tool_name === "finish" ? ev.action?.message : undefined;
+    if (typeof finalAnswer === "string" && finalAnswer.trim()) {
+      return [
+        { kind: "assistant", id, text: finalAnswer.trim(), streaming: false, revision: 0, ts, sourceId: ev.id },
+      ];
+    }
     const thought = Array.isArray(ev.thought)
       ? ev.thought.map((t) => t.text ?? "").join("")
       : typeof ev.thought === "string"

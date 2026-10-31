@@ -23,6 +23,8 @@ v1 bridge (listed in `src/protocol.ts` → `CLIENT_AHEAD_OF_BRIDGE`).
 - The GPU only reports contention when another process holds 2 GiB of VRAM or more.
 
 ### Fixed
+- An answer given through the agent's `finish` tool shows as a normal message; it
+  used to stay hidden in the tool's arguments.
 - Answers no longer show a blank line between every paragraph and list item.
 - The Components panel no longer offers `docker pull` for the locally built agent image.
 - Clicking a starter prompt sends it; it used to fill the composer and nothing else.
