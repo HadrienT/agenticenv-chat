@@ -38,6 +38,11 @@ export function useHostMessages(dispatch: (a: Action) => void, onReady: () => vo
         }
         return;
       }
+      // Les deltas en attente d'une image précèdent ce message : il les fige.
+      if (raf.current) {
+        cancelAnimationFrame(raf.current);
+        flush();
+      }
       dispatch(host(msg));
     };
 

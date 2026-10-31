@@ -10,6 +10,7 @@ v1 bridge (listed in `src/protocol.ts` → `CLIENT_AHEAD_OF_BRIDGE`).
 ## [Unreleased]
 
 ### Changed
+- Answers are written as the model generates them, token by token.
 - The chat no longer has its own model selector: the profile selector in Components
   does the same, with the checks for a running session.
 - The chat opens in the secondary side bar (right), next to Claude Code and Copilot.

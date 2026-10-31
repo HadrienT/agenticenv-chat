@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { host, local } from "../../src/webview/store/actions";
 import { patchItem, reduce } from "../../src/webview/store/reducer";
 import { composerButton } from "../../src/webview/store/selectors";
-import { initialState, type AppState } from "../../src/webview/store/types";
+import { initialState, type AppState, type ChatItem } from "../../src/webview/store/types";
 import type { Outbound } from "../../src/protocol";
 
 const bridge = (message: Outbound, at = 1000) => host({ type: "bridge", message }, at);
@@ -282,3 +282,43 @@ function usage(): Outbound {
     context_window: 8000,
   };
 }
+
+describe("streaming lié au message final (stream_id)", () => {
+  function running(): AppState {
+    return reduce(
+      { ...initialState(), phase: { kind: "idle", conversationId: "c" } },
+      bridge({ type: "turn_started", turn_id: "t1" }),
+    );
+  }
+  const delta = (text: string): Outbound => ({ type: "event_delta", turn_id: "t1", event_id: "s1", text });
+  const assistants = (s: AppState): ChatItem[] => s.items.filter((i) => i.kind === "assistant");
+
+  it("le message final remplace le texte diffusé, sans doublon", () => {
+    let s = reduce(running(), bridge(delta("hel")));
+    s = reduce(s, bridge(delta("lo")));
+    expect(assistants(s)).toMatchObject([{ text: "hello", streaming: true }]);
+    s = reduce(
+      s,
+      bridge({
+        type: "event",
+        stream_id: "s1",
+        event: { kind: "MessageEvent", id: "m1", llm_message: { role: "assistant", content: [{ text: "hello!" }] } },
+      }),
+    );
+    expect(assistants(s)).toMatchObject([{ text: "hello!", streaming: false }]);
+  });
+
+  it("le texte d'avant un outil reste affiché et l'outil ne le répète pas", () => {
+    let s = reduce(running(), bridge(delta("je lance")));
+    s = reduce(
+      s,
+      bridge({
+        type: "event",
+        stream_id: "s1",
+        event: { kind: "ActionEvent", id: "a1", tool_name: "terminal", thought: [{ text: "je lance" }], tool_call_id: "c1" },
+      }),
+    );
+    expect(assistants(s)).toMatchObject([{ text: "je lance", streaming: false }]);
+    expect(s.items.find((i) => i.kind === "tool")).toMatchObject({ thought: "" });
+  });
+});

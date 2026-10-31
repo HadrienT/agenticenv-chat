@@ -188,6 +188,8 @@ export interface EventMessage extends Seq {
   event: SdkEvent;
   /** Sur l'écho d'un message utilisateur : ce qu'il a écrit, sans le prompt composé. */
   user_display?: { text: string; loaded: string[] } | null;
+  /** `event_id` des `event_delta` dont cet événement est la fin. */
+  stream_id?: string | null;
 }
 
 /** Démarrage d'une session : `steps[current]` est en cours. */

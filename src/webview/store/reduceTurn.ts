@@ -152,7 +152,7 @@ export function applyEvent(state: AppState, msg: EventMessage, at: number): AppS
   const items = eventToItems(ev, state.eventSeq, at, msg.user_display);
   const first = items[0];
   if (items.length === 1 && first.kind === "assistant" && first.sourceId) {
-    const sourceId = first.sourceId;
+    const sourceId = msg.stream_id ?? first.sourceId;
     const twinIdx = state.items.findIndex(
       (i) => i.kind === "assistant" && i.sourceId === sourceId,
     );
@@ -164,7 +164,31 @@ export function applyEvent(state: AppState, msg: EventMessage, at: number): AppS
       };
     }
   }
+  if (msg.stream_id && first?.kind === "tool") {
+    return applyNarratedAction(state, msg.stream_id, first);
+  }
   return { ...appendItems(state, items), eventSeq: state.eventSeq + 1 };
+}
+
+/**
+ * Le texte diffusé avant un outil est aussi sa `thought` : il reste dans le fil, où
+ * le lecteur l'a vu s'écrire, et l'outil ne le répète pas.
+ */
+function applyNarratedAction(
+  state: AppState,
+  streamId: string,
+  tool: Extract<ChatItem, { kind: "tool" }>,
+): AppState {
+  const idx = state.items.findIndex((i) => i.kind === "assistant" && i.sourceId === streamId);
+  const frozen =
+    idx >= 0
+      ? replaceAt(state, idx, {
+          ...(state.items[idx] as Extract<ChatItem, { kind: "assistant" }>),
+          streaming: false,
+        })
+      : state;
+  const item = idx >= 0 ? { ...tool, thought: "" } : tool;
+  return { ...appendItems(frozen, [item]), eventSeq: frozen.eventSeq + 1 };
 }
 
 /** `tool_status` : pilote l'icône (⟳ / ✓ / ✗) de l'item outil `tool_call_id`. */
