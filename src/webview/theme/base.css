@@ -552,15 +552,6 @@ button {
   color: var(--agx-muted);
 }
 
-.agx-modelpick {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 8px 0;
-  font-size: 11px;
-  flex-wrap: wrap;
-}
-
 /* --- composer ------------------------------------------------ */
 
 .agx-composer {
@@ -603,7 +594,10 @@ button {
 /* --- responsive (C14 §4) : jamais de scroll horizontal du corps ------- */
 
 @media (max-width: 280px) {
-  .agx-chipbar,
+  .agx-chipbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
   .agx-composer__foot {
     gap: 4px;
   }
