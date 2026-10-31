@@ -11,6 +11,8 @@ v1 bridge (listed in `src/protocol.ts` → `CLIENT_AHEAD_OF_BRIDGE`).
 
 ### Fixed
 - Clicking a starter prompt sends it; it used to fill the composer and nothing else.
+- The session screen no longer stays disabled at startup. Messages sent before the
+  webview listened, the connection state among them, were lost; they now wait for it.
 - After a window reload with no live session, the chat screen goes back to the
   session picker even when the `reset` sent at `welcome` reached the webview too
   early. It used to stay on a composer with no session behind it.

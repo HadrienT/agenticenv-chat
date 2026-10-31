@@ -94,6 +94,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private pendingActionSeq = 0;
   private conversations: ConversationStore | undefined;
   private snapshot: Omit<StoredConversation, "version" | "createdAt" | "workspacePath"> | undefined;
+  private webviewReady = false;
+  private readonly beforeReady: HostToWebview[] = [];
   private turnStartMs = 0;
   private readonly instructions = new InstructionLoader(() => {
     void this.sendCommandsAndModes();
@@ -166,6 +168,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.lastSeq = this.context.workspaceState.get<number>(K_LAST_SEQ, 0);
 
     this.view = view;
+    this.webviewReady = false;
+    this.beforeReady.length = 0;
     view.webview.options = {
       enableScripts: true,
       localResourceRoots: [vscode.Uri.joinPath(this.context.extensionUri, "dist")],
@@ -1060,12 +1064,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     switch (msg.type) {
       case "ready":
         log.debug("webview ready, stateVersion", msg.stateVersion);
-        // Après un reload, la webview restaure `idle` depuis son état persisté. Le
-        // `reset` émis au `welcome` peut la précéder et se perdre : sans session
-        // côté hôte, on le rejoue ici, sinon le composer écrit dans le vide.
+        this.webviewReady = true;
+        // Après un reload, la webview restaure `idle` depuis son état persisté :
+        // sans session côté hôte, le composer écrirait dans le vide.
         if (!this.conversationId) {
           this.postToWebview({ type: "reset" });
         }
+        this.beforeReady.splice(0).forEach((m) => this.postToWebview(m));
         this.sendWorkspace();
         this.sendAutoContext();
         this.sendPermissionMode();
@@ -1997,6 +2002,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   // --- plumbing ---------------------------------------------------
 
   private postToWebview(msg: HostToWebview): void {
+    // `postMessage` ne garde rien pour une webview qui n'écoute pas encore : l'état
+    // de connexion, émis une seule fois, serait perdu et l'écran resterait désactivé.
+    if (!this.webviewReady) {
+      this.beforeReady.push(msg);
+      return;
+    }
     void this.view?.webview.postMessage(msg);
   }
 
