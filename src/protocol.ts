@@ -71,6 +71,17 @@ export interface Resume {
   last_seq: number;
 }
 
+/** Demande les conversations que le bridge peut reprendre. Réponse : `conversations`. */
+export interface ListConversations {
+  type: "list_conversations";
+}
+
+/** Retire une conversation de la liste ; rien n'est supprimé. Réponse : `conversations`. */
+export interface ArchiveConversation {
+  type: "archive_conversation";
+  conversation_id: string;
+}
+
 /** Demande le diff baseline→maintenant d'un fichier de la copie sandbox. Réponse : `file_diff`. */
 export interface RequestDiff {
   type: "request_diff";
@@ -141,6 +152,8 @@ export type Inbound =
   | ConfirmAction
   | CancelTurn
   | Resume
+  | ListConversations
+  | ArchiveConversation
   | RequestDiff
   | RequestBundleDiff
   | RestoreCheckpoint
@@ -373,6 +386,19 @@ export interface McpServers extends Seq {
   profiles?: string[];
 }
 
+export interface ConversationItem {
+  conversation_id: string;
+  title?: string | null;
+  updated_at: string;
+  turns: number;
+  active: boolean;
+}
+
+export interface Conversations extends Seq {
+  type: "conversations";
+  items: ConversationItem[];
+}
+
 export interface ModelEntry {
   id: string;
   label: string;
@@ -414,7 +440,8 @@ export type Outbound =
   | AwaitingConfirmation
   | ErrorMessage
   | McpServers
-  | Models;
+  | Models
+  | Conversations;
 
 /** Discriminants `type` de tous les messages bridge → client (pour le test de dérive). */
 export const OUTBOUND_TYPES = [
@@ -443,6 +470,7 @@ export const OUTBOUND_TYPES = [
   "error",
   "mcp_servers",
   "models",
+  "conversations",
 ] as const;
 
 /** Discriminants `type` de tous les messages client → bridge. */
@@ -453,6 +481,8 @@ export const INBOUND_TYPES = [
   "confirm_action",
   "cancel_turn",
   "resume",
+  "list_conversations",
+  "archive_conversation",
   "request_diff",
   "request_bundle_diff",
   "restore_checkpoint",
@@ -484,8 +514,6 @@ export const CLIENT_AHEAD_OF_BRIDGE = [
   // checkpoint_restored, apply_changes, changes_applied, compact,
   // history_compacted, interrupt, todo, list_models, set_model, models, event_delta.
   // Restent « client en avance » (capabilities non annoncées) :
-  "resume",
-  "resumed",
   "pending_action",
 ] as const;
 

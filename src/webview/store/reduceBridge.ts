@@ -27,6 +27,7 @@ export function applyBridge(state: AppState, msg: Outbound, at: number): AppStat
     case "pending_action":
     case "todo":
     case "models":
+    case "conversations":
       // Interceptés/traduits par l'hôte. No-op dans le réducteur webview.
       return state;
 

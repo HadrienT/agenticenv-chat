@@ -30,7 +30,8 @@ import { assembleInstructions } from "./instructions/assemble";
 import { substitute } from "./instructions/prompts";
 import { Hooks } from "./instructions/hooks";
 import { StatusBar } from "./statusBar";
-import { CLIENT_ID, CLIENT_PROTOCOL, type GitChangeDTO, type Outbound } from "./protocol";
+import { conversationPicks } from "./conversationPick";
+import { CLIENT_ID, CLIENT_PROTOCOL, type ConversationItem, type GitChangeDTO, type Outbound } from "./protocol";
 import { destructiveMatches, evaluate } from "./permissions/policy";
 import { PermissionStore } from "./permissions/store";
 import {
@@ -78,6 +79,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private lastTurnId: string | undefined;
   private llmSource: string | undefined;
   private lastSeq = 0;
+  private pickingConversation = false;
   /**
    * Hash du dernier bloc d'instructions **effectivement joint** à un
    * `user_message` (#7). OpenHands garde tout l'historique : rejoindre le bloc à
@@ -411,6 +413,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         log.info("bridge resumed conversation at seq", message.seq ?? this.lastSeq);
         return;
 
+      case "conversations":
+        void this.pickConversation(message.items);
+        return;
+
       case "mcp_servers":
         this.profiles = message.profiles ?? [];
         this.postToWebview({
@@ -636,7 +642,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         }
         if (message.code === "UNKNOWN_CONVERSATION") {
           this.conversationId = undefined;
+          this.lastSeq = 0;
           void this.context.workspaceState.update(K_CONVERSATION, undefined);
+          void this.context.workspaceState.update(K_LAST_SEQ, undefined);
           this.postToWebview({ type: "reset" });
           return;
         }
@@ -836,6 +844,71 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     if (pick && pick.entry.version === STORE_VERSION) {
       await this.restoreConversation(pick.entry.id);
     }
+  }
+
+  /** Liste les conversations du bridge ; le choix arrive sur `conversations` (WP08e). */
+  switchConversation(): void {
+    if (!this.capabilities.includes("resume")) {
+      void vscode.window.showInformationMessage(
+        "This bridge cannot reattach to a conversation: `sandbox.persistent_conversations` is off.",
+      );
+      return;
+    }
+    this.pickingConversation = true;
+    this.bridge?.send({ type: "list_conversations" });
+  }
+
+  private async pickConversation(items: ConversationItem[]): Promise<void> {
+    if (!this.pickingConversation) {
+      return;
+    }
+    this.pickingConversation = false;
+    if (items.length === 0) {
+      void vscode.window.showInformationMessage("No conversation to switch to.");
+      return;
+    }
+    const pick = await vscode.window.showQuickPick(conversationPicks(items), {
+      placeHolder: "Switch to a conversation",
+    });
+    if (!pick) {
+      return;
+    }
+    if (pick.item.active) {
+      return;
+    }
+    const action = await vscode.window.showQuickPick(["Open", "Archive"], {
+      placeHolder: pick.label,
+    });
+    if (action === "Open") {
+      await this.resumeConversation(pick.item.conversation_id);
+    } else if (action === "Archive") {
+      this.bridge?.send({ type: "archive_conversation", conversation_id: pick.item.conversation_id });
+    }
+  }
+
+  /**
+   * Une seule conversation active : la webview repart de l'archive locale, et le
+   * bridge ne rejoue que ce qu'elle n'a pas. Sans archive, il rejoue tout ce qu'il a.
+   */
+  private async resumeConversation(id: string): Promise<void> {
+    const conv = await this.conversations?.load(id);
+    this.conversationId = id;
+    this.lastSeq = 0;
+    void this.context.workspaceState.update(K_CONVERSATION, id);
+    void this.context.workspaceState.update(K_LAST_SEQ, 0);
+    this.postToWebview({ type: "reset" });
+    for (const item of conv?.items ?? []) {
+      this.postToWebview({ type: "bridge", message: { type: "event", event: reconstructEvent(item) } });
+    }
+    this.postToWebview({
+      type: "bridge",
+      message: { type: "session_started", conversation_id: id, llm_source: "create_payload" },
+    });
+    this.bridge?.send({
+      type: "resume",
+      conversation_id: id,
+      last_seq: conv ? Number.MAX_SAFE_INTEGER : 0,
+    });
   }
 
   private async restoreConversation(id: string): Promise<void> {
