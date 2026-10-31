@@ -900,6 +900,18 @@ button {
   padding: 0 5px;
   cursor: pointer;
 }
+.agx-health__row--sub {
+  padding-left: 32px;
+}
+.agx-health__select {
+  min-width: 0;
+  flex: 1;
+  background: var(--agx-input-bg);
+  color: var(--agx-input-fg);
+  border: 1px solid var(--agx-input-border);
+  border-radius: 3px;
+  font-size: 11px;
+}
 .agx-health__refresh {
   margin-left: auto;
   background: transparent;

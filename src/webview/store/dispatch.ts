@@ -76,6 +76,7 @@ export interface Actions {
   feedback(itemId: string, value: "up" | "down"): void;
   refreshHealth(): void;
   healthAction(component: ComponentId, action: HealthActionId): void;
+  setLlmProfile(profile: string): void;
 }
 
 export function createActions(dispatch: (action: Action) => void, now: () => number = Date.now): Actions {
@@ -144,6 +145,9 @@ export function createActions(dispatch: (action: Action) => void, now: () => num
         case "forceNewSession":
           post({ type: "forceNewSession" });
           return;
+        case "switchLlmProfile":
+          if (action.payload) post({ type: "setLlmProfile", profile: action.payload });
+          return;
         case "copy":
           if (action.payload) post({ type: "copy", text: action.payload });
           return;
@@ -182,5 +186,6 @@ export function createActions(dispatch: (action: Action) => void, now: () => num
     feedback: (itemId, value) => post({ type: "feedback", itemId, value }),
     refreshHealth: () => post({ type: "refreshHealth" }),
     healthAction: (component, action) => post({ type: "healthAction", component, action }),
+    setLlmProfile: (profile) => post({ type: "setLlmProfile", profile }),
   };
 }

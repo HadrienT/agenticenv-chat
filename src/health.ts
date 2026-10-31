@@ -9,7 +9,7 @@ import type { ComponentHealth, HealthActionId } from "./messages";
 const DEFAULT_IMAGE = "ghcr.io/openhands/agent-server:1.21.0-python";
 const LLAMA_UNIT = "llama-server";
 
-function run(cmd: string, args: string[], timeoutMs = 4000): Promise<{ code: number; out: string }> {
+export function run(cmd: string, args: string[], timeoutMs = 4000): Promise<{ code: number; out: string }> {
   return new Promise((resolve) => {
     execFile(cmd, args, { timeout: timeoutMs }, (err, stdout, stderr) => {
       const e = err as (Error & { code?: number }) | null;

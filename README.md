@@ -40,7 +40,9 @@ lifecycle and streams events.
   keyboard shortcuts, screen-reader phase announcements.
 - **Components panel**: live status of the bridge, `llama-server`, the
   `llama-bridge` proxy, Docker, the pinned `agent-server` image and the GPU, with
-  inline start/stop/restart/pull.
+  inline start/stop/restart/pull. Under `llama-server`, a **profile** selector
+  switches the served LLM (`code` / `translate` / `tutor`… — one model loaded at
+  a time, AgenticEnv `just llm-use`).
 
 Several features have a **bridge half that AgenticEnv must still ship** — they are
 gated on capability negotiation and inert until then. See "Bridge dependencies".

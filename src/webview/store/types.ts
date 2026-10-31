@@ -1,5 +1,6 @@
 import type {
   ComponentHealth,
+  LlmProfileView,
   ContextChip,
   FileHit,
   McpServerView,
@@ -160,6 +161,8 @@ export interface AppState {
   /** Fichiers d'instructions appliqués au dernier envoi (C10 §2, chip composer). */
   instructions: { applied: string[]; ignored: { rel: string; reason: string }[]; truncated: boolean };
   health: ComponentHealth[];
+  /** Profils de modèle installés côté hôte ; `switching` = bascule en cours vers ce profil. */
+  llm: { profiles: LlmProfileView[]; switching: string | null };
   usage: UsageState | null;
   /** `true` si l'historique a été compacté (bannière + item, C13 §2). */
   compacted: boolean;

@@ -38,6 +38,7 @@ export function initialState(): AppState {
     selectedMode: null,
     instructions: { applied: [], ignored: [], truncated: false },
     health: [],
+    llm: { profiles: [], switching: null },
     usage: null,
     compacted: false,
     todo: null,

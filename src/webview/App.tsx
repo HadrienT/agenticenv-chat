@@ -90,6 +90,8 @@ export function App(): JSX.Element {
         onToggle={() => actions.togglePanel("health")}
         onRefresh={actions.refreshHealth}
         onAction={actions.healthAction}
+        llm={state.llm}
+        onSelectProfile={actions.setLlmProfile}
       />
       <Notices
         notices={state.notices}

@@ -86,6 +86,21 @@ export function applyModels(
   return next;
 }
 
+/**
+ * `llmProfiles` : profils installés + bascule en cours. La notice « mauvais
+ * modèle servi » tombe dès que le profil qu'elle propose est devenu l'actif.
+ */
+export function applyLlmProfiles(
+  state: AppState,
+  msg: Extract<HostToWebview, { type: "llmProfiles" }>,
+): AppState {
+  const active = msg.profiles.find((p) => p.active)?.name;
+  const notices = state.notices.filter(
+    (n) => !n.actions?.some((a) => a.kind === "switchLlmProfile" && a.payload === active),
+  );
+  return { ...state, llm: { profiles: msg.profiles, switching: msg.switching }, notices };
+}
+
 /** `hookResult` (C10) : ajoute un item « hook » au fil. */
 export function applyHookResult(
   state: AppState,
