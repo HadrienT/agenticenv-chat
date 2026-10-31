@@ -15,7 +15,7 @@ import { escapeHtml } from "./highlight";
  * Ce module est pur : aucun état, aucun effet (test de discipline `render-purity`).
  */
 
-const md = new MarkdownIt({ html: false, linkify: true, breaks: false });
+const md = new MarkdownIt({ html: false, linkify: true, breaks: true });
 
 const ALLOWED_TAGS = [
   "h1", "h2", "h3", "h4", "h5", "h6",

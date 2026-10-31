@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { actionArgv } from "../../src/health";
 
@@ -55,10 +58,20 @@ describe("actionArgv (WP08f)", () => {
     expect(actionArgv("docker", "stop", ctx)).toBeUndefined();
   });
 
+  function withImage(image: string): typeof ctx {
+    const dir = mkdtempSync(join(tmpdir(), "agx-health-"));
+    mkdirSync(join(dir, "configs"));
+    writeFileSync(join(dir, "configs", "openhands.yaml"), `sandbox:\n  image: ${image}\n`);
+    return { ...ctx, agenticEnvPath: dir };
+  }
+
   it("agent-server-image → docker pull <image épinglée>", () => {
-    const argv = actionArgv("agent-server-image", "pull", ctx);
-    expect(argv?.slice(0, 2)).toEqual(["docker", "pull"]);
-    expect(argv?.[2]).toMatch(/agent-server/);
+    const image = "ghcr.io/openhands/agent-server:1.21.0-python@sha256:abc";
+    expect(actionArgv("agent-server-image", "pull", withImage(image))).toEqual(["docker", "pull", image]);
+  });
+
+  it("une image construite localement ne se télécharge pas", () => {
+    expect(actionArgv("agent-server-image", "pull", withImage("agenticenv/agent:latest"))).toBeUndefined();
   });
 
   it("aucun argv ne contient d'opérateur shell", () => {

@@ -20,6 +20,8 @@ v1 bridge (listed in `src/protocol.ts` → `CLIENT_AHEAD_OF_BRIDGE`).
 - The GPU only reports contention when another process holds 2 GiB of VRAM or more.
 
 ### Fixed
+- Answers no longer show a blank line between every paragraph and list item.
+- The Components panel no longer offers `docker pull` for the locally built agent image.
 - Clicking a starter prompt sends it; it used to fill the composer and nothing else.
 - The session screen no longer stays disabled at startup. Messages sent before the
   webview listened, the connection state among them, were lost; they now wait for it.

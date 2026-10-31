@@ -48,6 +48,11 @@ function agentServerImage(agenticEnvPath: string): string {
   }
 }
 
+/** Construite ici (`just build-agent-image`), elle n'existe sur aucun registre. */
+function isLocalImage(image: string): boolean {
+  return image.startsWith("agenticenv/");
+}
+
 export interface HealthContext {
   bridgeUrl: string;
   agenticEnvPath: string;
@@ -94,7 +99,9 @@ export function actionArgv(
     case "docker":
       return action === "start" ? ["sudo", "-n", "systemctl", "start", "docker.service"] : undefined;
     case "agent-server-image":
-      return action === "pull" ? ["docker", "pull", agentServerImage(dir)] : undefined;
+      return action === "pull" && !isLocalImage(agentServerImage(dir))
+        ? ["docker", "pull", agentServerImage(dir)]
+        : undefined;
     default:
       return undefined;
   }
@@ -149,8 +156,10 @@ export async function checkHealth(ctx: HealthContext): Promise<ComponentHealth[]
         ? "Docker down"
         : imageInspect.code === 0
           ? image.split("/").pop() ?? image
-          : `${image} not pulled`,
-      actions: dockerUp && imageInspect.code !== 0 ? ["pull"] : [],
+          : isLocalImage(image)
+            ? `${image} not built — run: just build-agent-image`
+            : `${image} not pulled`,
+      actions: dockerUp && imageInspect.code !== 0 && !isLocalImage(image) ? ["pull"] : [],
     },
     gpu,
   ];

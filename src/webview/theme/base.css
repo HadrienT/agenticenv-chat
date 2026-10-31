@@ -924,8 +924,11 @@ button {
 /* --- markdown (prose) --------------------------------- */
 
 .agx-md {
+  /* Sans ça, le `pre-wrap` hérité du message montre les retours à la ligne que
+     markdown-it place entre les blocs : une ligne vide entre chaque élément. */
+  white-space: normal;
   overflow-wrap: anywhere;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 .agx-md > *:first-child {
   margin-top: 0;
@@ -937,7 +940,7 @@ button {
 .agx-md h2,
 .agx-md h3,
 .agx-md h4 {
-  margin: 12px 0 6px;
+  margin: 10px 0 4px;
   line-height: 1.3;
 }
 .agx-md h1 {
@@ -950,15 +953,18 @@ button {
   font-size: 1.08em;
 }
 .agx-md p {
-  margin: 6px 0;
+  margin: 4px 0;
 }
 .agx-md ul,
 .agx-md ol {
-  margin: 6px 0;
+  margin: 4px 0;
   padding-left: 20px;
 }
 .agx-md li {
-  margin: 2px 0;
+  margin: 1px 0;
+}
+.agx-md li > p {
+  margin: 0;
 }
 .agx-md a {
   color: var(--agx-link);
