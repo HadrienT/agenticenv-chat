@@ -560,25 +560,6 @@ button {
   font-size: 11px;
   flex-wrap: wrap;
 }
-.agx-modelpick__label {
-  color: var(--agx-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.agx-modelpick__select {
-  background: var(--agx-input-bg);
-  color: var(--agx-input-fg);
-  border: 1px solid var(--agx-input-border);
-  border-radius: 3px;
-  font-size: 11px;
-  padding: 1px 4px;
-}
-.agx-modelpick__note {
-  color: var(--agx-muted);
-}
-.agx-modelpick__err {
-  color: var(--agx-error);
-}
 
 /* --- composer ------------------------------------------------ */
 
@@ -623,10 +604,6 @@ button {
 
 @media (max-width: 280px) {
   .agx-chipbar,
-  .agx-modelpick {
-    flex-direction: column;
-    align-items: stretch;
-  }
   .agx-composer__foot {
     gap: 4px;
   }

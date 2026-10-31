@@ -15,7 +15,6 @@ import { Composer } from "./composer/Composer";
 import { StarterPrompts } from "./composer/StarterPrompts";
 import { ConfirmCard } from "./ConfirmCard";
 import { ContextGauge } from "./ContextGauge";
-import { ModelPicker } from "./ModelPicker";
 import { PhaseAnnouncer } from "./PhaseAnnouncer";
 import { PlanApproval } from "./PlanApproval";
 import { Thread } from "./Thread";
@@ -116,11 +115,6 @@ export function ChatScreen(props: {
           }}
         />
       )}
-      <ModelPicker
-        models={state.models}
-        disabled={turnActive}
-        onSelect={actions.setModel}
-      />
       <Composer
         draft={state.composer.draft}
         chips={effectiveAttachments(state)}

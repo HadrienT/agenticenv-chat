@@ -1152,16 +1152,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case "setSessionMode":
         this.setSessionMode(msg.mode);
         break;
-      case "setModel":
-        if (this.currentTurnId) {
-          this.postToWebview({
-            type: "hostError",
-            text: "Can't switch model while a turn is running — stop it first.",
-          });
-        } else {
-          this.sendOrNotify({ type: "set_model", model_id: msg.modelId }, "switch the model");
-        }
-        break;
       case "continueTurn":
         // C09 §5 : continuation après cap d'itérations — ne reformule jamais la
         // demande initiale.

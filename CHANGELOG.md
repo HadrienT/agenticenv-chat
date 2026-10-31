@@ -10,6 +10,8 @@ v1 bridge (listed in `src/protocol.ts` → `CLIENT_AHEAD_OF_BRIDGE`).
 ## [Unreleased]
 
 ### Changed
+- The chat no longer has its own model selector: the profile selector in Components
+  does the same, with the checks for a running session.
 - The chat opens in the secondary side bar (right), next to Claude Code and Copilot.
   Requires VS Code 1.134 or later.
 - A session's start shows its real steps, a progress bar and the elapsed time.

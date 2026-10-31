@@ -248,7 +248,6 @@ export type WebviewToHost =
   | { type: "reconnect" }
   | { type: "interrupt"; text: string }
   | { type: "setSessionMode"; mode: SessionMode }
-  | { type: "setModel"; modelId: string }
   | { type: "continueTurn"; guidance?: string }
   | { type: "forceNewSession" }
   | { type: "confirm"; accept: boolean; actionId?: string; remember?: "session" | "workspace"; editedCommand?: string }
@@ -296,7 +295,6 @@ export const WEBVIEW_TO_HOST_TYPES = [
   "reconnect",
   "interrupt",
   "setSessionMode",
-  "setModel",
   "continueTurn",
   "forceNewSession",
   "confirm",

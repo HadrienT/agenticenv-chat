@@ -34,7 +34,6 @@ export interface Actions {
   resolveMaxIterations(itemId: string): void;
   continueTurn(itemId: string, guidance?: string): void;
   setSessionMode(mode: SessionMode): void;
-  setModel(modelId: string): void;
   forceNewSession(): void;
   confirm(opts: {
     accept: boolean;
@@ -119,7 +118,6 @@ export function createActions(dispatch: (action: Action) => void, now: () => num
       post({ type: "setSessionMode", mode });
       send({ type: "session/setMode", mode });
     },
-    setModel: (modelId) => post({ type: "setModel", modelId }),
     forceNewSession: () => post({ type: "forceNewSession" }),
     confirm: (opts) => {
       post({ type: "confirm", ...opts });
