@@ -110,6 +110,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private lastBridgeChanges: GitChangeDTO[] = [];
   /** WP08d : mode confirmé par le bridge dans `session_started` (`read_only` ⇒ pas d'`apply`). */
   private sandboxMode: "agent" | "read_only" = "agent";
+  /** WP12 : profils annoncés par le bridge dans `mcp_servers`. */
+  private profiles: string[] = [];
   /** Capture du texte final d'un tour lancé par un point d'accroche éditeur (C11 §3/§4). */
   private capture: { buf: string; resolve: (text: string | null) => void } | undefined;
   private readonly statusBar = new StatusBar();
@@ -403,6 +405,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         return;
 
       case "mcp_servers":
+        this.profiles = message.profiles ?? [];
         this.postToWebview({
           type: "mcpServers",
           servers: message.servers.map((s) => ({
@@ -446,6 +449,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         void this.context.workspaceState.update(K_CONVERSATION, this.conversationId);
         this.sendPermissionMode();
         this.postToWebview({ type: "bridge", message });
+        if (message.mcp_unavailable?.length) {
+          this.postToWebview({
+            type: "hostError",
+            text: `Not available to the agent this session: ${message.mcp_unavailable.join(", ")}. Check the Components panel.`,
+          });
+        }
         if (message.copy_warnings?.length) {
           this.postToWebview({
             type: "hostError",
@@ -1088,6 +1097,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
               type: "start_session",
               mcp_servers: mcp ?? msg.mcpServers,
               project_path: projectPath,
+              // Un mode qui porte le nom d'un profil (Plan) le choisit ; sinon le défaut.
+              profile: msg.mode && this.profiles.includes(msg.mode) ? msg.mode : undefined,
               // WP08d : `read_only` (modes Ask / Plan) interdit `apply_changes`
               // côté bridge. L'agent peut quand même expérimenter dans la copie.
               mode: this.sessionMode === "agent" ? "agent" : "read_only",

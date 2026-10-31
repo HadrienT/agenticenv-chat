@@ -45,12 +45,12 @@ export function McpPicker(props: {
       )}
       <div className="agx-picker__hint">
         {props.workspaceFolder
-          ? `The agent will work in your open folder "${props.workspaceFolder}" (bind-mounted into the sandbox). It can read and modify files there.`
+          ? `The agent works on a sandbox copy of "${props.workspaceFolder}". Its edits are written to your folder at the end of each turn; Undo turn reverts them. Secret files are hidden from it.`
           : "No folder open in VS Code — the agent will run in an empty sandbox workspace (nothing to edit). Open a folder for a useful session."}
       </div>
       <div className="agx-picker__hint">
-        Select the MCP servers this session may use, then start. (Phase 1: the list is shown but MCP
-        access inside the sandbox is not wired yet — see WP08b §7.)
+        Select the MCP servers this session may use, then start. Selecting none gives the agent
+        all of them.
       </div>
       {props.servers.length === 0 && (
         <div className="agx-picker__hint">No MCP servers configured.</div>

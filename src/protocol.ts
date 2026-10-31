@@ -28,6 +28,8 @@ export interface Hello {
 export interface StartSession {
   type: "start_session";
   mcp_servers: string[];
+  /** WP12 : un profil de `mcp_servers.profiles` ; absent → le profil par défaut. */
+  profile?: string;
   /**
    * Host path bind-mounted **read-only** into the sandbox at `/workspace/source`
    * (WP08d) ; l'agent travaille sur une copie jetable. L'hôte le renseigne.
@@ -174,6 +176,10 @@ export interface SessionStarted extends Seq {
   mode?: "agent" | "read_only";
   /** WP11 : fichiers du projet que la copie sandbox n'a pas pu prendre. */
   copy_warnings?: string[];
+  /** WP12 : profil appliqué, serveurs MCP obtenus et ceux restés injoignables. */
+  profile?: string | null;
+  mcp_servers?: string[];
+  mcp_unavailable?: string[];
 }
 
 /** One openhands.sdk Event, already serialized (model_dump(mode="json")). */
@@ -350,6 +356,8 @@ export interface McpServerEntry {
 export interface McpServers extends Seq {
   type: "mcp_servers";
   servers: McpServerEntry[];
+  /** WP12 : profils d'agent disponibles (`agents/profiles/*.yaml`). */
+  profiles?: string[];
 }
 
 export interface ModelEntry {
@@ -458,19 +466,12 @@ export const CLIENT_AHEAD_OF_BRIDGE = [
   // checkpoints/apply) : hello, welcome, turn_started, turn_finished,
   // cancel_turn, tool_status, progress, context_stats, request_diff, file_diff,
   // request_bundle_diff, bundle_diff, checkpoint, restore_checkpoint,
-  // checkpoint_restored, apply_changes, changes_applied.
+  // checkpoint_restored, apply_changes, changes_applied, compact,
+  // history_compacted, interrupt, todo, list_models, set_model, models, event_delta.
   // Restent « client en avance » (capabilities non annoncées) :
   "resume",
   "resumed",
-  "compact",
-  "interrupt",
-  "event_delta",
   "pending_action",
-  "history_compacted",
-  "todo",
-  "list_models",
-  "set_model",
-  "models",
 ] as const;
 
 /** Capabilities v2 qu'un bridge peut annoncer dans `welcome`. */
