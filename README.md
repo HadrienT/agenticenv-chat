@@ -4,6 +4,8 @@ A VS Code chat panel for a local coding agent: a self-hosted alternative to the
 GitHub Copilot and Claude Code panels, backed by `llama-server` and an OpenHands
 agent running in a disposable Docker sandbox.
 
+**[How it works: interactive map](https://hadrient.github.io/atlas-pages/agenticenv-chat/)**
+
 [![CI](https://github.com/HadrienT/agenticenv-chat/actions/workflows/ci.yml/badge.svg)](https://github.com/HadrienT/agenticenv-chat/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![VS Code](https://img.shields.io/badge/VS%20Code-1.134%2B-007ACC)
